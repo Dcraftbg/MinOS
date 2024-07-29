@@ -1,0 +1,3 @@
+[submodule "kernel/vendor/limine"]
+	path = kernel/vendor/limine
+	url = https://github.com/limine-bootloader/limine.git

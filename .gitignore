@@ -1,0 +1,12 @@
+.clangd
+bin/
+gcc/
+backup.py
+bootstrap
+build
+*.exe
+*.old
+*.ini
+config.h
+*.txt
+*.log
