@@ -1,5 +1,4 @@
 #include "../../config.h"
-#include <limine.h>
 #include <stdint.h>
 #include <stddef.h>
 #include <stdbool.h>

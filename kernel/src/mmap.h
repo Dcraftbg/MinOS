@@ -6,7 +6,6 @@
 #include "print.h"
 #include "utils.h"
 #include "assert.h"
-#include <limine.h>
 typedef struct {
     uint8_t* addr;
     size_t page_count;
