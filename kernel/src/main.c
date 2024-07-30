@@ -24,6 +24,7 @@
 #include "syscall.h"
 #include "./devices/serial/serial.h"
 #include "vga.h"
+#include "devices.h"
 
 static void fbt() {
     Framebuffer buf = get_framebuffer_by_id(0);
@@ -96,7 +97,7 @@ static void init_rootfs() {
 }
 
 
-void dev_test() {
+static void dev_test() {
     const char* path = "/devices/vga0";
     const char* msg = "This is a test message to test if devices work :D\nHello!";
     intptr_t e = 0;
@@ -130,8 +131,7 @@ void _start() {
     init_cache_cache();
     init_vfs();
     init_rootfs();
-    serialDevice.init();
-    vfs_register_device("serial0", &serialDevice);
+    init_devices();
 
     init_tasks();
     init_kernel_task();
