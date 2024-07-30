@@ -24,27 +24,13 @@
 #include "pit.h"
 #include "syscall.h"
 #include "./devices/serial/serial.h"
-#include "./devices/vga/vga.h"
 #include "vga.h"
 
-volatile struct limine_framebuffer_request limine_framebuffer_request = {
-    .id = LIMINE_FRAMEBUFFER_REQUEST,
-    .revision = 0,
-};
 static void fbt() {
     Framebuffer buf = get_framebuffer_by_id(0);
     if(!buf.addr) return;
     if(buf.bpp != 32) return;
     fmbuf_fill(&buf, 0xFF212121);
-    // fmbuf_draw_rect(&buf, 2, 2, buf.width/2, buf.height/2, 0xFF00FF00);
-    // assert(limine_framebuffer_request.response && "No framebuffer :(");
-    // assert(limine_framebuffer_request.response->framebuffer_count == 1 && limine_framebuffer_request.response->framebuffers[0] -> bpp == 32 && "Unsupported framebuffer format");
-    // struct limine_framebuffer* fb = limine_framebuffer_request.response->framebuffers[0];
-    // for(size_t y = 0; y < fb->height; ++y) {
-    //     for(size_t x = 0; x < fb->width; ++x) {
-    //         *((uint32_t*)((uint8_t*)fb->address + y*fb->pitch)+x) = 0xFF00FF00;//0xFF212121;
-    //     }
-    // }
 }
 
 #include "../embed.h"
