@@ -1,6 +1,6 @@
 // Much love to lordmilko who provided the pre-built binaries for gcc on Win32 and Linux <3 
 // Also much love to Tsoding (https://github.com/tsoding) for providing this awesome library for making build 'scripts'! 
-//
+// 
 // Philosophy:
 // bootstrap.c is a bootstrapper for the actual build system that is found under
 // ./buildsys/
