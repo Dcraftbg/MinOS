@@ -2,6 +2,8 @@
 %include "asmstd.inc"
 section .text
 extern exception_handler
+extern ps2_keyboard_handler
+
 global idt_exception_division
 global idt_exception_debug
 global idt_exception_breakpoint
@@ -33,13 +35,15 @@ global idt_spurious_interrupt
 global idt_%1
 align 0x08, db 0x00
 idt_%1:
- cli
  irq_push_regs
  call %1
  irq_pop_regs
- sti
  iretq
 %endmacro
+
+register_irq ps2_keyboard_handler
+
+
 
 idt_spurious_interrupt:
   iretq

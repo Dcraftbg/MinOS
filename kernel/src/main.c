@@ -22,10 +22,12 @@
 #include "pic.h"
 #include "pit.h"
 #include "syscall.h"
-#include "./devices/serial/serial.h"
 #include "vga.h"
 #include "devices.h"
-
+#include "keycodes.h"
+#include "key.h"
+// TODO: create a symlink "/devices/keyboard" which will be a link to the currently selected keyboard
+// Like for example PS1 or USB or anything like that
 static void fbt() {
     Framebuffer buf = get_framebuffer_by_id(0);
     if(!buf.addr) return;
@@ -143,8 +145,6 @@ void _start() {
     fbt();
     init_vga();
     // dev_test();
-
-
     intptr_t e = 0;
     const char* epath = NULL;
     epath = "/user/nothing";
@@ -158,6 +158,7 @@ void _start() {
         printf("Failed to exec %s : %s\n",epath,status_str(e));
         kabort();
     }
+    pic_clear_mask(1);
     pic_clear_mask(0);
     for(;;) {
         asm volatile("hlt");

@@ -10,3 +10,5 @@ build
 config.h
 *.txt
 *.log
+keycode.py
+kernel/embed.h

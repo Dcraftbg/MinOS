@@ -11,7 +11,9 @@
 #define PRINTFLIKE(n,m) __attribute__((format(printf,n,m)))
 #endif
 #define BIT(n) (1 << (n-1))
-
+// Source:
+// http://www.graphics.stanford.edu/~seander/bithacks.html#DetermineIfPowerOf2
+#define is_power_of_two(n) (((n) & ((n) - 1)) == 0)
 
 #if defined(__STDC_VERSION__)
 #   if __STDC_VERSION__ >= 202311L

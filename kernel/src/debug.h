@@ -49,30 +49,7 @@ static void cat(const char* path) {
     kernel_dealloc(buf,size+1);
     vfs_close(&file);
 }
-static void hexdump(const char* path) {
-    VfsFile file = {0};
-    intptr_t e = 0;
-    if((e=vfs_open(path, &file, MODE_READ)) < 0) {
-        printf("ERROR: hexdump: Failed to open %s : %ld\n",path,e);
-        return;
-    }
-    if((e=vfs_seek(&file, 0, SEEK_END)) < 0) {
-        printf("ERROR: hexdump: Could not seek to file end : %ld\n",e);
-        vfs_close(&file);
-        return;
-    }
-    size_t size = e;
-    if((e=vfs_seek(&file, 0, SEEK_START) < 0)) {
-        printf("ERROR: hexdump: Could not seek to file start : %ld\n",e);
-        vfs_close(&file);
-        return;
-    }
-    uint8_t* buf = (uint8_t*)kernel_malloc(size);
-    if((e=read_exact(&file, buf, size)) < 0) {
-        printf("ERROR: hexdump: Could not read file contents : %ld\n",e);
-        vfs_close(&file);
-        return;
-    }
+static void hexdump_mem(uint8_t* buf, size_t size) {
     uint8_t* prev = NULL;
     bool rep = false;
     for(size_t i = 0; i < size/16; ++i) {
@@ -131,6 +108,32 @@ static void hexdump(const char* path) {
        printf("|");
        printf("\n");
     }
+}
+static void hexdump(const char* path) {
+    VfsFile file = {0};
+    intptr_t e = 0;
+    if((e=vfs_open(path, &file, MODE_READ)) < 0) {
+        printf("ERROR: hexdump: Failed to open %s : %ld\n",path,e);
+        return;
+    }
+    if((e=vfs_seek(&file, 0, SEEK_END)) < 0) {
+        printf("ERROR: hexdump: Could not seek to file end : %ld\n",e);
+        vfs_close(&file);
+        return;
+    }
+    size_t size = e;
+    if((e=vfs_seek(&file, 0, SEEK_START) < 0)) {
+        printf("ERROR: hexdump: Could not seek to file start : %ld\n",e);
+        vfs_close(&file);
+        return;
+    }
+    uint8_t* buf = (uint8_t*)kernel_malloc(size);
+    if((e=read_exact(&file, buf, size)) < 0) {
+        printf("ERROR: hexdump: Could not read file contents : %ld\n",e);
+        vfs_close(&file);
+        return;
+    }
+    hexdump_mem(buf, size);
     kernel_dealloc(buf,size);
     vfs_close(&file);
 }
