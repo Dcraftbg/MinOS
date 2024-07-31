@@ -497,16 +497,27 @@ bool build_nasm_user_program(const char* name, const char* srcdir, const char* i
     if(!simple_link(obj, nob_temp_sprintf("%s/%s",odir,name), nob_temp_sprintf("%s/link.ld",srcdir))) return false;
     return true;
 }
+bool build_nothing() {
+    #define BINDIR "./bin/user/nothing/"
+    #define SRCDIR "./user/nothing/"
+    if(!nasm(SRCDIR "nothing.nasm", BINDIR "nothing.o")) return false;
+    if(!simple_link(BINDIR "nothing.o"     , BINDIR "nothing"       , SRCDIR "link.ld")) return false;
+    #undef BINDIR
+    #undef SRCDIR
+    return true;
+}
 bool build_syscall_test() {
     #define BINDIR "./bin/user/syscall_test/"
     #define SRCDIR "./user/syscall_test/src/"
     if(!cc         (SRCDIR "main.c"        , BINDIR "syscall_test.o")) return false;
     if(!simple_link(BINDIR "syscall_test.o", BINDIR "syscall_test"  , "./user/syscall_test/link.ld")) return false;
+    #undef BINDIR
+    #undef SRCDIR
     return true;
 }
 bool build_user() {
+    if(!build_nothing()) return false;
     if(!build_syscall_test()) return false;
-    if(!build_nasm_user_program("nothing", "./user/nothing", "./user/nothing/nothing.nasm", "./bin/user/nothing")) return false;
     return true; 
 }
 // TODO Separate these out maybe? Idk
