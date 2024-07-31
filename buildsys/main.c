@@ -472,7 +472,7 @@ bool help(Build* build) {
     }
     return true;
 }
-bool do_link(const char* obj, const char* result, const char* link_script) {
+bool simple_link(const char* obj, const char* result, const char* link_script) {
     nob_log(NOB_INFO, "Linking %s",obj);
     Nob_Cmd cmd = {0};
     nob_cmd_append(&cmd, LD);
@@ -491,20 +491,21 @@ bool do_link(const char* obj, const char* result, const char* link_script) {
 }
 // TODO: Usermode CC
 // TODO: Better mechanism for this
-bool build_user_program(const char* name, const char* srcdir, const char* ipath, const char* odir) {
-    const char* obj = nob_temp_sprintf("%s/%s.o",odir,name); 
-    if(!cc(ipath, obj)) return false;
-    if(!do_link(obj, nob_temp_sprintf("%s/%s",odir,name), nob_temp_sprintf("%s/link.ld",srcdir))) return false;
-    return true;
-}
 bool build_nasm_user_program(const char* name, const char* srcdir, const char* ipath, const char* odir) {
     const char* obj = nob_temp_sprintf("%s/%s.o",odir,name); 
     if(!nasm(ipath, obj)) return false;
-    if(!do_link(obj, nob_temp_sprintf("%s/%s",odir,name), nob_temp_sprintf("%s/link.ld",srcdir))) return false;
+    if(!simple_link(obj, nob_temp_sprintf("%s/%s",odir,name), nob_temp_sprintf("%s/link.ld",srcdir))) return false;
+    return true;
+}
+bool build_syscall_test() {
+    #define BINDIR "./bin/user/syscall_test"
+    #define SRCDIR "./user/syscall_test/src/"
+    if(!cc         (SRCDIR "main.c"        , BINDIR "syscall_test.o")) return false;
+    if(!simple_link(BINDIR "syscall_test.o", BINDIR "syscall_test"  , "./user/syscall_test/link.ld")) return false;
     return true;
 }
 bool build_user() {
-    if(!build_user_program("syscall_test", "./user/syscall_test", "./user/syscall_test/src/main.c", "./bin/user/syscall_test")) return false;
+    if(!build_syscall_test()) return false;
     if(!build_nasm_user_program("nothing", "./user/nothing", "./user/nothing/nothing.nasm", "./bin/user/nothing")) return false;
     return true; 
 }
