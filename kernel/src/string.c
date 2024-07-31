@@ -43,7 +43,7 @@ void *memmove(void* dest, const void* src, size_t n) {
 }
 // TODO: Optimise with rep
 int strcmp(const char *restrict s1, const char *restrict s2) {
-   while(*s1 == *s2) {
+   while(*s1 && *s1 == *s2) {
         s1++;
         s2++;
    }
