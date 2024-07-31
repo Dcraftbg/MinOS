@@ -18,7 +18,8 @@ static const char* status_map[] = {
     "Invalid Magic",
     "No Entry Point",
     "Invalid Type",
-    "Invalid Handle"
+    "Invalid Handle",
+    "Size Missmatch"
 };
 static_assert(STATUS_COUNT==ARRAY_LEN(status_map), "You need to update the status map!");
 const char* status_str(intptr_t status) {

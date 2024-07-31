@@ -90,10 +90,12 @@ intptr_t exec(const char* path) {
         if (pheader->flags & ELF_PROG_WRITE) {
             flags |= KERNEL_PFLAG_WRITE;
         }
+        if(pheader->filesize > pheader->memsize) {
+            return_defer_err(-SIZE_MISMATCH);
+        }
         uintptr_t segment_pages  = (PAGE_ALIGN_UP(pheader->virt_addr + pheader->memsize) - PAGE_ALIGN_DOWN(pheader->virt_addr)) / PAGE_SIZE;
         uintptr_t virt = PAGE_ALIGN_DOWN(pheader->virt_addr);
         uintptr_t virt_off = pheader->virt_addr - virt;
-
         void* memory = kernel_malloc(segment_pages * PAGE_SIZE);
         if(!memory)
            return_defer_err(-NOT_ENOUGH_MEM);
@@ -111,7 +113,6 @@ intptr_t exec(const char* path) {
         if (
           !page_mmap(task->cr3, virt_to_phys(kernel.pml4, (uintptr_t)memory), virt, segment_pages, flags)
         ) {
-           printf("Dis mapping %p (%zu pages)?\n",(void*)virt,segment_pages);
            kernel_dealloc(memory, segment_pages * PAGE_SIZE);
            return_defer_err(-NOT_ENOUGH_MEM);
         }
