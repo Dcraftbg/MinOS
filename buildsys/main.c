@@ -498,7 +498,7 @@ bool build_nasm_user_program(const char* name, const char* srcdir, const char* i
     return true;
 }
 bool build_syscall_test() {
-    #define BINDIR "./bin/user/syscall_test"
+    #define BINDIR "./bin/user/syscall_test/"
     #define SRCDIR "./user/syscall_test/src/"
     if(!cc         (SRCDIR "main.c"        , BINDIR "syscall_test.o")) return false;
     if(!simple_link(BINDIR "syscall_test.o", BINDIR "syscall_test"  , "./user/syscall_test/link.ld")) return false;
