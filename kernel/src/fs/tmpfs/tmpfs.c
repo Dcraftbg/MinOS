@@ -309,7 +309,7 @@ intptr_t tmpfs_read(VfsFile* vfsfile, void* buf, size_t size, off_t offset) {
     size_t ressize = 0; // Count bytes read, in case our block list ends prematurely
     while(block && size) {
         // min(size, sizeof(block->data));
-        size_t read_bytes = size < sizeof(block->data) ? size : sizeof(block->data);
+        size_t read_bytes = size < (sizeof(block->data)-offset) ? size : (sizeof(block->data)-offset);
         memcpy(buf, block->data+offset, read_bytes);
         size-=read_bytes;
         buf = (uint8_t*)buf+read_bytes;
