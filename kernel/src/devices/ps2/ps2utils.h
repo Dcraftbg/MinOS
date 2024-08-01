@@ -5,7 +5,7 @@
 #include "../../utils.h"
 #include "../../vfs.h"
 #include "../../string.h"
-#include "../../key.h"
+#include <key.h>
 #include "../../print.h"
 #include "../../assert.h"
 #include "../../pic.h"

@@ -1,4 +1,4 @@
-#include "sysstd.h"
+#include <sysstd.h>
 #include <stdbool.h>
 #define HALT() \
     for(;;) 
@@ -8,8 +8,7 @@ uintptr_t keyboard = 0;
 #define STB_SPRINTF_NOFLOAT 
 #define STB_SPRINTF_IMPLEMENTATION
 #include "../vendor/stb_sprintf.h"
-#include "../../../kernel/src/utils.h"
-#include "../../../kernel/src/keycodes.h"
+#include <keycodes.h>
 typedef struct {
     uint16_t code    : 12;
     uint8_t  attribs : 4;
@@ -24,7 +23,7 @@ size_t strlen(const char* cstr) {
     while(*head) head++;
     return head-cstr;
 }
-void printf(const char* fmt, ...) PRINTFLIKE(1, 2);
+void printf(const char* fmt, ...) __attribute__((format(printf,1, 2)));
 void printf(const char* fmt, ...) {
    va_list va;
    va_start(va, fmt);
@@ -39,10 +38,6 @@ typedef struct {
 } Keyboard;
 Keyboard kb_state={0};
 static void key_set(Keyboard* kb, uint16_t code, uint8_t released) {
-   if((code+7)/8 >= ARRAY_LEN(kb->state)) {
-        printf("INVALID CODE!\n");
-        return;
-   }
    uint8_t down = released == 0;
    //debug_assert(code < ARRAY_LEN(kb->state));
    kb->state[code/8] &= ~(1 << (code % 8));

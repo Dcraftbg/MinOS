@@ -1,5 +1,4 @@
 #pragma once
-#include "utils.h"
 // TODO: Better usage of the key fields and bits
 enum {
    MINOS_KEY_ENTER=256, // <256 are mostly ASCII keycodes
