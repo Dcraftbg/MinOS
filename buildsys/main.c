@@ -490,13 +490,7 @@ bool simple_link(const char* obj, const char* result, const char* link_script) {
     return true;
 }
 // TODO: Usermode CC
-// TODO: Better mechanism for this
-bool build_nasm_user_program(const char* name, const char* srcdir, const char* ipath, const char* odir) {
-    const char* obj = nob_temp_sprintf("%s/%s.o",odir,name); 
-    if(!nasm(ipath, obj)) return false;
-    if(!simple_link(obj, nob_temp_sprintf("%s/%s",odir,name), nob_temp_sprintf("%s/link.ld",srcdir))) return false;
-    return true;
-}
+
 bool build_nothing() {
     #define BINDIR "./bin/user/nothing/"
     #define SRCDIR "./user/nothing/"
