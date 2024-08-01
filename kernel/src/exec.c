@@ -26,7 +26,7 @@ static intptr_t read_exact(VfsFile* file, void* bytes, size_t amount) {
 // TODO: "User" type in the AVL bits in the page table
 // So memory management is ezpz
 // TODO: FIXME: cleanup cr3 in case of an error
-intptr_t exec(const char* path) {
+intptr_t exec(const char* path, Args args) {
     intptr_t e=0;
     VfsFile file={0};
     bool fopened=false;
@@ -120,18 +120,42 @@ intptr_t exec(const char* path) {
     if (header.entry == 0)
         return_defer_err(-NO_ENTRYPOINT);
 
-    if (!page_alloc(task->cr3, USER_STACK_ADDR  , USER_STACK_PAGES+1, KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_USER))  
-        return_defer_err(-NOT_ENOUGH_MEM);
-
-    if (!page_alloc(task->cr3, KERNEL_STACK_ADDR, KERNEL_STACK_PAGES, KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT)) 
+    size_t stack_pages = USER_STACK_PAGES + 1 + (PAGE_ALIGN_UP(args.bytelen) / PAGE_SIZE);
+    if (!page_alloc(task->cr3, USER_STACK_ADDR  , stack_pages       , KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_USER))  
         return_defer_err(-NOT_ENOUGH_MEM);
     
+    if (!page_alloc(task->cr3, KERNEL_STACK_ADDR, KERNEL_STACK_PAGES, KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT)) 
+        return_defer_err(-NOT_ENOUGH_MEM);
+
+    // TODO: Kind of interesting but what if you swapped the cr3 AFTER YOU JOINED WITH THE KERNEL MEMORY MAP
+    // And then used memcpy, which would be wayyy faster since it doesn't need to manually do page checks;
+    //
+    // TODO: Squish this into a single operation by calculating where argv would be positioned at using bytelen
+    char* stack_head = (char*)USER_STACK_PTR;
+    char* args_head = stack_head;
+
+    for(size_t i = 0; i < args.argc; ++i) {
+        size_t len = strlen(args.argv[i]);
+        stack_head -= len+1; // the stack grows backwards
+        if((e = user_memcpy(task, stack_head, args.argv[i], len+1)) < 0) 
+            return_defer_err(e);
+    }
+    stack_head -= sizeof(args_head) * args.argc; // Reserve space for argv
+    char** argv = (char**)stack_head;
+    for(size_t i = 0; i < args.argc; ++i) {
+        size_t len = strlen(args.argv[i]);
+        args_head -= len+1;
+        if((e = user_memcpy(task, argv+i, &args_head, sizeof(args_head))) < 0)
+            return_defer_err(e);
+    }
+    task->argc = args.argc;
+    task->argv = (const char**)argv;
     IRQFrame* frame = (IRQFrame*)((virt_to_phys(task->cr3, KERNEL_STACK_PTR) | KERNEL_MEMORY_MASK) + sizeof(IRQFrame));
     frame->rip    = header.entry;
     frame->cs     = GDT_USERCODE | 0x3; 
     frame->rflags = 0x202;
     frame->ss     = GDT_USERDATA | 0x3;
-    frame->rsp    = USER_STACK_PTR;
+    frame->rsp    = (uint64_t)stack_head;
     task->ts_rsp = (void*)(KERNEL_STACK_PTR+sizeof(IRQFrame));
     task->rip    = (void*)header.entry;
     task->flags |= TASK_FLAG_PRESENT;

@@ -78,7 +78,6 @@ void task_switch() {
     current = current_task();
     debug_assert(current);
     asm volatile (
-        "xchgw %%bx, %%bx\n"
         "movq %%rsp, %0"
         : "=r" (current->ts_rsp)
     );
@@ -87,7 +86,6 @@ void task_switch() {
         current->flags &= ~TASK_FLAG_RUNNING;
         // printf("SELECT: %p\n",select);
         __asm__ volatile (
-            "xchgw %%bx , %%bx\n"
             "movq %0, %%cr3\n"
             :: "r" ((uintptr_t)select->cr3 & ~KERNEL_MEMORY_MASK)
         );
@@ -105,12 +103,17 @@ void task_switch() {
             select->flags &= ~TASK_FLAG_FIRST_RUN;
             outb(PIC1_CMD, 0x20);
             asm volatile (
+               ""
+               :
+               : "D"(select->argc), "S"(select->argv)
+            );
+            asm volatile (
                "xor %rax, %rax\n"
                "xor %rbx, %rbx\n"
                "xor %rcx, %rcx\n"
                "xor %rdx, %rdx\n"
-               "xor %rsi, %rsi\n"
-               "xor %rdi, %rdi\n"
+               // "xor %rsi, %rsi\n"
+               // "xor %rdi, %rdi\n"
                "xor %rbp, %rbp\n"
                "xor %r8 , %r8 \n"
                "xor %r9 , %r9 \n"

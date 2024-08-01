@@ -148,13 +148,14 @@ void _start() {
     intptr_t e = 0;
     const char* epath = NULL;
     epath = "/user/nothing";
-    if((e = exec(epath)) < 0) {
+    if((e = exec(epath, create_args(1, &epath))) < 0) {
         printf("Failed to exec %s : %s\n",epath,status_str(e));
         kabort();
     }
 
     epath = "/user/syscall_test";
-    if((e = exec(epath)) < 0) {
+    const char* args[] = {epath, "test_arg"};
+    if((e = exec(epath, create_args(ARRAY_LEN(args), args))) < 0) {
         printf("Failed to exec %s : %s\n",epath,status_str(e));
         kabort();
     }

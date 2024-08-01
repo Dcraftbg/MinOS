@@ -113,8 +113,12 @@ int main() {
     }
     return 0;
 }
-void _start() {
+void _start(int argc, const char** argv) {
     if((stdout = open("/devices/vga0", MODE_WRITE)) < 0) HALT();
+    printf("Args dump:\n");
+    for(size_t i = 0; i < argc; ++i) {
+        printf("%zu> ",i+1); printf("%p",argv[i]); printf(" %s\n",argv[i]);
+    }
     if((keyboard = open("/devices/ps2keyboard", MODE_READ)) < 0) {
         printf("Failed to initialise ps2 keyboard!\n");
         HALT();

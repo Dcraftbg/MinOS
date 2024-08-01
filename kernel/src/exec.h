@@ -2,6 +2,7 @@
 #include "task.h"
 #include "status.h"
 #include "vfs.h"
+#include "user.h"
 #include <stdint.h>
 typedef struct {
     uint64_t rip;
@@ -11,4 +12,4 @@ typedef struct {
     uint64_t ss;
 } IRQFrame;
 
-intptr_t exec(const char* path);
+intptr_t exec(const char* path, Args args);
