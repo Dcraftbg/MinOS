@@ -13,14 +13,14 @@ static const char* status_map[] = {
     "Inode Is Directory",
     "Invalid Offset",
     "Bad Device",
-    "Permision Denied",
+    "Permission Denied",
     "Reached EOF prematurely",
     "Invalid Magic",
     "No Entry Point",
     "Invalid Type",
     "Invalid Handle",
     "Size Mismatch",
-    "Would segfault",
+    "Would Segfault",
 };
 static_assert(STATUS_COUNT==ARRAY_LEN(status_map), "You need to update the status map!");
 const char* status_str(intptr_t status) {
