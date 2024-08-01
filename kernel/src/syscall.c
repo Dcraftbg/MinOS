@@ -55,7 +55,3 @@ intptr_t sys_close(uintptr_t handle) {
     resource_remove(current->resources, handle);
     return e;
 }
-void test() {
-    printf("Called syscall from userspace!\n");
-}
-

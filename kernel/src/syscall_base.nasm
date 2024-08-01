@@ -1,6 +1,5 @@
 [BITS 64]
 %include "asmstd.inc"
-extern test
 extern sys_open
 extern sys_write
 extern sys_read
@@ -10,7 +9,6 @@ section .text
 global syscall_base
 section .rodata
 syscall_table:
-   dq test
    dq sys_open
    dq sys_write
    dq sys_read
