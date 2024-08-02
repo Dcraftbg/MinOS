@@ -30,6 +30,7 @@ typedef uint64_t *page_t;
 bool page_mmap(page_t pml4_addr, uintptr_t phys, uintptr_t virt, size_t pages_count, uint16_t flags);
 bool page_alloc(page_t pml4_addr, uintptr_t virt, size_t pages_count, uint16_t flags);
 void page_join(page_t parent, page_t child);
+void page_destruct(page_t pml4, uint16_t type);
 uintptr_t virt_to_phys(page_t pml4_addr, uintptr_t addr);
 
 void init_paging(); // Called to initialse

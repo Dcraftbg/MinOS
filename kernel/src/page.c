@@ -4,6 +4,7 @@
 #include "elf.h"
 #include "string.h"
 #define PAGE_MASK 0xFFFF000000000000
+
 bool page_mmap(page_t pml4_addr, uintptr_t phys, uintptr_t virt, size_t pages_count, uint16_t flags) {
     // printf("Called page_mmap(/*pml4*/ 0x%p, /*phys*/ 0x%p, /*virt*/ 0x%p, /*pages*/ %zu, /*flags*/, %02X)\n",pml4_addr, phys,virt,pages_count,flags);
     virt &= ~PAGE_MASK;          // Clean up the top bits (reasons I won't get into)
@@ -165,6 +166,45 @@ void page_join(page_t parent, page_t child) {
                         pml1_child[pml1] = pml1_parent[pml1];
                    }
               }
+         }
+    }
+}
+void page_destruct(page_t pml4_addr, uint16_t type) {
+    for(size_t pml4 = 0; pml4 < KERNEL_PAGE_ENTRIES; ++pml4) {
+         if(pml4_addr[pml4] == 0) continue;
+         page_t pml3_addr = (page_t)PAGE_ALIGN_DOWN(pml4_addr[pml4] | KERNEL_MEMORY_MASK);
+
+         for(size_t pml3 = 0; pml3 < KERNEL_PAGE_ENTRIES; ++pml3) {
+              if(pml3_addr[pml3] == 0) continue;
+              page_t pml2_addr = (page_t)PAGE_ALIGN_DOWN(pml3_addr[pml3] | KERNEL_MEMORY_MASK);
+
+              for(size_t pml2 = 0; pml2 < KERNEL_PAGE_ENTRIES; ++pml2) {
+                   if(pml2_addr[pml2] == 0) continue;
+                   page_t pml1_addr = (page_t)PAGE_ALIGN_DOWN(pml2_addr[pml2] | KERNEL_MEMORY_MASK);
+
+                   for(size_t pml1 = 0; pml1 < KERNEL_PAGE_ENTRIES; ++pml1) {
+                        if(pml1_addr[pml1] == 0) continue;
+                        if((pml1_addr[pml1] & KENREL_PTYPE_MASK) == type) {
+                            kernel_page_dealloc((page_t)PAGE_ALIGN_DOWN(pml1_addr[pml1]));
+                            pml1_addr[pml1] = 0;
+                        }
+                   }
+
+                   if((pml2_addr[pml2] & KENREL_PTYPE_MASK) == type) {
+                       kernel_page_dealloc((page_t)PAGE_ALIGN_DOWN((uintptr_t)pml2_addr[pml2]));
+                       pml2_addr[pml2] = 0;
+                   }
+              }
+
+              if((pml3_addr[pml3] & KENREL_PTYPE_MASK) == type) {
+                  kernel_page_dealloc((page_t)PAGE_ALIGN_DOWN((uintptr_t)pml3_addr[pml3]));
+                  pml3_addr[pml3] = 0;
+              }
+         }
+
+         if((pml4_addr[pml4] & KENREL_PTYPE_MASK) == type) {
+             kernel_page_dealloc((page_t)PAGE_ALIGN_DOWN((uintptr_t)pml4_addr[pml4]));
+             pml4_addr[pml4] = 0;
          }
     }
 }
