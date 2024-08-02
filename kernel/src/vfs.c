@@ -240,7 +240,7 @@ static const char* path_dir_next(const char* path) {
     }
     return NULL;
 }
-// @PORTED
+
 static intptr_t _vfs_find_within(VfsDir* dir, char* namebuf, size_t namecap, const char* what, size_t whatlen, Inode** result) {
     intptr_t e = 0;
     VfsDirIter iter = {0};
@@ -265,7 +265,7 @@ static intptr_t _vfs_find_within(VfsDir* dir, char* namebuf, size_t namecap, con
     _vfs_diriter_close(&iter);
     return e;
 }
-// @PORTED
+
 intptr_t vfs_find_parent(const char* path, Inode** result) {
     intptr_t e = 0;
     const char* dirbegin = path;
@@ -294,7 +294,7 @@ intptr_t vfs_find_parent(const char* path, Inode** result) {
     return dirbegin-path;
 }
 
-// @PORTED
+
 intptr_t vfs_find(const char* path, Inode** result) {
     Inode* parent = NULL;
     VfsDir parentdir={0};
@@ -318,7 +318,7 @@ intptr_t vfs_find(const char* path, Inode** result) {
     _vfs_dirclose(&parentdir);
     return 0;
 }
-// @PORTED
+
 intptr_t vfs_mkdir(const char* path) {
     Inode* parent=NULL;
     VfsDir parentdir={0};
@@ -355,7 +355,7 @@ intptr_t vfs_mkdir(const char* path) {
     idrop(resDir);
     return -ALREADY_EXISTS;
 }
-// @PORTED
+
 intptr_t vfs_create(const char* path) {
     Inode* parent=NULL;
     VfsDir parentdir={0};
@@ -390,7 +390,7 @@ intptr_t vfs_create(const char* path) {
     idrop(file);
     return -ALREADY_EXISTS;
 }
-// @PORTED
+
 intptr_t vfs_open(const char* path, VfsFile* result, fmode_t mode) {
     Inode* inode = iget(vfs_new_inode());
     intptr_t e = 0;
@@ -405,7 +405,7 @@ intptr_t vfs_open(const char* path, VfsFile* result, fmode_t mode) {
     idrop(inode); // From the inode itself
     return 0;
 }
-// @PORTED
+
 intptr_t vfs_diropen(const char* path, VfsDir* result) {
     Inode* inode = iget(vfs_new_inode());
     intptr_t e = 0;
@@ -420,14 +420,14 @@ intptr_t vfs_diropen(const char* path, VfsDir* result) {
     return 0;
 }
 
-// @PORTED
+
 intptr_t vfs_write(VfsFile* result, const void* buf, size_t size) {
     if(result == NULL) return -INVALID_PARAM;
     intptr_t e = _vfs_write(result, buf, size, result->cursor);
     if(e > 0) result->cursor += e;
     return e;
 }
-// @PORTED
+
 intptr_t vfs_read(VfsFile* result, void* buf, size_t size) {
     if(result == NULL) return -INVALID_PARAM;
     intptr_t e = _vfs_read(result, buf, size, result->cursor);
@@ -435,37 +435,37 @@ intptr_t vfs_read(VfsFile* result, void* buf, size_t size) {
     return e;
 }
 
-// @PORTED
+
 intptr_t vfs_close(VfsFile* result) {
     return _vfs_close(result);
 }
 
-// @PORTED
+
 intptr_t vfs_dirclose(VfsDir* result) {
     return _vfs_dirclose(result);
 }
 
-// @PORTED
+
 intptr_t vfs_diriter_open(VfsDir* dir, VfsDirIter* result) {
     return _vfs_diriter_open(dir, result);
 }
 
-// @PORTED
+
 intptr_t vfs_diriter_next(VfsDirIter* iter, Inode* result) {
     return _vfs_diriter_next(iter, result);
 }
 
 
-// @PORTED
+
 intptr_t vfs_diriter_close(VfsDirIter* result) {
     return _vfs_diriter_close(result);
 }
 
-// @PORTED
+
 intptr_t vfs_identify(Inode* inode, char* namebuf, size_t namecap) {
     return _vfs_identify(inode, namebuf, namecap);
 }
-// @PORTED
+
 intptr_t vfs_seek(VfsFile* file, off_t offset, seekfrom_t from) {
     return _vfs_seek(file, offset, from);
 }
