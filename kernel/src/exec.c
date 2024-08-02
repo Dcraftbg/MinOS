@@ -22,7 +22,6 @@ static intptr_t read_exact(VfsFile* file, void* bytes, size_t amount) {
     }
     return 0;
 }
-// TODO: Fix inconcistencies in the types for rip and rsp; Choose between uintptr_t or void*
 // TODO: "User" type in the AVL bits in the page table
 // So memory management is ezpz
 // TODO: FIXME: cleanup cr3 in case of an error
