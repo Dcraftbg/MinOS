@@ -85,7 +85,7 @@ intptr_t exec(const char* path, Args args) {
                              pheader->p_type, pheader->flags,pheader->offset, (void*)pheader->virt_addr, (void*)pheader->phys_addr, pheader->filesize, pheader->memsize, pheader->align);
 #endif        
         if (pheader->p_type != ELF_PHREADER_LOAD || pheader->memsize == 0) continue;
-        uint16_t flags = KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_USER;
+        uint16_t flags = KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_USER | KERNEL_PTYPE_USER;
         if (pheader->flags & ELF_PROG_WRITE) {
             flags |= KERNEL_PFLAG_WRITE;
         }
@@ -120,10 +120,11 @@ intptr_t exec(const char* path, Args args) {
         return_defer_err(-NO_ENTRYPOINT);
 
     size_t stack_pages = USER_STACK_PAGES + 1 + (PAGE_ALIGN_UP(args.bytelen) / PAGE_SIZE);
-    if (!page_alloc(task->cr3, USER_STACK_ADDR  , stack_pages       , KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_USER))  
+    if (!page_alloc(task->cr3, USER_STACK_ADDR  , stack_pages       , KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_USER | KERNEL_PTYPE_USER))  
         return_defer_err(-NOT_ENOUGH_MEM);
     
-    if (!page_alloc(task->cr3, KERNEL_STACK_ADDR, KERNEL_STACK_PAGES, KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT)) 
+    // NOTE: If you're wondering why KERNEL_PTYPE_USER is applied here. The USER program OWNS that memory
+    if (!page_alloc(task->cr3, KERNEL_STACK_ADDR, KERNEL_STACK_PAGES, KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | KERNEL_PTYPE_USER)) 
         return_defer_err(-NOT_ENOUGH_MEM);
 
     // TODO: Kind of interesting but what if you swapped the cr3 AFTER YOU JOINED WITH THE KERNEL MEMORY MAP

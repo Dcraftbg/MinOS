@@ -17,9 +17,15 @@
 #define USER_STACK_PTR 0x700000000000
 
 
+#define KERNEL_PTYPE_SHIFT 9
 #define KERNEL_PFLAG_PRESENT 0b1
 #define KERNEL_PFLAG_WRITE   0b10
 #define KERNEL_PFLAG_USER    0b100
+#define KENREL_PTYPE_MASK    0b111000000000
+
+#define KERNEL_PTYPE_KERNEL  (0b0   << KERNEL_PTYPE_SHIFT)
+#define KERNEL_PTYPE_USER    (0b111 << KERNEL_PTYPE_SHIFT)
+
 typedef uint64_t *page_t;
 bool page_mmap(page_t pml4_addr, uintptr_t phys, uintptr_t virt, size_t pages_count, uint16_t flags);
 bool page_alloc(page_t pml4_addr, uintptr_t virt, size_t pages_count, uint16_t flags);
