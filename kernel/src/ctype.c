@@ -1,11 +1,11 @@
 #include "ctype.h"
-// TODO: use bitmap lookup
-static const char* isprint_chars = " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~";
+#include <stdint.h>
+// Bitmap of:
+//  " !\"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\\]^_`abcdefghijklmnopqrstuvwxyz{|}~"
+static uint8_t ISPRINT_CHARS_MAP[16 /*128 bits*/] = {
+   0x00, 0x00, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0xFF,
+   0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0x7F
+};
 int isprint(int c) {
-    const char* head = isprint_chars;
-    while(*head) {
-        if(c==*head) return 1;
-        head++;
-    }
-    return 0;
+    return c < 0 || c/8 >= sizeof(ISPRINT_CHARS_MAP) ? 0 : (ISPRINT_CHARS_MAP[c/8] & 1<<(c%8));
 }

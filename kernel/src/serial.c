@@ -1,5 +1,4 @@
 #include "serial.h"
-// TODO: Think about moving these to serial.h or not.... I dunno if they're used very commonly throughout the code
 #define COM_PORT 0x3f8
 #define COM_5 (COM_PORT+5)
 #define COM_STATUS COM_5
