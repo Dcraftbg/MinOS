@@ -22,7 +22,6 @@ static intptr_t read_exact(VfsFile* file, void* bytes, size_t amount) {
     }
     return 0;
 }
-// TODO: FIXME: cleanup cr3 in case of an error
 intptr_t exec(const char* path, Args args) {
     intptr_t e=0;
     VfsFile file={0};
