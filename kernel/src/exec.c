@@ -36,8 +36,8 @@ intptr_t exec(const char* path, Args args) {
     task = kernel_task_add();
     if(!task) return -LIMITS; // Reached max tasks and/or we're out of memory
     task->cr3 = NULL;
-    task->ts_rsp = NULL;
-    task->rip = NULL;
+    task->ts_rsp = 0;
+    task->rip = 0;
     task->flags |= TASK_FLAG_FIRST_RUN;
 
     if((e=vfs_open(path, &file, MODE_READ)) < 0) {
@@ -157,7 +157,7 @@ intptr_t exec(const char* path, Args args) {
     frame->ss     = GDT_USERDATA | 0x3;
     frame->rsp    = (uint64_t)stack_head;
     task->ts_rsp = (void*)(KERNEL_STACK_PTR+sizeof(IRQFrame));
-    task->rip    = (void*)header.entry;
+    task->rip    = header.entry;
     task->flags |= TASK_FLAG_PRESENT;
     if(!(task->resources = new_resource_block()))
         return_defer_err(-NOT_ENOUGH_MEM);

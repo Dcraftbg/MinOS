@@ -25,15 +25,11 @@ void init_kernel_task() {
     frame->ss     = GDT_KERNELDATA;
     frame->rsp    = KERNEL_STACK_PTR;
     kt->ts_rsp = (void*)(KERNEL_STACK_PTR+sizeof(IRQFrame));
-    kt->rip = NULL;
+    kt->rip = 0;
 }
 
 void init_task_switch() {
     idt_register(0x20, pit_handler, IDT_HARDWARE_TYPE);
-}
-void log_task(void* obj) {
-    Task* task = (Task*)obj;
-    printf(" id = %zu\n",task->id);
 }
 Task* kernel_task_add() {
     Task* task = (Task*)cache_alloc(kernel.task_cache);

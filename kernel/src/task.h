@@ -29,7 +29,7 @@ typedef struct {
     // The rsp of the task switch at which the swap initialially happened
     // By default it starts 0xFFFFFFFFFFFFF000 as defined in the TSS
     void* ts_rsp;
-    void* rip;
+    uintptr_t rip;
 } Task;
 #define TASK_FLAG_PRESENT   0b1
 #define TASK_FLAG_RUNNING   0b10
