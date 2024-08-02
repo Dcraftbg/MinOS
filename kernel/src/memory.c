@@ -6,7 +6,7 @@ page_t kernel_page_alloc() {
    return (page_t)(((uintptr_t)addr) & (~KERNEL_MEMORY_MASK));
 }
 void kernel_page_dealloc(page_t page) {
-   memmap_dealloc(&kernel.map, (void*)(((uintptr_t)page) | (KERNEL_MEMORY_MASK)), 1);
+   memmap_dealloc(&kernel.map, (void*)page, 1);
 }
 
 void* kernel_malloc(size_t size) {

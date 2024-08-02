@@ -161,10 +161,11 @@ intptr_t exec(const char* path, Args args) {
         return_defer_err(-NOT_ENOUGH_MEM);
     page_join(kernel.pml4, task->cr3);
     vfs_close(&file);
+    fopened = false;
     return 0;
 DEFER_ERR:
     if(pheaders) kernel_dealloc(pheaders, prog_header_size);
-    // if(task->cr3) page_destruct(task->cr3)
+    if(task->cr3) page_destruct(task->cr3, KERNEL_PTYPE_USER);
     if(fopened) vfs_close(&file);
     if(task->resources) delete_resource_block(task->resources);
     if(task) drop_task(task);
