@@ -49,18 +49,20 @@ static intptr_t new_vga_private(void** private, size_t id) {
     }
     return 0;
 }
-// TODO: Framebuffer optimisations
 static intptr_t vga_draw_codepoint_at(Framebuffer* fm, size_t x, size_t y, int codepoint, uint32_t color) {
     if(codepoint > 127) return -UNSUPPORTED; // Unsupported
+    if(fm->bpp != 32) return -UNSUPPORTED; // Because of optimisations we don't support anything besides 32 bits per pixel
     uint8_t* fontPtr = fontGlythBuffer + (codepoint*fontHeader.charsize);
     debug_assert(fontPtr + 16 < fontGlythBuffer+ARRAY_LEN(fontGlythBuffer));
+    uint32_t* strip = (uint32_t*)(((uint8_t*)fm->addr) + fm->pitch_bytes*y);
     for(size_t cy = y; cy < y+16 && cy < fm->height; ++cy) {
         for(size_t cx = x; cx < x+8 && cx < fm->width; ++cx) {
             if((*fontPtr & (0b10000000 >> (cx-x))) > 0) {
-                fmbuf_set_at(fm, cx, cy, color);
+                strip[cx] = color;
             }
         }
         fontPtr++;
+        strip = (uint32_t*)((uint8_t*)strip + fm->pitch_bytes);
     }
     return 0;
 }
