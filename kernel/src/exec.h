@@ -1,6 +1,6 @@
 #pragma once
 #include "task.h"
-#include <status.h>
+#include <minos/status.h>
 #include "vfs.h"
 #include "user.h"
 #include <stdint.h>

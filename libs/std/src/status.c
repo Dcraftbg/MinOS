@@ -1,5 +1,6 @@
-#include "status.h"
-#include "utils.h"
+#include <minos/status.h>
+ // TODO: Move utils to minos/utils.h
+#include <utils.h>
 static const char* status_map[] = {
     "OK",
     "Not enough memory",

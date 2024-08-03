@@ -1,4 +1,4 @@
-#include <sysstd.h>
+#include <minos/sysstd.h>
 #include <stdbool.h>
 #define HALT() \
     for(;;) 
@@ -8,7 +8,7 @@ uintptr_t keyboard = 0;
 #define STB_SPRINTF_NOFLOAT 
 #define STB_SPRINTF_IMPLEMENTATION
 #include "../vendor/stb_sprintf.h"
-#include <keycodes.h>
+#include <minos/keycodes.h>
 typedef struct {
     uint16_t code    : 12;
     uint8_t  attribs : 4;

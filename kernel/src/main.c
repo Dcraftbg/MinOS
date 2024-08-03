@@ -24,8 +24,8 @@
 #include "syscall.h"
 #include "vga.h"
 #include "devices.h"
-#include <keycodes.h>
-#include <key.h>
+#include <minos/keycodes.h>
+#include <minos/key.h>
 // TODO: create a symlink "/devices/keyboard" which will be a link to the currently selected keyboard
 // Like for example PS1 or USB or anything like that
 static void fbt() {
