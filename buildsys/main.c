@@ -452,7 +452,7 @@ bool gdb(Build* build);
 bool disasm(Build* build);
 
 Cmd commands[] = {
-   { .name = "help"       , .run=build      , .desc="Help command that explains either what a specific subcommand does or lists all subcommands" },
+   { .name = "help"       , .run=help       , .desc="Help command that explains either what a specific subcommand does or lists all subcommands" },
    { .name = "build"      , .run=build      , .desc="Build the kernel and make iso" },
    { .name = "run"        , .run=run        , .desc="Run iso using qemu" },
    { .name = "bruh"       , .run=bruh       , .desc="Build+Run iso using qemu" },
