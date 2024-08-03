@@ -60,6 +60,7 @@ bool nob_mkdir_if_not_exists_silent(const char *path) {
 bool make_build_dirs() {
     if(!nob_mkdir_if_not_exists_silent("./bin"             )) return false;
     if(!nob_mkdir_if_not_exists_silent("./bin/kernel"      )) return false;
+    if(!nob_mkdir_if_not_exists_silent("./bin/std"         )) return false;
     if(!nob_mkdir_if_not_exists_silent("./bin/iso"         )) return false;
     if(!nob_mkdir_if_not_exists_silent("./bin/user"        )) return false;
     if(!nob_mkdir_if_not_exists_silent("./bin/user/nothing")) return false;
@@ -235,9 +236,7 @@ bool nasm(const char* ipath, const char* opath) {
     nob_cmd_free(cmd);
     return true;
 }
-#define SRC_DIR "./kernel/src"
-#define BUILD_DIR "./bin/kernel"
-bool build_kernel_dir(const char* rootdir, const char* srcdir, bool forced) {
+bool _build_kernel_dir(const char* rootdir, const char* build_dir, const char* srcdir, bool forced) {
    bool result = true;
    Nob_String_Builder opath = {0};
    DIR *dir = opendir(srcdir);
@@ -255,7 +254,7 @@ bool build_kernel_dir(const char* rootdir, const char* srcdir, bool forced) {
         if(type == NOB_FILE_REGULAR) {
            if(strcmp(fext, "c")==0) {
                opath.count = 0;
-               nob_sb_append_cstr(&opath, BUILD_DIR);
+               nob_sb_append_cstr(&opath, build_dir);
                nob_sb_append_cstr(&opath, "/");
                const char* file = strip_prefix(path, rootdir)+1;
                Nob_String_View sv = nob_sv_from_cstr(file);
@@ -268,7 +267,7 @@ bool build_kernel_dir(const char* rootdir, const char* srcdir, bool forced) {
                }
            } else if(strcmp(fext, "nasm") == 0) {
                opath.count = 0;
-               nob_sb_append_cstr(&opath, BUILD_DIR);
+               nob_sb_append_cstr(&opath, build_dir);
                nob_sb_append_cstr(&opath, "/");
                const char* file = strip_prefix(path, rootdir)+1;
                Nob_String_View sv = nob_sv_from_cstr(file);
@@ -284,7 +283,7 @@ bool build_kernel_dir(const char* rootdir, const char* srcdir, bool forced) {
         if (type == NOB_FILE_DIRECTORY && strcmp(ent->d_name, ".") != 0 && strcmp(ent->d_name, "..") != 0) {
          
            opath.count = 0;
-           nob_sb_append_cstr(&opath, BUILD_DIR);
+           nob_sb_append_cstr(&opath, build_dir);
            nob_sb_append_cstr(&opath, "/");
            nob_sb_append_cstr(&opath, strip_prefix(path, rootdir)+1);
            nob_sb_append_null(&opath);
@@ -292,7 +291,7 @@ bool build_kernel_dir(const char* rootdir, const char* srcdir, bool forced) {
            opath.count = 0;
            nob_sb_append_cstr(&opath, path);
            nob_sb_append_null(&opath);
-           if(!build_kernel_dir(rootdir, opath.items, forced)) nob_return_defer(false);
+           if(!_build_kernel_dir(rootdir, build_dir, opath.items, forced)) nob_return_defer(false);
         }
         ent = readdir(dir);
    }
@@ -301,9 +300,13 @@ defer:
    if (opath.items) nob_sb_free(opath);
    return result;
 }
+
+static bool build_kernel_dir(const char* rootdir, const char* build_dir, bool forced) {
+   return _build_kernel_dir(rootdir, build_dir, rootdir, forced);
+}
 bool build_kernel(bool forced) {
-    if(!build_kernel_dir(SRC_DIR, SRC_DIR, forced)) return false;
-    if(!build_kernel_dir("./libs/std", "./libs/std", forced)) return false;
+    if(!build_kernel_dir("./kernel/src"  , "./bin/kernel", forced)) return false;
+    if(!build_kernel_dir("./libs/std/src", "./bin/std"   , forced)) return false;
     nob_log(NOB_INFO, "Built kernel successfully");
     return true;
 }
@@ -385,7 +388,12 @@ bool link_kernel() {
     nob_cmd_append(&cmd, LDFLAGS);
 #endif
     nob_cmd_append(&cmd, "-T", "./linker/link.ld", "-o", "./bin/iso/kernel");
-    if(!find_objs(BUILD_DIR,&paths)) {
+    if(!find_objs("./bin/kernel",&paths)) {
+        nob_cmd_free(cmd);
+        return false;
+    }
+
+    if(!find_objs("./bin/std",&paths)) {
         nob_cmd_free(cmd);
         return false;
     }
