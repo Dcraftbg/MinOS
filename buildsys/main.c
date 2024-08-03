@@ -18,7 +18,7 @@
 #include "../config.h"
 #include <stdint.h>
 // TODO: Consider moving to ../config.h
-#define CFLAGS "-g", "-nostdlib", "-march=x86-64", "-ffreestanding", "-static", "-Werror", "-Wno-unused-function", "-Wall", "-fomit-frame-pointer", "-fno-builtin", "-fno-stack-protector", "-mno-red-zone", "-mno-mmx", "-mno-sse", "-mno-sse2", "-mno-3dnow", "-fPIC", "-I", "libs/std/include"
+#define CFLAGS "-g", "-nostdlib", "-march=x86-64", "-ffreestanding", "-static", "-Werror", "-Wno-unused-function", "-Wall", "-fomit-frame-pointer", "-fno-builtin", "-fno-stack-protector", "-mno-red-zone", "-mno-mmx", "-mno-sse", "-mno-sse2", "-mno-3dnow", "-fPIC", "-I", "libs/std/include", "-I", "kernel/src"
 
 #define LDFLAGS "-g"
 
@@ -237,7 +237,7 @@ bool nasm(const char* ipath, const char* opath) {
 }
 #define SRC_DIR "./kernel/src"
 #define BUILD_DIR "./bin/kernel"
-bool build_kernel_dir(const char* srcdir, bool forced) {
+bool build_kernel_dir(const char* rootdir, const char* srcdir, bool forced) {
    bool result = true;
    Nob_String_Builder opath = {0};
    DIR *dir = opendir(srcdir);
@@ -257,7 +257,7 @@ bool build_kernel_dir(const char* srcdir, bool forced) {
                opath.count = 0;
                nob_sb_append_cstr(&opath, BUILD_DIR);
                nob_sb_append_cstr(&opath, "/");
-               const char* file = strip_prefix(path, SRC_DIR)+1;
+               const char* file = strip_prefix(path, rootdir)+1;
                Nob_String_View sv = nob_sv_from_cstr(file);
                sv.count-=2; // Remove .c
                nob_sb_append_buf(&opath,sv.data,sv.count);
@@ -270,7 +270,7 @@ bool build_kernel_dir(const char* srcdir, bool forced) {
                opath.count = 0;
                nob_sb_append_cstr(&opath, BUILD_DIR);
                nob_sb_append_cstr(&opath, "/");
-               const char* file = strip_prefix(path, SRC_DIR)+1;
+               const char* file = strip_prefix(path, rootdir)+1;
                Nob_String_View sv = nob_sv_from_cstr(file);
                sv.count-=5; // Remove .nasm
                nob_sb_append_buf(&opath,sv.data,sv.count);
@@ -286,13 +286,13 @@ bool build_kernel_dir(const char* srcdir, bool forced) {
            opath.count = 0;
            nob_sb_append_cstr(&opath, BUILD_DIR);
            nob_sb_append_cstr(&opath, "/");
-           nob_sb_append_cstr(&opath, strip_prefix(path, SRC_DIR)+1);
+           nob_sb_append_cstr(&opath, strip_prefix(path, rootdir)+1);
            nob_sb_append_null(&opath);
            if(!nob_mkdir_if_not_exists_silent(opath.items)) nob_return_defer(false);
            opath.count = 0;
            nob_sb_append_cstr(&opath, path);
            nob_sb_append_null(&opath);
-           if(!build_kernel_dir(opath.items, forced)) nob_return_defer(false);
+           if(!build_kernel_dir(rootdir, opath.items, forced)) nob_return_defer(false);
         }
         ent = readdir(dir);
    }
@@ -302,7 +302,8 @@ defer:
    return result;
 }
 bool build_kernel(bool forced) {
-    if(!build_kernel_dir(SRC_DIR, forced)) return false;
+    if(!build_kernel_dir(SRC_DIR, SRC_DIR, forced)) return false;
+    if(!build_kernel_dir("./libs/std", "./libs/std", forced)) return false;
     nob_log(NOB_INFO, "Built kernel successfully");
     return true;
 }
