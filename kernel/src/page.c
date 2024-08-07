@@ -213,14 +213,18 @@ uintptr_t virt_to_phys(page_t pml4_addr, uintptr_t addr) {
     uint16_t pml2 = (addr >> (12+9 )) & 0x1ff;
     uint16_t pml3 = (addr >> (12+18)) & 0x1ff;
     uint16_t pml4 = (addr >> (12+27)) & 0x1ff;
-    page_t pml3_addr = (page_t)PAGE_ALIGN_DOWN(pml4_addr[pml4] | KERNEL_MEMORY_MASK);
+    page_t pml3_addr = (page_t)PAGE_ALIGN_DOWN(pml4_addr[pml4]);
     if(!pml3_addr) return 0;
+    pml3_addr = (page_t)((uintptr_t)pml3_addr | KERNEL_MEMORY_MASK);
 
-    page_t pml2_addr = (page_t)PAGE_ALIGN_DOWN(pml3_addr[pml3] | KERNEL_MEMORY_MASK);
+    page_t pml2_addr = (page_t)PAGE_ALIGN_DOWN(pml3_addr[pml3]);
     if(!pml2_addr) return 0;
+    pml2_addr = (page_t)((uintptr_t)pml2_addr | KERNEL_MEMORY_MASK);
 
-    page_t pml1_addr = (page_t)PAGE_ALIGN_DOWN(pml2_addr[pml2] | KERNEL_MEMORY_MASK);
+    page_t pml1_addr = (page_t)PAGE_ALIGN_DOWN(pml2_addr[pml2]);
     if(!pml1_addr) return 0;
+
+    pml1_addr = (page_t)((uintptr_t)pml1_addr | KERNEL_MEMORY_MASK);
 
     return PAGE_ALIGN_DOWN(pml1_addr[pml1]);
 }
