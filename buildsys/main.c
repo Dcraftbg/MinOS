@@ -436,7 +436,18 @@ typedef struct {
     char* exe;
     int argc;
     char** argv;
+    // Building
+    bool forced;
+    // Qemu
+    bool gdb;
+    bool cpumax;
 } Build;
+void eat_arg(Build* b, size_t arg) {
+    assert(b->argc);
+    assert(arg < b->argc);
+    size_t total = b->argc--;
+    memmove(b->argv+arg, b->argv+arg+1, total-arg-1);
+}
 typedef struct {
    const char* name;
    bool (*run)(Build*);
@@ -528,12 +539,7 @@ bool build(Build* build) {
     if(!make_build_dirs()) return false;
     if(!build_user()) return false;
     if(!embed_fs()) return false;
-    bool forced = false;
-    if(build->argc > 0 && strcmp(build->argv[0], "-f")==0) {
-        forced = true;
-        shift_args(&build->argc, &build->argv);
-    }
-    if(!build_kernel(forced)) return false;
+    if(!build_kernel(build->forced)) return false;
     if(!link_kernel()) return false;
     if(!make_limine()) return false;
     if(!make_iso()) return false;
@@ -549,18 +555,23 @@ bool run(Build* build) {
         // "--no-reboot",
         // "--no-shutdown",
         // "-d", "int",
-        "-cpu", "max",
         "-smp", "2",
         "-m", "128",
         "-cdrom", "./bin/OS.iso"
     );
-    if(build->argc && strcmp(build->argv[0], "-gdb")==0) {
+    if(build->cpumax) {
+        nob_cmd_append(
+            &cmd,
+            "-cpu", "max"
+        );
+    }
+    if(build->gdb) {
         nob_cmd_append(
             &cmd,
             "-S", "-s"
         );
-        shift_args(&build->argc, &build->argv);
     }
+
     if (!nob_cmd_run_sync(cmd)) {
         nob_cmd_free(cmd);
         return false;
@@ -633,12 +644,25 @@ int main(int argc, char** argv) {
     build.exe = shift_args(&argc, &argv);
     assert(build.exe && "First argument should be program itself");
     const char* cmd = shift_args(&argc, &argv);
+    const char* arg = NULL;
     build.argc = argc;
     build.argv = argv;
     if(cmd == NULL) {
         nob_log(NOB_ERROR, "Expected subcommand but found nothing!");
         help(&build);
         return 1;
+    }
+    while((arg = shift_args(&build.argc, &build.argv))) {
+        if(strcmp(arg, "-gdb")==0) {
+            build.gdb = true;
+        } else if (strcmp(arg, "--cpu=max") == 0) {
+            build.cpumax = true;
+        } else if (strcmp(arg, "-f") == 0) {
+            build.forced = true;
+        } else {
+            nob_log(NOB_ERROR, "Unknown argument: %s", arg);
+            return 1;
+        }
     }
     for(size_t i = 0; i < NOB_ARRAY_LEN(commands); ++i) {
         if(strcmp(commands[i].name,cmd) == 0) {
