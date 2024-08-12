@@ -157,6 +157,7 @@ intptr_t tmpfs_register_device(VfsDir* dir, Device* device, Inode* result) {
     result->ops = &tmpfs_inodeops;
     result->lba = 0; // TODO: ask device itself
     result->size = 0;
+    result->inodeid = (inodeid_t)inode;
     return 0;
 }
 // Inode Ops
@@ -241,6 +242,7 @@ intptr_t tmpfs_mkdir(VfsDir* parent, Inode* this) {
         if(!inode) return -NOT_ENOUGH_MEM;
         inode->kind = INODE_DIR;
         this->private = inode;
+        this->inodeid = (inodeid_t)inode;
         memset(&inode->data.dir, 0, sizeof(inode->data.dir));
         return 0;
     }
@@ -251,6 +253,7 @@ intptr_t tmpfs_mkdir(VfsDir* parent, Inode* this) {
     memset(&inode->data.dir, 0, sizeof(inode->data.dir));
     inode->kind = INODE_DIR; // A copy, just in case
     this->private = inode;
+    this->inodeid = (inodeid_t)inode;
     return 0;
 }
 intptr_t tmpfs_diriter_open(VfsDir* dir, VfsDirIter* result) {

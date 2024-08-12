@@ -10,6 +10,7 @@ typedef enum {
     INODE_DEVICE,
     INODE_COUNT,
 } InodeKind;
+typedef size_t inodeid_t;
 typedef int inodekind_t;
 enum {
     MODE_READ=BIT(1),
@@ -45,6 +46,7 @@ typedef struct Inode {
     size_t lba ; // lba is in 1<<lba bytes
     size_t size; // In lba
     inodekind_t kind;
+    inodeid_t inodeid;
     void* private;
 } Inode;
 enum {
