@@ -143,45 +143,49 @@ static const char* inode_kind_map[] = {
     "DEVICE",
 };
 static_assert(ARRAY_LEN(inode_kind_map) == INODE_COUNT, "Update inode_kind_map");
+// TODO: Fix this, DirEntry should contain lba and size and other stuff
 static void ls(const char* path) {
     printf("%s:\n",path);
     VfsDir dir = {0};
     VfsDirIter iter = {0};
-    Inode* item = iget(vfs_new_inode());
+    VfsDirEntry entry = {0};
     intptr_t e = 0;
     char namebuf[MAX_INODE_NAME];
     if ((e=vfs_diropen(path, &dir)) < 0) {
         printf("ERROR: ls: Could not open directory: %ld\n", e);
-        idrop(item);
         return;
     }
     if ((e=vfs_diriter_open(&dir, &iter)) < 0) {
         printf("ERROR: ls: Could not open iter: %ld\n",e);
         vfs_dirclose(&dir);
-        idrop(item);
         return;
     }
 
-    while((e = vfs_diriter_next(&iter, item)) == 0) {
-        if((e=vfs_identify(item, namebuf, sizeof(namebuf))) < 0) {
+    while((e = vfs_diriter_next(&iter, &entry)) == 0) {
+        if((e=vfs_identify(&entry, namebuf, sizeof(namebuf))) < 0) {
             printf("ERROR: ls: Could not identify inode: %ld\n",e);
             vfs_diriter_close(&iter);
             vfs_dirclose(&dir);
-            idrop(item);
+            return;
+        }
+        Inode* item = NULL;
+        if((e = vfs_get_inode_of(&entry, &item)) < 0) {
+            printf("ERROR: ls: Could not get inode of %s: %ld\n",namebuf,e); 
+            vfs_diriter_close(&iter);
+            vfs_dirclose(&dir);
             return;
         }
         printf("%6s %15s %zu bytes \n", inode_kind_map[item->kind], namebuf, item->size * (1<<item->lba));
+        idrop(item);
     }
     if(e != -NOT_FOUND) {
         printf("ERROR: ls: Failed to iterate: %ld\n",e);
         vfs_diriter_close(&iter);
         vfs_dirclose(&dir);
-        idrop(item);
         return;
     }
     vfs_diriter_close(&iter);
     vfs_dirclose(&dir);
-    idrop(item);
 }
 static intptr_t write_exact(VfsFile* file, const void* bytes, size_t amount) {
     while(amount) {

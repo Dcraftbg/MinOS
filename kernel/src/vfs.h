@@ -49,6 +49,10 @@ typedef struct Inode {
     inodeid_t inodeid;
     void* private;
 } Inode;
+typedef struct VfsDirEntry {
+    struct FsOps* ops;
+    void* private;
+} VfsDirEntry;
 enum {
     SEEK_START,
     SEEK_CURSOR,
@@ -57,14 +61,20 @@ enum {
 typedef uintptr_t seekfrom_t;
 typedef struct FsOps {
     // Ops for directories
-    intptr_t (*create)(VfsDir* parent, Inode* result);         // @check ops
-    intptr_t (*mkdir)(VfsDir* parent, Inode* result);          // @check ops
+    intptr_t (*create)(VfsDir* parent, VfsDirEntry* result);         // @check ops
+    intptr_t (*mkdir)(VfsDir* parent, VfsDirEntry* result);          // @check ops
     // TODO: intptr_t (*create_device)(VfsDir* parent, FsDriver* driver, Inode* result);  // @check ops
     intptr_t (*diriter_open)(VfsDir* dir, VfsDirIter* result); // @check ops
 
     // Ops for diriters
-    intptr_t (*diriter_next)(VfsDirIter* iter, Inode* result); // @check ops
+    intptr_t (*diriter_next)(VfsDirIter* iter, VfsDirEntry* result); // @check ops
     intptr_t (*diriter_close)(VfsDirIter* iter);
+
+    // Ops for direntries
+    intptr_t (*identify)(VfsDirEntry* this, char* namebuf, size_t namecap);
+    intptr_t (*get_inode_of)(VfsDirEntry* this, Inode** result);
+    intptr_t (*rename)(VfsDirEntry* this, const char* name, size_t namelen);
+
 
     // Ops for files
     intptr_t (*read)(VfsFile* file, void* buf, size_t size, off_t offset);
@@ -78,6 +88,8 @@ typedef struct FsOps {
 typedef struct {
     struct list inodes;
     Inode* root;
+    // TODO: Remove root inode entirely
+    VfsDirEntry rootEntry;
 } Superblock;
 /*
 typedef struct {
@@ -97,8 +109,6 @@ typedef struct Device {
 typedef struct InodeOps {
     intptr_t (*open)(Inode* this, VfsFile* result, fmode_t mode);            // @check ops
     intptr_t (*diropen)(Inode* this, VfsDir* result);          // @check ops
-    intptr_t (*rename)(Inode* this, const char* name, size_t namelen);
-    intptr_t (*identify)(Inode* this, char* namebuf, size_t namecap);
     intptr_t (*close)(Inode* this, VfsFile* result);           // @check ops
     // Only called when shared=0 to cleanup memory
     void (*cleanup)(Inode* this); 
@@ -117,12 +127,12 @@ void init_vfs();
 // Return value:
 // >=0 Offset within the path at which child name begins
 // < 0 Error 
-intptr_t vfs_find_parent(const char* path, Inode** result);
+intptr_t vfs_find_parent(const char* path, VfsDirEntry* result);
 
 // Return value:
 //   0 Success
 // < 0 Error 
-intptr_t vfs_find(const char* path, Inode** result);
+intptr_t vfs_find(const char* path, VfsDirEntry* result);
 
 // Return value:
 //   0 Success
@@ -174,7 +184,7 @@ intptr_t vfs_dirclose(VfsDir* result);
 // Return value:
 //   0 Success
 // < 0 Error
-intptr_t vfs_diriter_next(VfsDirIter* iter, Inode* result);
+intptr_t vfs_diriter_next(VfsDirIter* iter, VfsDirEntry* result);
 
 // Return value:
 //   0 Success
@@ -185,7 +195,12 @@ intptr_t vfs_diriter_close(VfsDirIter* result);
 // Return value:
 //   0 Success
 // < 0 Error
-intptr_t vfs_identify(Inode* inode, char* namebuf, size_t namecap);
+intptr_t vfs_identify(VfsDirEntry* entry, char* namebuf, size_t namecap);
+
+// NOTE: TEMPORARY
+//   0 Success
+// < 0 Errro
+intptr_t vfs_get_inode_of(VfsDirEntry* entry, Inode** result);
 
 // Return  value:
 // >= 0 Where the cursor should be

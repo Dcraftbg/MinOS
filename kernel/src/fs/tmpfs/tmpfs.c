@@ -144,20 +144,39 @@ static void inode_constr(Inode* inode) {
     inode->size = 0;
     inode->ops = &tmpfs_inodeops;
 }
+static void direntry_constr(VfsDirEntry* entry, TmpfsInode* private) {
+    entry->private = private;
+    entry->ops = &tmpfs_fsops;
+}
 // Special function for creating a device
-intptr_t tmpfs_register_device(VfsDir* dir, Device* device, Inode* result) {
+intptr_t tmpfs_register_device(VfsDir* dir, Device* device, VfsDirEntry* result) {
     if(!dir || !dir->private || !device || !result) return -INVALID_PARAM;
     TmpfsInode* inode = dir_create_inode(dir->private);
     if(!inode) return -NOT_ENOUGH_MEM;
     inode->kind = INODE_DEVICE;
     inode->data.device.device = device;
-    inode_constr(result);
-    result->private = inode;
-    result->kind = inode->kind;
-    result->ops = &tmpfs_inodeops;
-    result->lba = 0; // TODO: ask device itself
-    result->size = 0;
-    result->inodeid = (inodeid_t)inode;
+    direntry_constr(result, inode);
+    // inode_constr(result);
+    // result->private = inode;
+    // result->kind = inode->kind;
+    // result->ops = &tmpfs_inodeops;
+    // result->lba = 0; // TODO: ask device itself
+    // result->size = 0;
+    // result->inodeid = (inodeid_t)inode;
+    return 0;
+}
+intptr_t tmpfs_get_inode_of(VfsDirEntry* entry, Inode** result) {
+    if(!entry || !result) return -INVALID_PARAM;
+    if(!entry->private) return -INVALID_PARAM;
+    Inode* inode = (*result = iget(vfs_new_inode()));
+    TmpfsInode* privInode = (TmpfsInode*)entry->private;
+    inode_constr(inode);
+    inode->private = privInode;
+    inode->kind = privInode->kind;
+    inode->ops = &tmpfs_inodeops;
+    inode->lba = 0; // TODO: ask device itself
+    inode->size = 0;
+    inode->inodeid = (inodeid_t)privInode;
     return 0;
 }
 // Inode Ops
@@ -196,7 +215,7 @@ intptr_t tmpfs_diropen(Inode* this, VfsDir* result) {
     result->private = &tmpfs_inode->data.dir;
     return 0;
 }
-intptr_t tmpfs_rename(Inode* this, const char* name, size_t namelen) {
+intptr_t tmpfs_rename(VfsDirEntry* this, const char* name, size_t namelen) {
     if(!this || !this->private) return -BAD_INODE;
     if(!name) return -INVALID_PARAM;
     if(namelen >= MAX_INODE_NAME) return -LIMITS;
@@ -206,7 +225,7 @@ intptr_t tmpfs_rename(Inode* this, const char* name, size_t namelen) {
     return 0;
 }
 
-intptr_t tmpfs_identify(Inode* this, char* namebuf, size_t namecap) {
+intptr_t tmpfs_identify(VfsDirEntry* this, char* namebuf, size_t namecap) {
     if(!this || !this->private) return -BAD_INODE;
     if(!namebuf) return -INVALID_PARAM;
     TmpfsInode* inode = (TmpfsInode*)this->private;
@@ -217,33 +236,27 @@ intptr_t tmpfs_identify(Inode* this, char* namebuf, size_t namecap) {
     return 0;
 }
 // Fs Ops
-intptr_t tmpfs_create(VfsDir* parent, Inode* this) {
+intptr_t tmpfs_create(VfsDir* parent, VfsDirEntry* this) {
     if(!parent || !parent->private) return -BAD_INODE;
     if(!this) return -INVALID_PARAM;
     TmpfsDir* dir = (TmpfsDir*)parent->private;
     TmpfsInode* inode = dir_create_inode(dir);
     if(!inode) return -NOT_ENOUGH_MEM;
-    inode_constr(this);
-    this->kind = INODE_FILE;
     inode->kind = INODE_FILE; // A copy, just in case
     memset(&inode->data.file, 0, sizeof(inode->data.dir));
-    this->private = inode;
+    direntry_constr(this, inode);
     return 0;
 }
-intptr_t tmpfs_mkdir(VfsDir* parent, Inode* this) {
+intptr_t tmpfs_mkdir(VfsDir* parent, VfsDirEntry* this) {
     if(!this) return -INVALID_PARAM;
-
-    this->kind = INODE_DIR;
-    inode_constr(this);
 
     if(!parent) { 
         // Initializing root node
         TmpfsInode* inode = new_tmpfs_inode();
         if(!inode) return -NOT_ENOUGH_MEM;
         inode->kind = INODE_DIR;
-        this->private = inode;
-        this->inodeid = (inodeid_t)inode;
         memset(&inode->data.dir, 0, sizeof(inode->data.dir));
+        direntry_constr(this, inode);
         return 0;
     }
     if(!parent->private) return -BAD_INODE;
@@ -252,8 +265,7 @@ intptr_t tmpfs_mkdir(VfsDir* parent, Inode* this) {
     if(!inode) return -NOT_ENOUGH_MEM;
     memset(&inode->data.dir, 0, sizeof(inode->data.dir));
     inode->kind = INODE_DIR; // A copy, just in case
-    this->private = inode;
-    this->inodeid = (inodeid_t)inode;
+    direntry_constr(this, inode);
     return 0;
 }
 intptr_t tmpfs_diriter_open(VfsDir* dir, VfsDirIter* result) {
@@ -268,12 +280,20 @@ intptr_t tmpfs_diriter_open(VfsDir* dir, VfsDirIter* result) {
     result->ops = &tmpfs_fsops;
     return 0;
 }
-intptr_t tmpfs_diriter_next(VfsDirIter* iter, Inode* result) {
+intptr_t tmpfs_diriter_next(VfsDirIter* iter, VfsDirEntry* result) {
     if(!iter || !iter->private || !result) return -INVALID_PARAM;
     TmpfsDirIter* tmpfs_iter = (TmpfsDirIter*)iter->private;
     if(tmpfs_iter->left == 0) return -NOT_FOUND;
     if(tmpfs_iter->block == NULL) return -BAD_INODE;
     TmpfsInode* node = &tmpfs_iter->block->inodes[tmpfs_iter->at];
+    direntry_constr(result, node);
+    tmpfs_iter->left--;
+    tmpfs_iter->at++;
+    if(tmpfs_iter->at == TMPFS_DIR_NODES) {
+        tmpfs_iter->at=0;
+        tmpfs_iter->block = tmpfs_iter->block->next;
+    }
+#if 0
     inode_constr(result);
     switch(node->kind) {
     case INODE_FILE:
@@ -288,6 +308,7 @@ intptr_t tmpfs_diriter_next(VfsDirIter* iter, Inode* result) {
         tmpfs_iter->at=0;
         tmpfs_iter->block = tmpfs_iter->block->next;
     }
+#endif
     return 0;
 }
 intptr_t tmpfs_diriter_close(VfsDirIter* iter) {
@@ -420,14 +441,16 @@ intptr_t init_tmpfs() {
 
     tmpfs_inodeops.open = tmpfs_open;
     tmpfs_inodeops.diropen = tmpfs_diropen;
-    tmpfs_inodeops.rename = tmpfs_rename;
-    tmpfs_inodeops.identify = tmpfs_identify;
 
     tmpfs_fsops.create = tmpfs_create;
     tmpfs_fsops.mkdir = tmpfs_mkdir;
     tmpfs_fsops.diriter_open = tmpfs_diriter_open;
     tmpfs_fsops.diriter_next = tmpfs_diriter_next;
     tmpfs_fsops.diriter_close = tmpfs_diriter_close;
+
+    tmpfs_fsops.identify = tmpfs_identify;
+    tmpfs_fsops.get_inode_of = tmpfs_get_inode_of;
+    tmpfs_fsops.rename = tmpfs_rename;
 
     tmpfs_fsops.read = tmpfs_read;
     tmpfs_fsops.seek = tmpfs_seek;

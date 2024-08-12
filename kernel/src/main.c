@@ -53,7 +53,6 @@ static void init_rootfs() {
                printf("ERROR: init_rootfs: Could not create %s : %s\n",entry->name,status_str(e));
                kabort();
             }
-
             VfsFile file = {0};
             if((e = vfs_open(entry->name, &file, MODE_WRITE)) < 0) {
                 printf("ERROR: init_rootfs: Could not open %s : %s\n",entry->name,status_str(e));
