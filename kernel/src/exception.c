@@ -25,7 +25,7 @@ const char* gpf_table[] = {
      "IDT"
 };
 void exception_handler(IDTEFrame* frame) {
-    // unwind_stack(frame);
+    unwind_stack(frame);
     if(frame->type == EXCEPTION_PAGE_FAULT) {
         printf("ERROR: Page fault at virtual address %p\n",(void*)frame->cr2);
     }

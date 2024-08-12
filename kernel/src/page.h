@@ -40,6 +40,7 @@ void update_post_paging(); // Called after to update previous values
     __asm__ volatile (\
        "movq %0, %%cr3\n"\
        "movq %1, %%rsp\n"\
+       "movq $0, %%rbp\n"\
        :\
        : "r" ((uintptr_t)kernel.pml4 & ~KERNEL_MEMORY_MASK), \
          "r" (KERNEL_STACK_PTR)\
