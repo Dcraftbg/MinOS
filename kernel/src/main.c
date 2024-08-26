@@ -50,7 +50,6 @@ static void init_rootfs() {
         switch(entry->kind) {
         case EMBED_FILE: {
             if((e = vfs_create(entry->name)) < 0) {
-               dump_inodes(&kernel.rootBlock);
                printf("ERROR: init_rootfs: Could not create %s : %s\n",entry->name,status_str(e));
                kabort();
             }
