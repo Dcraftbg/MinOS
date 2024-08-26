@@ -1,6 +1,7 @@
 #pragma once
 #define ARRAY_LEN(arr) (sizeof(arr)/sizeof(*arr))
-#define PAGE_SIZE 4096
+#define PAGE_SHIFT 12
+#define PAGE_SIZE (1<<PAGE_SHIFT) 
 #define PAGE_ALIGN_DOWN(x) (((x) / PAGE_SIZE)*PAGE_SIZE)
 #define PAGE_ALIGN_UP(x) ((((x) + (PAGE_SIZE-1))/ PAGE_SIZE)*PAGE_SIZE)
 #define MAP_BLOCK_ALIGN(x) (((x) + 7)/8)
