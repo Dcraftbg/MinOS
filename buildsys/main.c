@@ -304,9 +304,13 @@ defer:
 static bool build_kernel_dir(const char* rootdir, const char* build_dir, bool forced) {
    return _build_kernel_dir(rootdir, build_dir, rootdir, forced);
 }
+bool build_std(bool forced) {
+    if(!build_kernel_dir("./libs/std/src", "./bin/std"   , forced)) return false;
+    nob_log(NOB_INFO, "Built std successfully");
+    return true;
+}
 bool build_kernel(bool forced) {
     if(!build_kernel_dir("./kernel/src"  , "./bin/kernel", forced)) return false;
-    if(!build_kernel_dir("./libs/std/src", "./bin/std"   , forced)) return false;
     nob_log(NOB_INFO, "Built kernel successfully");
     return true;
 }
@@ -379,34 +383,44 @@ defer:
     nob_sb_free(sb);
     return result;
 }
-bool link_kernel() {
-    nob_log(NOB_INFO, "Linking kernel");
-    Nob_File_Paths paths = {0};
+bool ld(Nob_File_Paths* paths, const char* opath, const char* ldscript) {
+    nob_log(NOB_INFO, "Linking %s",opath);
     Nob_Cmd cmd = {0};
     nob_cmd_append(&cmd, LD);
 #ifdef LDFLAGS
     nob_cmd_append(&cmd, LDFLAGS);
 #endif
-    nob_cmd_append(&cmd, "-T", "./linker/link.ld", "-o", "./bin/iso/kernel");
-    if(!find_objs("./bin/kernel",&paths)) {
-        nob_cmd_free(cmd);
-        return false;
+    if(ldscript) {
+        nob_cmd_append(&cmd, "-T", ldscript);
     }
-
-    if(!find_objs("./bin/std",&paths)) {
-        nob_cmd_free(cmd);
-        return false;
+    nob_cmd_append(&cmd, "-o", opath);
+    for(size_t i = 0; i < paths->count; ++i) {
+        nob_cmd_append(&cmd, paths->items[i]);
     }
-    for(size_t i = 0; i < paths.count; ++i) {
-        nob_cmd_append(&cmd, paths.items[i]);
-    }
-    nob_da_free(paths);
     if(!nob_cmd_run_sync(cmd)) {
         nob_cmd_free(cmd);
         return false;
     }
     nob_cmd_free(cmd);
-    nob_log(NOB_INFO, "Linked kernel successfully");
+    nob_log(NOB_INFO, "Linked %s successfully", opath);
+    return true;
+}
+bool link_kernel() {
+    Nob_File_Paths paths = {0};
+    if(!find_objs("./bin/kernel",&paths)) {
+        nob_da_free(paths);
+        return false;
+    }
+
+    if(!find_objs("./bin/std",&paths)) {
+        nob_da_free(paths);
+        return false;
+    }
+    if(!ld(&paths, "./bin/iso/kernel", "./linker/link.ld")) {
+        nob_da_free(paths);
+        return false;
+    }
+    nob_da_free(paths);
     return true;
 }
 bool _copy_all_to(const char* to, const char** paths, size_t paths_count) {
@@ -523,10 +537,22 @@ bool build_nothing() {
 bool build_syscall_test() {
     #define BINDIR "./bin/user/syscall_test/"
     #define SRCDIR "./user/syscall_test/src/"
+    #define LIBDIR "./bin/std/"
     if(!cc         (SRCDIR "main.c"        , BINDIR "syscall_test.o")) return false;
-    if(!simple_link(BINDIR "syscall_test.o", BINDIR "syscall_test"  , "./user/syscall_test/link.ld")) return false;
+    Nob_File_Paths paths = {0};
+    nob_da_append(&paths, BINDIR "syscall_test.o");
+    if(!find_objs(LIBDIR, &paths)) {
+        nob_da_free(paths);
+        return false;
+    }
+    if(!ld(&paths, BINDIR "syscall_test"  , "./user/syscall_test/link.ld")) {
+        nob_da_free(paths);
+        return false;
+    }
+    nob_da_free(paths);
     #undef BINDIR
     #undef SRCDIR
+    #undef LIBDIR
     return true;
 }
 bool build_user() {
@@ -537,6 +563,7 @@ bool build_user() {
 // TODO Separate these out maybe? Idk
 bool build(Build* build) {
     if(!make_build_dirs()) return false;
+    if(!build_std(build->forced)) return false;
     if(!build_user()) return false;
     if(!embed_fs()) return false;
     if(!build_kernel(build->forced)) return false;

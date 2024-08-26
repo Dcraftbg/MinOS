@@ -1,4 +1,5 @@
 #include <minos/sysstd.h>
+#include <minos/status.h>
 #include <stdbool.h>
 #define HALT() \
     for(;;) 
@@ -114,7 +115,15 @@ int main() {
     return 0;
 }
 void _start(int argc, const char** argv) {
+    intptr_t e;
     if((stdout = open("/devices/vga0", MODE_WRITE)) < 0) HALT();
+#if 0
+    if((e = open("/devices/vga0", MODE_WRITE)) < 0) {
+        printf("Error opening vga0 again (correct behavior): %s\n", status_str(e));
+    };
+#else
+    (void)e;
+#endif
     printf("Args dump:\n");
     for(size_t i = 0; i < argc; ++i) {
         printf("%zu> ",i+1); printf("%p",argv[i]); printf(" %s\n",argv[i]);
