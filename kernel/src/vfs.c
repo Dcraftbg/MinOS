@@ -26,39 +26,12 @@ Inode* iget(Inode* inode) {
 void idrop(Inode* inode) {
     debug_assert(inode->shared);
     if(inode->shared == 1) {
-        assert(inode != kernel.rootBlock.root);
-        inodemap_remove(&inode->superblock->inodemap, inode->inodeid);
+        // assert(inode->inodeid != kernel.rootBlock.rootEntry.inodeid);
+        assert(inodemap_remove(&inode->superblock->inodemap, inode->inodeid));
         _vfs_cleanup(inode);
         cache_dealloc(kernel.inode_cache, inode);
     }
     inode->shared--;
-}
-static intptr_t fetch_inode(VfsDirEntry* entry, Inode** result, fmode_t mode) {
-    debug_assert(entry);
-    debug_assert(entry->superblock);
-    intptr_t e;
-    InodeMap* map = &entry->superblock->inodemap;
-    printf("map->len = %zu. map->buckets.len=%zu\n", map->len, map->buckets.len);
-    printf("map->buckets.items = %p\n", map->buckets.items);
-    Inode** ref = NULL;
-    if((ref=inodemap_get(&entry->superblock->inodemap, entry->inodeid))) {
-        *result = *ref;
-        printf("Got here %p\n",(*result));
-        if ((*result)->mode & MODE_WRITE /*&& !((*result)->mode & MODE_STREAM)*/)
-            return -RESOURCE_BUSY;
-        if ((*result)->mode & MODE_READ && !((*result)->mode & MODE_WRITE)) {
-            if(mode & MODE_WRITE) return -RESOURCE_BUSY;
-            iget(*result);
-            return 0;
-        }
-        printf("Result mode: %d and target mode: %d\n",(*result)->mode,mode);
-        return -INVALID_PARAM;
-    }
-    printf("Okay so its after this inside vfs_get_inode_of?");
-    if((e=vfs_get_inode_of(entry, result)) < 0) return e;
-    (*result)->mode = mode;
-    if(!inodemap_insert(&entry->superblock->inodemap, entry->inodeid, *result)) return -NOT_ENOUGH_MEM;
-    return 0;
 }
 #if 0
 
@@ -243,7 +216,28 @@ static intptr_t _vfs_seek(VfsFile* file, off_t offset, seekfrom_t from) {
     if(!file->ops->seek) return -UNSUPPORTED;
     return file->ops->seek(file,offset,from);
 }
-
+intptr_t fetch_inode(VfsDirEntry* entry, Inode** result, fmode_t mode) {
+    debug_assert(entry);
+    debug_assert(entry->superblock);
+    intptr_t e;
+    Inode** ref = NULL;
+    if((ref=inodemap_get(&entry->superblock->inodemap, entry->inodeid))) {
+        *result = *ref;
+        if ((*result)->mode & MODE_WRITE /*&& !((*result)->mode & MODE_STREAM)*/) {
+            return -RESOURCE_BUSY;
+        }
+        if ((*result)->mode & MODE_READ && !((*result)->mode & MODE_WRITE)) {
+            if(mode & MODE_WRITE) return -RESOURCE_BUSY;
+            iget(*result);
+            return 0;
+        }
+        return -INVALID_PARAM;
+    }
+    if((e=_vfs_get_inode_of(entry, result)) < 0) return e;
+    (*result)->mode = mode;
+    if(!inodemap_insert(&entry->superblock->inodemap, entry->inodeid, *result)) return -NOT_ENOUGH_MEM;
+    return 0;
+}
 void init_vfs() {
     assert(kernel.inode_cache = create_new_cache(sizeof(Inode)));
     assert(hashpair_cache = create_new_cache(sizeof(Pair_InodeMap)));
@@ -267,10 +261,6 @@ void init_vfs() {
         printf("ERROR: Could not rename root node (%ld)!\n",e);
         kabort();
     }
-    if((e=fetch_inode(&kernel.rootBlock.rootEntry, &kernel.rootBlock.root, MODE_READ | MODE_WRITE)) < 0) {
-        printf("ERROR: Could not get inode of root: %s (%ld)!\n", status_str(e), e);
-        kabort();
-    }
 }
 static const char* path_dir_next(const char* path) {
     while(*path) {
@@ -288,7 +278,7 @@ static intptr_t _vfs_find_within(VfsDir* dir, char* namebuf, size_t namecap, con
     }
     while((e = _vfs_diriter_next(&iter, result)) == 0) {
         if((e = _vfs_identify(result, namebuf, namecap)) < 0) {
-            iter.ops->diriter_close(&iter);
+            _vfs_diriter_close(&iter);
             return e;
         }
         size_t namelen = strlen(namebuf);
@@ -309,14 +299,16 @@ intptr_t vfs_find_parent(const char* path, VfsDirEntry* result) {
     const char* dirend   = path_dir_next(dirbegin); 
     char namebuf[MAX_INODE_NAME]; // Usually safe to allocate on the stack
     VfsDir dir = {0};
-    Inode* curdir = NULL;
-    curdir = iget(kernel.rootBlock.root);
     *result = kernel.rootBlock.rootEntry;
     if(!dirend) {
         return -NOT_FOUND;
     }
     dirbegin = dirend;
     while((dirend = path_dir_next(dirbegin))) {
+        Inode* curdir;
+        if((e=fetch_inode(result, &curdir, MODE_READ)) < 0) {
+            return e;
+        }
         if((e=_vfs_diropen(curdir, &dir)) < 0) {
             return e;
         }
@@ -327,9 +319,6 @@ intptr_t vfs_find_parent(const char* path, VfsDirEntry* result) {
             return e;
         }
         _vfs_dirclose(&dir);
-        if((e=fetch_inode(result, &curdir, MODE_READ))) {
-            return e;
-        }
         dirbegin = dirend;
     }
     return dirbegin-path;
@@ -379,10 +368,11 @@ intptr_t vfs_mkdir(const char* path) {
         return -ALREADY_EXISTS;
     }
     const char* child = path+e;
-    if((e=fetch_inode(&parent, &parent_inode, MODE_WRITE)) < 0) {
+    if((e=fetch_inode(&parent, &parent_inode, MODE_WRITE | MODE_READ)) < 0) {
         return e;
     }
     if((e=_vfs_diropen(parent_inode, &parentdir)) < 0) return e;
+    idrop(parent_inode);
     VfsDirEntry entry = {0};
     if ((e=_vfs_find_within(&parentdir, namebuf, sizeof(namebuf), child, strlen(child), &entry)) < 0) {
         if((e=_vfs_mkdir(&parentdir, &entry)) < 0) {
@@ -418,6 +408,7 @@ intptr_t vfs_create(const char* path) {
         return e;
     }
     if((e=_vfs_diropen(parent_inode, &parentdir)) < 0) return e;
+    idrop(parent_inode);
     VfsDirEntry entry = {0};
     if ((e=_vfs_find_within(&parentdir, namebuf, sizeof(namebuf), child, strlen(child), &entry)) < 0) {
         if((e=_vfs_create(&parentdir, &entry)) < 0) {
@@ -455,6 +446,7 @@ intptr_t vfs_open(const char* path, VfsFile* result, fmode_t mode) {
         idrop(inode);
         return e;
     }
+    idrop(inode);
     return 0;
 }
 
@@ -527,11 +519,6 @@ intptr_t vfs_identify(VfsDirEntry* entry, char* namebuf, size_t namecap) {
 intptr_t vfs_seek(VfsFile* file, off_t offset, seekfrom_t from) {
     return _vfs_seek(file, offset, from);
 }
-
-intptr_t vfs_get_inode_of(VfsDirEntry* entry, Inode** result) {
-    return _vfs_get_inode_of(entry, result);
-}
-
 
 intptr_t vfs_register_device(const char* name, Device* device) {
     intptr_t e = 0;

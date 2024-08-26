@@ -58,7 +58,11 @@ void dump_inodes(Superblock* superblock) {
     for(size_t i = 0; i < map->buckets.len; ++i) {
         Pair_InodeMap* pair = map->buckets.items[i].first;
         while(pair) {
-            printf("%zu = %p\n", pair->key, pair->value);
+            printf("%zu:\n", pair->key);
+            Inode* inode = pair->value;
+            printf(" inodeid = %zu\n",inode->inodeid);
+            printf(" shared = %zu\n",inode->shared);
+            printf(" mode = %d\n",inode->mode);
             pair = pair->next;
         }
     }

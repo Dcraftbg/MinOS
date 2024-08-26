@@ -93,10 +93,14 @@
         /* Some dark magic:*/\
         /* Basically because the `next` field will always be at offset 0 it means that we can just take a pointer to the bucket itself*/\
         /* Which simplifies a hell of a lot of stuff*/\
-        concat(Pair_, HashMapT)* prev = (concat(Pair_, HashMapT)*)&bucket;\
+        concat(Pair_, HashMapT)* prev = NULL;\
         while(pair) {\
             if(key_eq(pair->key,key)) {\
-                prev->next = pair->next;\
+                if(prev == NULL) {\
+                    bucket->first = NULL;\
+                } else {\
+                    prev->next = pair->next;\
+                }\
                 pair_dealloc(pair, sizeof(*pair));\
                 hashmap->len--;\
                 return true;\

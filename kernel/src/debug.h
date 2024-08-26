@@ -169,7 +169,7 @@ static void ls(const char* path) {
             return;
         }
         Inode* item = NULL;
-        if((e = vfs_get_inode_of(&entry, &item)) < 0) {
+        if((e = fetch_inode(&entry, &item, MODE_READ)) < 0) {
             printf("ERROR: ls: Could not get inode of %s: %ld\n",namebuf,e); 
             vfs_diriter_close(&iter);
             vfs_dirclose(&dir);

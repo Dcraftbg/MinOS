@@ -129,8 +129,6 @@ MAKE_HASHMAP_EX2(InodeMap, inodemap, Inode*, inodeid_t, INODEMAP_HASH, INODEMAP_
 
 
 typedef struct Superblock {
-    Inode* root;
-    // TODO: Remove root inode entirely
     VfsDirEntry rootEntry;
     InodeMap inodemap;
 } Superblock;
@@ -240,10 +238,10 @@ intptr_t vfs_diriter_close(VfsDirIter* result);
 // < 0 Error
 intptr_t vfs_identify(VfsDirEntry* entry, char* namebuf, size_t namecap);
 
-// NOTE: TEMPORARY
+// NOTE: 
 //   0 Success
-// < 0 Errro
-intptr_t vfs_get_inode_of(VfsDirEntry* entry, Inode** result);
+// < 0 Error
+intptr_t fetch_inode(VfsDirEntry* entry, Inode** result, fmode_t mode);
 
 // Return  value:
 // >= 0 Where the cursor should be
