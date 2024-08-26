@@ -152,11 +152,11 @@ static void ls(const char* path) {
     intptr_t e = 0;
     char namebuf[MAX_INODE_NAME];
     if ((e=vfs_diropen(path, &dir, MODE_READ)) < 0) {
-        printf("ERROR: ls: Could not open directory: %ld\n", e);
+        printf("ERROR: ls: Could not open directory: %s\n", status_str(e));
         return;
     }
     if ((e=vfs_diriter_open(&dir, &iter)) < 0) {
-        printf("ERROR: ls: Could not open iter: %ld\n",e);
+        printf("ERROR: ls: Could not open iter: %s\n", status_str(e));
         vfs_dirclose(&dir);
         return;
     }
@@ -170,10 +170,8 @@ static void ls(const char* path) {
             return;
         }
         if((e=vfs_stat(&entry, &stats)) < 0) {
-            printf("ERROR: ls: Could not get stats for %s: %s\n",namebuf,status_str(e));
-            vfs_diriter_close(&iter);
-            vfs_dirclose(&dir);
-            return;
+            printf("WARN: ls: Could not get stats for %s: %s\n",namebuf,status_str(e));
+            continue;
         }
         printf("%6s %15s %zu bytes \n", inode_kind_map[entry.kind], namebuf, stats.size * (1<<stats.lba));
     }
