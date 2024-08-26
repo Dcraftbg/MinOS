@@ -55,8 +55,8 @@ static void init_rootfs() {
             }
             VfsFile file = {0};
             if((e = vfs_open(entry->name, &file, MODE_WRITE)) < 0) {
+                dump_inodes(&kernel.rootBlock);
                 printf("ERROR: init_rootfs: Could not open %s : %s\n",entry->name,status_str(e));
-                vfs_close(&file);
                 kabort();
             }
             if((e = write_exact(&file, embed_data+entry->offset, entry->size)) < 0) {

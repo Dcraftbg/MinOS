@@ -1,9 +1,13 @@
+#define INODEMAP_DEFINE
+#include <stddef.h>
+struct Cache* hashpair_cache = NULL;
+#include "kernel.h"
 #include "vfs.h"
 #include "./fs/tmpfs/tmpfs.h"
-#include "kernel.h"
 #include "slab.h"
 #include "string.h"
 #include "debug.h"
+
 // TODO: Introduce a setup driver function that will set all missing functions to a function that just returns -UNSUPPORTED; And make helper functions just call that instead of making a check
 
 static void _vfs_cleanup(Inode* inode);
@@ -23,10 +27,38 @@ void idrop(Inode* inode) {
     debug_assert(inode->shared);
     if(inode->shared == 1) {
         assert(inode != kernel.rootBlock.root);
+        inodemap_remove(&inode->superblock->inodemap, inode->inodeid);
         _vfs_cleanup(inode);
         cache_dealloc(kernel.inode_cache, inode);
     }
     inode->shared--;
+}
+static intptr_t fetch_inode(VfsDirEntry* entry, Inode** result, fmode_t mode) {
+    debug_assert(entry);
+    debug_assert(entry->superblock);
+    intptr_t e;
+    InodeMap* map = &entry->superblock->inodemap;
+    printf("map->len = %zu. map->buckets.len=%zu\n", map->len, map->buckets.len);
+    printf("map->buckets.items = %p\n", map->buckets.items);
+    Inode** ref = NULL;
+    if((ref=inodemap_get(&entry->superblock->inodemap, entry->inodeid))) {
+        *result = *ref;
+        printf("Got here %p\n",(*result));
+        if ((*result)->mode & MODE_WRITE /*&& !((*result)->mode & MODE_STREAM)*/)
+            return -RESOURCE_BUSY;
+        if ((*result)->mode & MODE_READ && !((*result)->mode & MODE_WRITE)) {
+            if(mode & MODE_WRITE) return -RESOURCE_BUSY;
+            iget(*result);
+            return 0;
+        }
+        printf("Result mode: %d and target mode: %d\n",(*result)->mode,mode);
+        return -INVALID_PARAM;
+    }
+    printf("Okay so its after this inside vfs_get_inode_of?");
+    if((e=vfs_get_inode_of(entry, result)) < 0) return e;
+    (*result)->mode = mode;
+    if(!inodemap_insert(&entry->superblock->inodemap, entry->inodeid, *result)) return -NOT_ENOUGH_MEM;
+    return 0;
 }
 #if 0
 
@@ -214,6 +246,7 @@ static intptr_t _vfs_seek(VfsFile* file, off_t offset, seekfrom_t from) {
 
 void init_vfs() {
     assert(kernel.inode_cache = create_new_cache(sizeof(Inode)));
+    assert(hashpair_cache = create_new_cache(sizeof(Pair_InodeMap)));
     intptr_t e=0;
     FsDriver* root_driver = &tmpfs_driver; 
     if(root_driver->init) {
@@ -226,7 +259,6 @@ void init_vfs() {
         printf("ERROR: Rootfs driver does not support necessary features\n");
         kabort();
     }
-    list_init(&kernel.rootBlock.inodes);
     if((e=root_driver->fs_ops->mkdir(NULL, &kernel.rootBlock.rootEntry)) < 0) {
         printf("ERROR: Could not create root node (%ld)!\n",e);
         kabort();
@@ -235,11 +267,10 @@ void init_vfs() {
         printf("ERROR: Could not rename root node (%ld)!\n",e);
         kabort();
     }
-    if((e=_vfs_get_inode_of(&kernel.rootBlock.rootEntry, &kernel.rootBlock.root)) < 0) {
-        printf("ERROR: Could not get inode of root (%ld)!\n",e);
+    if((e=fetch_inode(&kernel.rootBlock.rootEntry, &kernel.rootBlock.root, MODE_READ | MODE_WRITE)) < 0) {
+        printf("ERROR: Could not get inode of root: %s (%ld)!\n", status_str(e), e);
         kabort();
     }
-    // kernel.rootBlock.root->ops = root_driver->inode_ops;
 }
 static const char* path_dir_next(const char* path) {
     while(*path) {
@@ -260,7 +291,6 @@ static intptr_t _vfs_find_within(VfsDir* dir, char* namebuf, size_t namecap, con
             iter.ops->diriter_close(&iter);
             return e;
         }
-
         size_t namelen = strlen(namebuf);
         if(namelen == whatlen) {
             if(strncmp(namebuf, what, namelen) == 0) {
@@ -297,7 +327,7 @@ intptr_t vfs_find_parent(const char* path, VfsDirEntry* result) {
             return e;
         }
         _vfs_dirclose(&dir);
-        if((e=_vfs_get_inode_of(result, &curdir))) {
+        if((e=fetch_inode(result, &curdir, MODE_READ))) {
             return e;
         }
         dirbegin = dirend;
@@ -322,7 +352,7 @@ intptr_t vfs_find(const char* path, VfsDirEntry* result) {
     }
     const char* child = path+e;
 
-    if((e=_vfs_get_inode_of(&parent, &parent_inode)) < 0) {
+    if((e=fetch_inode(&parent, &parent_inode, MODE_READ)) < 0) {
         return e;
     }
     if((e=_vfs_diropen(parent_inode, &parentdir)) < 0) {
@@ -349,7 +379,7 @@ intptr_t vfs_mkdir(const char* path) {
         return -ALREADY_EXISTS;
     }
     const char* child = path+e;
-    if((e=_vfs_get_inode_of(&parent, &parent_inode)) < 0) {
+    if((e=fetch_inode(&parent, &parent_inode, MODE_WRITE)) < 0) {
         return e;
     }
     if((e=_vfs_diropen(parent_inode, &parentdir)) < 0) return e;
@@ -359,7 +389,6 @@ intptr_t vfs_mkdir(const char* path) {
            _vfs_dirclose(&parentdir);
            return e;
         }
-
         // TODO: Unlink in case rename fails
         if((e=_vfs_rename(&entry, child, strlen(child))) < 0) {
            _vfs_dirclose(&parentdir);
@@ -385,7 +414,7 @@ intptr_t vfs_create(const char* path) {
         return -INODE_IS_DIRECTORY;
     }
     const char* child = path+e;
-    if((e=_vfs_get_inode_of(&parent, &parent_inode)) < 0) {
+    if((e=fetch_inode(&parent, &parent_inode, MODE_WRITE)) < 0) {
         return e;
     }
     if((e=_vfs_diropen(parent_inode, &parentdir)) < 0) return e;
@@ -414,9 +443,14 @@ intptr_t vfs_open(const char* path, VfsFile* result, fmode_t mode) {
         return e;
     }
     Inode* inode = NULL;
+    if((e = fetch_inode(&entry, &inode, mode)) < 0) {
+        return e;
+    }
+    /*
     if((e = _vfs_get_inode_of(&entry, &inode)) < 0) {
         return e;
     }
+    */
     if((e=_vfs_open(inode, result, mode)) < 0) {
         idrop(inode);
         return e;
@@ -432,7 +466,8 @@ intptr_t vfs_diropen(const char* path, VfsDir* result) {
     }
 
     Inode* inode = NULL;
-    if((e = _vfs_get_inode_of(&entry, &inode)) < 0) {
+    // TODO: Accept mode parameter
+    if((e = fetch_inode(&entry, &inode, MODE_WRITE)) < 0) {
         return e;
     }
     if((e=_vfs_diropen(inode, result)) < 0) {

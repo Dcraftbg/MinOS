@@ -196,3 +196,5 @@ static intptr_t write_exact(VfsFile* file, const void* bytes, size_t amount) {
     }
     return 0;
 }
+
+void dump_inodes(Superblock* superblock);

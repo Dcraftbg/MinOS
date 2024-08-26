@@ -34,6 +34,7 @@ static Slab* cache_select(Cache* cache) {
     return s;
 }
 void* cache_alloc(Cache* cache) {
+    debug_assert(cache);
     Slab* slab = cache_select(cache);
     if(!slab) return NULL;
     size_t index = slab_bufctl(slab)[slab->free];
@@ -77,6 +78,8 @@ static bool cache_dealloc_within(Cache* cache, Slab* slab, void* p) {
     return false;
 }
 void cache_dealloc(Cache* cache, void* p) {
+    debug_assert(cache);
+    debug_assert(p);
     Slab *s = (Slab*)list_next(&cache->full);
     if(s) {
         if(cache_dealloc_within(cache, s, p)) return;

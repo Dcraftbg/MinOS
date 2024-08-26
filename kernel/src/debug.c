@@ -49,3 +49,17 @@ void log_cache(Cache* cache) {
     printf("Free:\n");
     log_list(&cache->free, log_slab);
 }
+
+void dump_inodes(Superblock* superblock) {
+    // debug_assert(file->inode);
+    InodeMap* map = &superblock->inodemap;
+    printf("Inode Dump:\n");
+    printf("Amount: %zu\n",map->buckets.len);
+    for(size_t i = 0; i < map->buckets.len; ++i) {
+        Pair_InodeMap* pair = map->buckets.items[i].first;
+        while(pair) {
+            printf("%zu = %p\n", pair->key, pair->value);
+            pair = pair->next;
+        }
+    }
+}

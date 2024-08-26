@@ -22,6 +22,7 @@ struct FsOps;
 struct InodeOps;
 struct Inode;
 struct VfsDir;
+struct Superblock;
 typedef struct {
     struct VfsDir* dir;
     struct FsOps* ops;
@@ -32,16 +33,26 @@ typedef struct {
     struct FsOps* ops;
     off_t cursor;
     void* private; // FS defined
+    // FIXME: Remove this
     fmode_t mode;
 } VfsFile;
+#define vfsfile_constr(file, v_inode, v_ops, v_cursor, v_private, v_mode) \
+   do {\
+       (file)->inode = (v_inode);\
+       (file)->ops = (v_ops);\
+       (file)->cursor = (v_cursor);\
+       (file)->private = (v_private);\
+       (file)->mode = (v_mode);\
+   } while(0)
 typedef struct VfsDir {
     struct Inode* inode;
     struct FsOps* ops;
     void* private;
 } VfsDir;
 typedef struct Inode {
-    // struct list list;
+    struct Superblock* superblock;
     _Atomic size_t shared;
+    fmode_t mode;
     struct InodeOps* ops;
     size_t lba ; // lba is in 1<<lba bytes
     size_t size; // In lba
@@ -50,9 +61,18 @@ typedef struct Inode {
     void* private;
 } Inode;
 typedef struct VfsDirEntry {
+    struct Superblock* superblock;
     struct FsOps* ops;
+    inodeid_t inodeid;
     void* private;
 } VfsDirEntry;
+#define vfsdirentry_constr(entry, v_superblock, v_ops, v_inodeid, v_private) \
+    do {\
+        (entry)->superblock = (v_superblock);\
+        (entry)->ops        = (v_ops);\
+        (entry)->inodeid    = (v_inodeid);\
+        (entry)->private    = (v_private);\
+    } while(0)
 enum {
     SEEK_START,
     SEEK_CURSOR,
@@ -85,11 +105,34 @@ typedef struct FsOps {
     void (*close)(VfsFile* file);
     void (*dirclose)(VfsDir* dir);
 } FsOps;
-typedef struct {
-    struct list inodes;
+
+
+#ifdef INODEMAP_DEFINE
+#define HASHMAP_DEFINE
+#endif
+#include "slab.h"
+#include "string.h"
+#include "memory.h"
+#include <collections/hashmap.h>
+#define INODEMAP_EQ(A,B) A==B
+#define INODEMAP_HASH(K) K
+#define INODEMAP_ALLOC kernel_malloc
+#define INODEMAP_DEALLOC kernel_dealloc
+#define INODEMAP_PAIR_ALLOC(_) cache_alloc(hashpair_cache) 
+#define INODEMAP_PAIR_DEALLOC(ptr, size) cache_dealloc(hashpair_cache, ptr)
+MAKE_HASHMAP_EX2(InodeMap, inodemap, Inode*, inodeid_t, INODEMAP_HASH, INODEMAP_EQ, INODEMAP_ALLOC, INODEMAP_DEALLOC, INODEMAP_PAIR_ALLOC, INODEMAP_PAIR_DEALLOC)
+
+#ifdef INODEMAP_DEFINE
+#undef HASHMAP_DEFINE
+#endif
+
+
+
+typedef struct Superblock {
     Inode* root;
     // TODO: Remove root inode entirely
     VfsDirEntry rootEntry;
+    InodeMap inodemap;
 } Superblock;
 /*
 typedef struct {
@@ -222,3 +265,4 @@ void _idrop(const char* func, Inode* inode);
 #endif
 
 void idrop(Inode* inode);
+

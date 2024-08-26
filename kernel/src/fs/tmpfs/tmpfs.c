@@ -144,9 +144,12 @@ static void inode_constr(Inode* inode) {
     inode->size = 0;
     inode->ops = &tmpfs_inodeops;
 }
-static void direntry_constr(VfsDirEntry* entry, TmpfsInode* private) {
-    entry->private = private;
-    entry->ops = &tmpfs_fsops;
+static void direntry_constr(VfsDirEntry* entry, TmpfsInode* private, Superblock* superblock) {
+    vfsdirentry_constr(entry, superblock, (&tmpfs_fsops), ((inodeid_t)private), private);
+    // entry->superblock = superblock;
+    // entry->private = private;
+    // entry->ops = &tmpfs_fsops;
+    // entry->inodeid = (inodeid_t)private;
 }
 // Special function for creating a device
 intptr_t tmpfs_register_device(VfsDir* dir, Device* device, VfsDirEntry* result) {
@@ -155,7 +158,7 @@ intptr_t tmpfs_register_device(VfsDir* dir, Device* device, VfsDirEntry* result)
     if(!inode) return -NOT_ENOUGH_MEM;
     inode->kind = INODE_DEVICE;
     inode->data.device.device = device;
-    direntry_constr(result, inode);
+    direntry_constr(result, inode, dir->inode->superblock);
     // inode_constr(result);
     // result->private = inode;
     // result->kind = inode->kind;
@@ -171,6 +174,7 @@ intptr_t tmpfs_get_inode_of(VfsDirEntry* entry, Inode** result) {
     Inode* inode = (*result = iget(vfs_new_inode()));
     TmpfsInode* privInode = (TmpfsInode*)entry->private;
     inode_constr(inode);
+    inode->superblock = entry->superblock;
     inode->private = privInode;
     inode->kind = privInode->kind;
     inode->ops = &tmpfs_inodeops;
@@ -186,9 +190,10 @@ intptr_t tmpfs_open(Inode* this, VfsFile* result, fmode_t mode) {
     case INODE_FILE: {
         TmpfsInode* tmpfs_inode = (TmpfsInode*)this->private;
         assert(tmpfs_inode->kind == INODE_FILE);
-        result->ops = &tmpfs_fsops;
-        result->cursor = 0;
-        result->private = &((TmpfsInode*)this->private)->data.file;
+        vfsfile_constr(result, this, &tmpfs_fsops, 0, &((TmpfsInode*)this->private)->data.file, mode);
+        // result->ops = &tmpfs_fsops;
+        // result->cursor = 0;
+        // result->private = &((TmpfsInode*)this->private)->data.file;
     } break;
     case INODE_DEVICE: {
         TmpfsInode* tmpfs_inode = (TmpfsInode*)this->private;
@@ -213,6 +218,7 @@ intptr_t tmpfs_diropen(Inode* this, VfsDir* result) {
     assert(tmpfs_inode->kind == INODE_DIR);
     result->ops = &tmpfs_fsops;
     result->private = &tmpfs_inode->data.dir;
+    result->inode = this;
     return 0;
 }
 intptr_t tmpfs_rename(VfsDirEntry* this, const char* name, size_t namelen) {
@@ -244,7 +250,7 @@ intptr_t tmpfs_create(VfsDir* parent, VfsDirEntry* this) {
     if(!inode) return -NOT_ENOUGH_MEM;
     inode->kind = INODE_FILE; // A copy, just in case
     memset(&inode->data.file, 0, sizeof(inode->data.dir));
-    direntry_constr(this, inode);
+    direntry_constr(this, inode, parent->inode->superblock);
     return 0;
 }
 intptr_t tmpfs_mkdir(VfsDir* parent, VfsDirEntry* this) {
@@ -256,7 +262,7 @@ intptr_t tmpfs_mkdir(VfsDir* parent, VfsDirEntry* this) {
         if(!inode) return -NOT_ENOUGH_MEM;
         inode->kind = INODE_DIR;
         memset(&inode->data.dir, 0, sizeof(inode->data.dir));
-        direntry_constr(this, inode);
+        direntry_constr(this, inode, &kernel.rootBlock);
         return 0;
     }
     if(!parent->private) return -BAD_INODE;
@@ -265,7 +271,7 @@ intptr_t tmpfs_mkdir(VfsDir* parent, VfsDirEntry* this) {
     if(!inode) return -NOT_ENOUGH_MEM;
     memset(&inode->data.dir, 0, sizeof(inode->data.dir));
     inode->kind = INODE_DIR; // A copy, just in case
-    direntry_constr(this, inode);
+    direntry_constr(this, inode, parent->inode->superblock);
     return 0;
 }
 intptr_t tmpfs_diriter_open(VfsDir* dir, VfsDirIter* result) {
@@ -278,6 +284,7 @@ intptr_t tmpfs_diriter_open(VfsDir* dir, VfsDirIter* result) {
     iter->block = tmpfsdir->first;
     result->private = iter;
     result->ops = &tmpfs_fsops;
+    result->dir = dir;
     return 0;
 }
 intptr_t tmpfs_diriter_next(VfsDirIter* iter, VfsDirEntry* result) {
@@ -286,7 +293,7 @@ intptr_t tmpfs_diriter_next(VfsDirIter* iter, VfsDirEntry* result) {
     if(tmpfs_iter->left == 0) return -NOT_FOUND;
     if(tmpfs_iter->block == NULL) return -BAD_INODE;
     TmpfsInode* node = &tmpfs_iter->block->inodes[tmpfs_iter->at];
-    direntry_constr(result, node);
+    direntry_constr(result, node, iter->dir->inode->superblock);
     tmpfs_iter->left--;
     tmpfs_iter->at++;
     if(tmpfs_iter->at == TMPFS_DIR_NODES) {
