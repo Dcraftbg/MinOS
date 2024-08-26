@@ -46,7 +46,7 @@ void init_exceptions() {
     idt_register(1 , idt_exception_debug               , IDT_EXCEPTION_TYPE);
     idt_register(3 , idt_exception_breakpoint          , IDT_EXCEPTION_TYPE);
     idt_register(4 , idt_exception_overflow            , IDT_EXCEPTION_TYPE);
-    idt_register(5 , idt_exception_boud_range_exceeded , IDT_EXCEPTION_TYPE);
+    idt_register(5 , idt_exception_bound_range_exceeded, IDT_EXCEPTION_TYPE);
     idt_register(6 , idt_exception_invalid_opcode      , IDT_EXCEPTION_TYPE);
 
     idt_register(7 , idt_exception_dna                 , IDT_EXCEPTION_TYPE);

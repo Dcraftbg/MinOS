@@ -7,7 +7,7 @@ void idt_exception_division();
 void idt_exception_debug();
 void idt_exception_breakpoint();
 void idt_exception_overflow();
-void idt_exception_boud_range_exceeded();
+void idt_exception_bound_range_exceeded();
 void idt_exception_invalid_opcode();
 void idt_exception_dna(); 
 void idt_exception_double_fault();

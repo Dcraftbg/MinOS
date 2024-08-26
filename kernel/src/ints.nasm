@@ -8,7 +8,7 @@ global idt_exception_division
 global idt_exception_debug
 global idt_exception_breakpoint
 global idt_exception_overflow
-global idt_exception_boud_range_exceeded
+global idt_exception_bound_range_exceeded
 global idt_exception_invalid_opcode
 global idt_exception_dna ; device not available
 global idt_exception_double_fault
@@ -75,7 +75,7 @@ idt_exception_overflow:
    jmp _idt_exception_base
 
 align 0x08, db 0x00
-idt_exception_boud_range_exceeded:
+idt_exception_bound_range_exceeded:
    push 0
    push 5
    jmp _idt_exception_base
