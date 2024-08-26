@@ -211,7 +211,8 @@ intptr_t tmpfs_open(Inode* this, VfsFile* result, fmode_t mode) {
     // Unreachable
     return 0;
 }
-intptr_t tmpfs_diropen(Inode* this, VfsDir* result) {
+intptr_t tmpfs_diropen(Inode* this, VfsDir* result, fmode_t mode) {
+    (void)mode;
     if(!this || !this->private) return -BAD_INODE;
     if(this->kind != INODE_DIR) return -INVALID_PARAM;
     TmpfsInode* tmpfs_inode = (TmpfsInode*)this->private;

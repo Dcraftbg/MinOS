@@ -148,9 +148,11 @@ typedef struct Device {
     intptr_t (*deinit)();
 } Device;
 typedef struct InodeOps {
-    intptr_t (*open)(Inode* this, VfsFile* result, fmode_t mode);            // @check ops
-    intptr_t (*diropen)(Inode* this, VfsDir* result);          // @check ops
-    intptr_t (*close)(Inode* this, VfsFile* result);           // @check ops
+    // NOTE: mode is only used for permission checks by the driver
+    intptr_t (*open)(Inode* this, VfsFile* result, fmode_t mode);    // @check ops
+    // NOTE: mode is only used for permission checks by the driver
+    intptr_t (*diropen)(Inode* this, VfsDir* result, fmode_t mode);  // @check ops
+    intptr_t (*close)(Inode* this, VfsFile* result);                 // @check ops
     // Only called when shared=0 to cleanup memory
     void (*cleanup)(Inode* this); 
     // TODO: unlink which will free all memory of that inode. But only the inode itself, not its children (job of caller (vfs))
@@ -194,7 +196,7 @@ intptr_t vfs_mkdir(const char* path);
 // Return value:
 //   0 Success
 // < 0 Error
-intptr_t vfs_diropen(const char* path, VfsDir* result);
+intptr_t vfs_diropen(const char* path, VfsDir* result, fmode_t mode);
 
 
 // Return value:

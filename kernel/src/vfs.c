@@ -140,10 +140,10 @@ static void _vfs_cleanup(Inode* inode) {
     }
 }
 
-static intptr_t _vfs_diropen(Inode* inode, VfsDir* result) {
+static intptr_t _vfs_diropen(Inode* inode, VfsDir* result, fmode_t mode) {
     intptr_t e=0;
     if(!inode->ops->diropen) return -UNSUPPORTED;
-    if((e=inode->ops->diropen(inode, result)) < 0) return e;
+    if((e=inode->ops->diropen(inode, result, mode)) < 0) return e;
     result->inode = iget(inode);
     return 0;
 }
@@ -309,7 +309,7 @@ intptr_t vfs_find_parent(const char* path, VfsDirEntry* result) {
         if((e=fetch_inode(result, &curdir, MODE_READ)) < 0) {
             return e;
         }
-        if((e=_vfs_diropen(curdir, &dir)) < 0) {
+        if((e=_vfs_diropen(curdir, &dir, MODE_READ)) < 0) {
             return e;
         }
         idrop(curdir);
@@ -344,7 +344,7 @@ intptr_t vfs_find(const char* path, VfsDirEntry* result) {
     if((e=fetch_inode(&parent, &parent_inode, MODE_READ)) < 0) {
         return e;
     }
-    if((e=_vfs_diropen(parent_inode, &parentdir)) < 0) {
+    if((e=_vfs_diropen(parent_inode, &parentdir, MODE_READ)) < 0) {
         return e;
     }
     if ((e=_vfs_find_within(&parentdir, namebuf, sizeof(namebuf), child, strlen(child), result)) < 0) {
@@ -371,7 +371,7 @@ intptr_t vfs_mkdir(const char* path) {
     if((e=fetch_inode(&parent, &parent_inode, MODE_WRITE | MODE_READ)) < 0) {
         return e;
     }
-    if((e=_vfs_diropen(parent_inode, &parentdir)) < 0) return e;
+    if((e=_vfs_diropen(parent_inode, &parentdir, MODE_WRITE | MODE_READ)) < 0) return e;
     idrop(parent_inode);
     VfsDirEntry entry = {0};
     if ((e=_vfs_find_within(&parentdir, namebuf, sizeof(namebuf), child, strlen(child), &entry)) < 0) {
@@ -404,10 +404,10 @@ intptr_t vfs_create(const char* path) {
         return -INODE_IS_DIRECTORY;
     }
     const char* child = path+e;
-    if((e=fetch_inode(&parent, &parent_inode, MODE_WRITE)) < 0) {
+    if((e=fetch_inode(&parent, &parent_inode, MODE_WRITE | MODE_READ)) < 0) {
         return e;
     }
-    if((e=_vfs_diropen(parent_inode, &parentdir)) < 0) return e;
+    if((e=_vfs_diropen(parent_inode, &parentdir, MODE_WRITE | MODE_READ)) < 0) return e;
     idrop(parent_inode);
     VfsDirEntry entry = {0};
     if ((e=_vfs_find_within(&parentdir, namebuf, sizeof(namebuf), child, strlen(child), &entry)) < 0) {
@@ -450,7 +450,7 @@ intptr_t vfs_open(const char* path, VfsFile* result, fmode_t mode) {
     return 0;
 }
 
-intptr_t vfs_diropen(const char* path, VfsDir* result) {
+intptr_t vfs_diropen(const char* path, VfsDir* result, fmode_t mode) {
     VfsDirEntry entry = {0};
     intptr_t e = 0;
     if((e = vfs_find(path, &entry)) < 0) {
@@ -458,11 +458,10 @@ intptr_t vfs_diropen(const char* path, VfsDir* result) {
     }
 
     Inode* inode = NULL;
-    // TODO: Accept mode parameter
-    if((e = fetch_inode(&entry, &inode, MODE_WRITE)) < 0) {
+    if((e = fetch_inode(&entry, &inode, mode)) < 0) {
         return e;
     }
-    if((e=_vfs_diropen(inode, result)) < 0) {
+    if((e=_vfs_diropen(inode, result, mode)) < 0) {
         idrop(inode);
         return e;
     }
@@ -523,7 +522,7 @@ intptr_t vfs_seek(VfsFile* file, off_t offset, seekfrom_t from) {
 intptr_t vfs_register_device(const char* name, Device* device) {
     intptr_t e = 0;
     VfsDir devices = {0};
-    if((e=vfs_diropen("/devices", &devices)) < 0) {
+    if((e=vfs_diropen("/devices", &devices, MODE_WRITE)) < 0) {
         return e;
     }
 

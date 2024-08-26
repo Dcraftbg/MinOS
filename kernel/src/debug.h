@@ -151,7 +151,7 @@ static void ls(const char* path) {
     VfsDirEntry entry = {0};
     intptr_t e = 0;
     char namebuf[MAX_INODE_NAME];
-    if ((e=vfs_diropen(path, &dir)) < 0) {
+    if ((e=vfs_diropen(path, &dir, MODE_READ)) < 0) {
         printf("ERROR: ls: Could not open directory: %ld\n", e);
         return;
     }
