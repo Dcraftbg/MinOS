@@ -108,10 +108,17 @@ bool get_gcc_zip() {
 // TODO: Consider using libzip or something similar
 bool unzip(const char* path, const char* dirpath) {
     Nob_Cmd cmd = {0};
+#if _WIN32
     nob_cmd_append(&cmd, "tar", "-xzf", path);
     if(dirpath) {
         nob_cmd_append(&cmd, "-C", dirpath);
     }
+#else
+    nob_cmd_append(&cmd, "unzip", path);
+    if(dirpath) {
+        nob_cmd_append(&cmd, "-d", dirpath);
+    }
+#endif
     if (!nob_cmd_run_sync(cmd)) {
         nob_cmd_free(cmd);
         return false;
