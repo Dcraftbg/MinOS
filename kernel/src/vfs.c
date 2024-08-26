@@ -186,8 +186,6 @@ static intptr_t _vfs_identify(VfsDirEntry* this, char* namebuf, size_t namecap) 
     return this->ops->identify(this, namebuf, namecap);
 }
 static intptr_t _vfs_get_inode_of(VfsDirEntry* this, Inode** result) {
-    // assert(this->ops);
-    
     if(!this->ops->get_inode_of) return -UNSUPPORTED;
     return this->ops->get_inode_of(this, result);
 }
@@ -216,6 +214,16 @@ static intptr_t _vfs_seek(VfsFile* file, off_t offset, seekfrom_t from) {
     if(!file->ops->seek) return -UNSUPPORTED;
     return file->ops->seek(file,offset,from);
 }
+
+static intptr_t _vfs_stat(VfsDirEntry* this, VfsStats* stats) {
+    if(!this->ops->stat) return -UNSUPPORTED;
+    return this->ops->stat(this, stats);
+}
+
+intptr_t vfs_stat(VfsDirEntry* this, VfsStats* stats) {
+    return _vfs_stat(this, stats);
+}
+
 intptr_t fetch_inode(VfsDirEntry* entry, Inode** result, fmode_t mode) {
     debug_assert(entry);
     debug_assert(entry->superblock);

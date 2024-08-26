@@ -49,13 +49,15 @@ typedef struct VfsDir {
     struct FsOps* ops;
     void* private;
 } VfsDir;
+typedef struct {
+    size_t lba ; // lba is in 1<<lba bytes
+    size_t size; // In lba
+} VfsStats;
 typedef struct Inode {
     struct Superblock* superblock;
     _Atomic size_t shared;
     fmode_t mode;
     struct InodeOps* ops;
-    size_t lba ; // lba is in 1<<lba bytes
-    size_t size; // In lba
     inodekind_t kind;
     inodeid_t inodeid;
     void* private;
@@ -63,13 +65,15 @@ typedef struct Inode {
 typedef struct VfsDirEntry {
     struct Superblock* superblock;
     struct FsOps* ops;
+    inodekind_t kind;
     inodeid_t inodeid;
     void* private;
 } VfsDirEntry;
-#define vfsdirentry_constr(entry, v_superblock, v_ops, v_inodeid, v_private) \
+#define vfsdirentry_constr(entry, v_superblock, v_ops, v_kind, v_inodeid, v_private) \
     do {\
         (entry)->superblock = (v_superblock);\
         (entry)->ops        = (v_ops);\
+        (entry)->kind       = (v_kind);\
         (entry)->inodeid    = (v_inodeid);\
         (entry)->private    = (v_private);\
     } while(0)
@@ -83,7 +87,7 @@ typedef struct FsOps {
     // Ops for directories
     intptr_t (*create)(VfsDir* parent, VfsDirEntry* result);         // @check ops
     intptr_t (*mkdir)(VfsDir* parent, VfsDirEntry* result);          // @check ops
-    // TODO: intptr_t (*create_device)(VfsDir* parent, FsDriver* driver, Inode* result);  // @check ops
+
     intptr_t (*diriter_open)(VfsDir* dir, VfsDirIter* result); // @check ops
 
     // Ops for diriters
@@ -92,6 +96,7 @@ typedef struct FsOps {
 
     // Ops for direntries
     intptr_t (*identify)(VfsDirEntry* this, char* namebuf, size_t namecap);
+    intptr_t (*stat)(VfsDirEntry* this, VfsStats* stats);
     intptr_t (*get_inode_of)(VfsDirEntry* this, Inode** result);
     intptr_t (*rename)(VfsDirEntry* this, const char* name, size_t namelen);
 
@@ -245,10 +250,16 @@ intptr_t vfs_identify(VfsDirEntry* entry, char* namebuf, size_t namecap);
 // < 0 Error
 intptr_t fetch_inode(VfsDirEntry* entry, Inode** result, fmode_t mode);
 
-// Return  value:
+// Return value:
 // >= 0 Where the cursor should be
 // <  0 Error
 intptr_t vfs_seek(VfsFile* file, off_t offset, seekfrom_t from);
+
+
+// Return value:
+// >= 0 Success
+// <  0 Error
+intptr_t vfs_stat(VfsDirEntry* this, VfsStats* stats);
 
 intptr_t vfs_register_device(const char* name, Device* device);
 #define MAX_INODE_NAME 128

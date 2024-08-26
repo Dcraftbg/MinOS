@@ -140,12 +140,10 @@ FsDriver tmpfs_driver = {
     deinit_tmpfs,
 };
 static void inode_constr(Inode* inode) {
-    inode->lba = 0;
-    inode->size = 0;
     inode->ops = &tmpfs_inodeops;
 }
 static void direntry_constr(VfsDirEntry* entry, TmpfsInode* private, Superblock* superblock) {
-    vfsdirentry_constr(entry, superblock, (&tmpfs_fsops), ((inodeid_t)private), private);
+    vfsdirentry_constr(entry, superblock, (&tmpfs_fsops), private->kind, ((inodeid_t)private), private);
     // entry->superblock = superblock;
     // entry->private = private;
     // entry->ops = &tmpfs_fsops;
@@ -159,13 +157,6 @@ intptr_t tmpfs_register_device(VfsDir* dir, Device* device, VfsDirEntry* result)
     inode->kind = INODE_DEVICE;
     inode->data.device.device = device;
     direntry_constr(result, inode, dir->inode->superblock);
-    // inode_constr(result);
-    // result->private = inode;
-    // result->kind = inode->kind;
-    // result->ops = &tmpfs_inodeops;
-    // result->lba = 0; // TODO: ask device itself
-    // result->size = 0;
-    // result->inodeid = (inodeid_t)inode;
     return 0;
 }
 intptr_t tmpfs_get_inode_of(VfsDirEntry* entry, Inode** result) {
@@ -178,8 +169,6 @@ intptr_t tmpfs_get_inode_of(VfsDirEntry* entry, Inode** result) {
     inode->private = privInode;
     inode->kind = privInode->kind;
     inode->ops = &tmpfs_inodeops;
-    inode->lba = 0; // TODO: ask device itself
-    inode->size = 0;
     inode->inodeid = (inodeid_t)privInode;
     return 0;
 }

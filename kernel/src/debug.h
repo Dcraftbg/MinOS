@@ -161,22 +161,21 @@ static void ls(const char* path) {
         return;
     }
 
+    VfsStats stats = {0};
     while((e = vfs_diriter_next(&iter, &entry)) == 0) {
         if((e=vfs_identify(&entry, namebuf, sizeof(namebuf))) < 0) {
-            printf("ERROR: ls: Could not identify inode: %ld\n",e);
+            printf("ERROR: ls: Could not identify inode: %s\n",status_str(e));
             vfs_diriter_close(&iter);
             vfs_dirclose(&dir);
             return;
         }
-        Inode* item = NULL;
-        if((e = fetch_inode(&entry, &item, MODE_READ)) < 0) {
-            printf("ERROR: ls: Could not get inode of %s: %ld\n",namebuf,e); 
+        if((e=vfs_stat(&entry, &stats)) < 0) {
+            printf("ERROR: ls: Could not get stats for %s: %s\n",namebuf,status_str(e));
             vfs_diriter_close(&iter);
             vfs_dirclose(&dir);
             return;
         }
-        printf("%6s %15s %zu bytes \n", inode_kind_map[item->kind], namebuf, item->size * (1<<item->lba));
-        idrop(item);
+        printf("%6s %15s %zu bytes \n", inode_kind_map[entry.kind], namebuf, stats.size * (1<<stats.lba));
     }
     if(e != -NOT_FOUND) {
         printf("ERROR: ls: Failed to iterate: %ld\n",e);
