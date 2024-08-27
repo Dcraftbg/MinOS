@@ -99,8 +99,9 @@ static void init_cache(Cache* c, size_t objsize) {
     list_init(&c->full);
     list_init(&c->free);
     c->objsize = objsize;
-    // Gready algorithmn
-    c->objs_per_slab = PAGE_ALIGN_UP(objsize) / objsize;
+    // Less Gready algorithmn
+    c->objs_per_slab = (PAGE_ALIGN_UP(objsize+sizeof(Slab))-sizeof(Slab)) / (objsize+sizeof(uint32_t));
+    // c->objs_per_slab = PAGE_ALIGN_UP(objsize) / (objsize);
 }
 Cache* create_new_cache(size_t objsize, const char* name) {
     size_t len = strlen(name);
