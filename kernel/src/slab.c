@@ -94,6 +94,7 @@ void cache_dealloc(Cache* cache, void* p) {
 // And of course the bufctl index stack
 static void init_cache(Cache* c, size_t objsize) {
     memset(c, 0, sizeof(*c)); 
+    list_init(&c->list);
     list_init(&c->partial);
     list_init(&c->full);
     list_init(&c->free);
@@ -101,14 +102,19 @@ static void init_cache(Cache* c, size_t objsize) {
     // Gready algorithmn
     c->objs_per_slab = PAGE_ALIGN_UP(objsize) / objsize;
 }
-Cache* create_new_cache(size_t objsize) {
+Cache* create_new_cache(size_t objsize, const char* name) {
+    size_t len = strlen(name);
+    if(len >= MAX_CACHE_NAME) return NULL;
     assert(kernel.cache_cache); // @DEBUG      Ensures correct usage
     Cache* c = (Cache*)cache_alloc(kernel.cache_cache);
     if(!c) return NULL;
     init_cache(c, objsize);
+    memcpy(c->name, name, len+1);
+    list_append(&c->list, &kernel.cache_list);
     return c;
 }
 void init_cache_cache() {
     kernel.cache_cache = kernel_malloc(sizeof(Cache));
     init_cache(kernel.cache_cache, sizeof(Cache));
+    list_init(&kernel.cache_list);
 }

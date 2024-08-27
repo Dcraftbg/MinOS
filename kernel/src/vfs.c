@@ -247,8 +247,8 @@ intptr_t fetch_inode(VfsDirEntry* entry, Inode** result, fmode_t mode) {
     return 0;
 }
 void init_vfs() {
-    assert(kernel.inode_cache = create_new_cache(sizeof(Inode)));
-    assert(hashpair_cache = create_new_cache(sizeof(Pair_InodeMap)));
+    assert(kernel.inode_cache = create_new_cache(sizeof(Inode), "Inode"));
+    assert(hashpair_cache = create_new_cache(sizeof(Pair_InodeMap), "Pair_InodeMap"));
     intptr_t e=0;
     FsDriver* root_driver = &tmpfs_driver; 
     if(root_driver->init) {
