@@ -250,6 +250,10 @@ intptr_t tmpfs_stat(VfsDirEntry* this, VfsStats* stats) {
         stats->size = inode->data.file.size;
         return 0;
     } break;
+    case INODE_DEVICE: {
+        if(!inode->data.device.device || !inode->data.device.device->stat) return -UNSUPPORTED;
+        return inode->data.device.device->stat(inode->data.device.device, stats);
+    } break;
     }
     return -UNSUPPORTED;
 }

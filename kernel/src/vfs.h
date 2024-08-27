@@ -51,7 +51,10 @@ typedef struct VfsDir {
 } VfsDir;
 typedef struct {
     size_t lba ; // lba is in 1<<lba bytes
-    size_t size; // In lba
+    union {
+        size_t size; // In lba
+        struct { uint32_t width; uint32_t height; };
+    };
 } VfsStats;
 typedef struct Inode {
     struct Superblock* superblock;
@@ -151,6 +154,7 @@ typedef struct Device {
     intptr_t (*open)(struct Device* this, VfsFile* file, fmode_t mode);
     intptr_t (*init)();
     intptr_t (*deinit)();
+    intptr_t (*stat)(struct Device* this, VfsStats* stats);
 } Device;
 typedef struct InodeOps {
     // NOTE: mode is only used for permission checks by the driver

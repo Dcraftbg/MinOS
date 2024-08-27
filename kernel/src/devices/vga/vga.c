@@ -115,6 +115,15 @@ static intptr_t vga_write(VfsFile* file, const void* buf, size_t size, off_t off
     }
     return size;
 }
+static intptr_t vga_stat(Device* this, VfsStats* stats) {
+    if(!this || !this->private || !stats) return -INVALID_PARAM;
+    VgaDevice* vga = this->private;
+    memset(stats, 0, sizeof(*stats));
+    stats->lba = 0;
+    stats->width  = vga->fm.width  / 8;
+    stats->height = vga->fm.height / 16;
+    return 0;
+}
 void destroy_vga_device(Device* device) {
     if(!device) return;
     if(!device->private) return;
@@ -123,12 +132,13 @@ void destroy_vga_device(Device* device) {
 }
 intptr_t vga_init();
 intptr_t create_vga_device(size_t id, Device* device) {
-    static_assert(sizeof(Device) == 40, "Update create_vga_device");
+    static_assert(sizeof(Device) == 48, "Update create_vga_device");
     intptr_t e = 0;
     device->ops = &vgaOps;
     device->open = vga_open;
     device->init = vga_init;
     device->deinit = NULL;
+    device->stat = vga_stat;
     if((e = new_vga_private(&device->private, id)) < 0) return e;
     return 0;
 }
