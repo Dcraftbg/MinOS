@@ -70,6 +70,7 @@ static Task* task_select(Task* ct) {
 }
 __attribute__((optimize("O3")))
 void task_switch() {
+    kernel.pit_info.ticks++;
     Task* current = NULL;
     current = current_task();
     debug_assert(current);

@@ -1,4 +1,5 @@
 #pragma once
+#include <stdatomic.h>
 #define PIT_FREQUENCY 1193182
 static void pit_set_count(size_t count) {
     disable_interrupts();
@@ -8,3 +9,6 @@ static void pit_set_count(size_t count) {
     outb(0x40, (hz >> 8) & 0xFF);
     enable_interrupts();
 }
+typedef struct {
+    atomic_size_t ticks;
+} PitInfo;

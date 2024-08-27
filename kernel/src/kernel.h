@@ -5,6 +5,7 @@
 #include "idt.h"
 #include "tss.h"
 #include "vfs.h"
+#include "pit.h"
 struct Cache;
 typedef struct {
     Memmap map;
@@ -22,6 +23,7 @@ typedef struct {
     struct Cache* resource_cache;
     struct Cache* device_cache;
     struct list cache_list;
+    PitInfo pit_info;
 } Kernel;
 extern Kernel kernel;
 
