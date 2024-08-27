@@ -140,9 +140,10 @@ void _start() {
     init_syscalls();
     init_resources();
     pit_set_count(1000);
-    assert(kernel.device_cache = create_new_cache(sizeof(Device)));
+    assert(kernel.device_cache = create_new_cache(sizeof(Device), "Device"));
     fbt();
     init_vga();
+
     // dev_test();
     intptr_t e = 0;
     const char* epath = NULL;

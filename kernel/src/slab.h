@@ -3,9 +3,11 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "list.h"
+#define MAX_CACHE_NAME 20
 // TODO: Deallocation of caches and cache_destory, cache_shrink etc.
 // TODO: Give caches a name field like what linux has for @STAT purposes
 typedef struct Cache {
+    struct list list;
     // Linked list to either:
     // - fully filled blocks     => blocks with no available memory
     // - partially filled blocks => blocks with partially available memory
@@ -21,6 +23,7 @@ typedef struct Cache {
     size_t objsize;
     // Objects per slab
     size_t objs_per_slab;
+    char name[MAX_CACHE_NAME];
 } Cache;
 typedef struct Slab { 
     struct list list;
@@ -39,6 +42,6 @@ typedef struct Slab {
 intptr_t cache_grow(Cache* cache);
 void* cache_alloc(Cache* cache);
 void cache_dealloc(Cache* cache, void* p);
-Cache* create_new_cache(size_t objsize);
+Cache* create_new_cache(size_t objsize, const char* name);
 void init_cache_cache();
 

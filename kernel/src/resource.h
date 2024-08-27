@@ -33,5 +33,5 @@ Resource* resource_add(ResourceBlock* block, size_t* id);
 Resource* resource_find_by_id(ResourceBlock* first, size_t id);
 void resource_remove(ResourceBlock* first, size_t id);
 static void init_resources() {
-   assert(kernel.resource_cache = create_new_cache(sizeof(Resource)));
+   assert(kernel.resource_cache = create_new_cache(sizeof(Resource), "Resources"));
 }

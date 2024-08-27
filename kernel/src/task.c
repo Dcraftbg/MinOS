@@ -8,7 +8,7 @@
 #include "exec.h"
 void pit_handler();
 void init_tasks() {
-    assert(kernel.task_cache = create_new_cache(sizeof(Task)));
+    assert(kernel.task_cache = create_new_cache(sizeof(Task), "Task"));
     list_init(&kernel.tasks);
 }
 

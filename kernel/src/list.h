@@ -34,3 +34,13 @@ static void list_remove(struct list* list) {
     list->next = list;
     list->prev = list;
 }
+static size_t list_len(struct list* list) {
+    size_t n = 0;
+    struct list* first = list;
+    list = list->next;
+    while(first != list) {
+        n++;
+        list = list->next;
+    }
+    return n;
+}

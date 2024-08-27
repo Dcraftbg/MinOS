@@ -21,6 +21,7 @@ typedef struct {
     struct Cache* task_cache;
     struct Cache* resource_cache;
     struct Cache* device_cache;
+    struct list cache_list;
 } Kernel;
 extern Kernel kernel;
 

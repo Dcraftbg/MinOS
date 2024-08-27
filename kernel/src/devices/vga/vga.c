@@ -135,7 +135,7 @@ intptr_t vga_init() {
     memset(&vgaOps, 0, sizeof(vgaOps));
     vgaOps.write = vga_write;
     vgaOps.close = vga_close;
-    vga_cache = create_new_cache(sizeof(VgaDevice));
+    vga_cache = create_new_cache(sizeof(VgaDevice), "VgaDevice");
     if(!vga_cache) return -NOT_ENOUGH_MEM;
     return 0;
 }

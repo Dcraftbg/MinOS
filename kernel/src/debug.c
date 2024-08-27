@@ -1,5 +1,6 @@
 #include "debug.h"
 #include "fs/tmpfs/tmpfs.h"
+#include "kernel.h"
 void dump_memmap(Memmap* map) {
     printf("Memory map %p; pages: %zu; available: %zu;\n",map->addr,map->page_count,map->page_available);
     for(size_t i = 0; i < (map->page_count+7)/8; ++i) {
@@ -65,5 +66,21 @@ void dump_inodes(Superblock* superblock) {
             printf(" mode = %d\n",inode->mode);
             pair = pair->next;
         }
+    }
+}
+
+
+void dump_caches() {
+    struct list* first = &kernel.cache_list;
+    struct list* list = first->next; 
+    while(first != list) {
+        Cache* cache = (Cache*)list;
+        printf("Cache:\n");
+        printf("  Name: %s\n",cache->name);
+        printf("  Objects: %zu/%zu\n",cache->inuse,cache->totalobjs);
+        printf("  Object Size: %zu\n",cache->objsize);
+        printf("  Object Per Slab: %zu\n",cache->objs_per_slab);
+        printf("  Bytes per slab: %zu\n",PAGE_ALIGN_UP(cache->objs_per_slab * (cache->objsize + sizeof(uint32_t)) + sizeof(Slab)));
+        list = list->next;
     }
 }
