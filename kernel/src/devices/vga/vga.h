@@ -7,7 +7,6 @@
 #include "../../framebuffer.h"
 #include "../../bootutils.h"
 #include <stdint.h>
-extern Device vgaDevice;
 // intptr_t vga_draw_codepoint(Framebuffer* fm, size_t x, size_t y, int codepoint);
 intptr_t vga_init();
 
