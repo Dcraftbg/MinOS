@@ -144,7 +144,6 @@ void _start() {
     fbt();
     init_vga();
 
-    dump_caches();
     // dev_test();
     intptr_t e = 0;
     const char* epath = NULL;
