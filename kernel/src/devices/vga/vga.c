@@ -49,7 +49,7 @@ static intptr_t new_vga_private(void** private, size_t id) {
     }
     return 0;
 }
-static intptr_t vga_draw_codepoint_at(Framebuffer* fm, size_t x, size_t y, int codepoint, uint32_t color) {
+intptr_t vga_draw_codepoint_at(Framebuffer* fm, size_t x, size_t y, int codepoint, uint32_t color) {
     if(codepoint > 127) return -UNSUPPORTED; // Unsupported
     if(fm->bpp != 32) return -UNSUPPORTED; // Because of optimisations we don't support anything besides 32 bits per pixel
     uint8_t* fontPtr = fontGlythBuffer + (codepoint*fontHeader.charsize);
