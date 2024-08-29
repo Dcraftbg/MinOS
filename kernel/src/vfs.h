@@ -277,7 +277,8 @@ Inode* iget(Inode* inode);
 #if 0
 #define idrop(inode) _idrop(__func__, inode)
 void _idrop(const char* func, Inode* inode);
+#else
+void idrop(Inode* inode);
 #endif
 
-void idrop(Inode* inode);
 
