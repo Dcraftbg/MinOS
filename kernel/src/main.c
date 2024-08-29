@@ -24,6 +24,7 @@
 #include "syscall.h"
 #include "vga.h"
 #include "devices.h"
+#include "./devices/tty/tty.h"
 #include <minos/keycodes.h>
 #include <minos/key.h>
 #include <sync.h>
@@ -99,7 +100,7 @@ static void init_rootfs() {
 
 
 static void dev_test() {
-    const char* path = "/devices/vga0";
+    const char* path = "/devices/tty0";
     const char* msg = "This is a test message to test if devices work :D\nHello!";
     intptr_t e = 0;
     VfsFile file={0};
@@ -114,6 +115,32 @@ static void dev_test() {
     }
     vfs_close(&file);
 }
+void init_tty() {
+    intptr_t e = 0;
+    if((e = tty_init()) < 0) {
+        printf("WARN: Failed to initialise VGA: %s\n",status_str(e));
+        return;
+    }
+    const char* display = "/devices/vga0";
+    const char* keyboard = "/devices/ps2keyboard";
+
+    Device* device = (Device*)cache_alloc(kernel.device_cache);
+    if(!device) return;
+    e = create_tty_device(display, keyboard, device);
+    if(e < 0) {
+        printf("WARN: Failed to initialise TTY (id=%zu): %s\n",0lu,status_str(e));
+        cache_dealloc(kernel.device_cache, device);
+        return;
+    }
+    if((e = vfs_register_device("tty0", device)) < 0) {
+        printf("WARN: Failed to register TTY device (id=%zu): %s\n",0lu,status_str(e));
+        destroy_vga_device(device);
+        cache_dealloc(kernel.device_cache, device);
+        return;
+    }
+    printf("TRACE: Initialised TTY (id=%zu)\n",0lu);
+}
+
 
 void _start() {
     BREAKPOINT();
@@ -143,6 +170,7 @@ void _start() {
     assert(kernel.device_cache = create_new_cache(sizeof(Device), "Device"));
     fbt();
     init_vga();
+    init_tty();
 
     // dev_test();
     intptr_t e = 0;
