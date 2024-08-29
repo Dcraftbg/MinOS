@@ -55,7 +55,7 @@ void dump_inodes(Superblock* superblock) {
     // debug_assert(file->inode);
     InodeMap* map = &superblock->inodemap;
     printf("Inode Dump:\n");
-    printf("Amount: %zu\n",map->buckets.len);
+    printf("Amount: %zu\n",map->len);
     for(size_t i = 0; i < map->buckets.len; ++i) {
         Pair_InodeMap* pair = map->buckets.items[i].first;
         while(pair) {
