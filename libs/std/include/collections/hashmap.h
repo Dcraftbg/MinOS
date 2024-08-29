@@ -97,7 +97,7 @@
         while(pair) {\
             if(key_eq(pair->key,key)) {\
                 if(prev == NULL) {\
-                    bucket->first = NULL;\
+                    bucket->first = pair->next;\
                 } else {\
                     prev->next = pair->next;\
                 }\
