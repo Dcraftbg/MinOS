@@ -93,7 +93,7 @@ void dump_memregions(struct list* list) {
         MemoryList* memlist = (MemoryList*)list;
         MemoryRegion* region = memlist->region;
         printf("Region:\n");
-        printf("   rflags = %lu\n",region->flags);
+        printf("   rflags = %u\n",region->flags);
         printf("   address = %p\n",(void*)region->address);
         printf("   pages = %zu\n",region->pages);
         printf("   shared = %zu\n",region->shared);

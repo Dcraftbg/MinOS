@@ -110,7 +110,7 @@ intptr_t exec(const char* path, Args args) {
            return_defer_err(e);
         }
         MemoryList* region;
-        if(!(region=memlist_new(memregion_new(regionflags, virt, segment_pages)))) {
+        if(!(region=memlist_new(memregion_new(regionflags, flags, virt, segment_pages)))) {
            kernel_dealloc(memory, segment_pages * PAGE_SIZE);
            return_defer_err(-NOT_ENOUGH_MEM);
         }
@@ -130,7 +130,7 @@ intptr_t exec(const char* path, Args args) {
 
     size_t stack_pages = USER_STACK_PAGES + 1 + (PAGE_ALIGN_UP(args.bytelen) / PAGE_SIZE);
 
-    if(!(ustack_region=memlist_new(memregion_new(MEMREG_WRITE, USER_STACK_ADDR, stack_pages)))) 
+    if(!(ustack_region=memlist_new(memregion_new(MEMREG_WRITE, KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_USER | KERNEL_PTYPE_USER, USER_STACK_ADDR, stack_pages)))) 
         return_defer_err(-NOT_ENOUGH_MEM);
     
 
@@ -139,7 +139,7 @@ intptr_t exec(const char* path, Args args) {
 
     list_append(&ustack_region->list, &task->memlist);
     
-    if(!(kstack_region=memlist_new(memregion_new(MEMREG_WRITE, KERNEL_STACK_ADDR, KERNEL_STACK_PAGES))))
+    if(!(kstack_region=memlist_new(memregion_new(MEMREG_WRITE, KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | KERNEL_PTYPE_USER, KERNEL_STACK_ADDR, KERNEL_STACK_PAGES))))
         return_defer_err(-NOT_ENOUGH_MEM);
     
     list_append(&kstack_region->list, &task->memlist);

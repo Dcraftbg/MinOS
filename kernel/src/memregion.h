@@ -9,7 +9,8 @@ enum {
     MEMREG_WRITE=BIT(1),
 };
 typedef struct {
-    uint64_t flags;
+    uint16_t flags;
+    uint16_t pageflags;
     uintptr_t address;
     size_t pages;
     atomic_size_t shared;
@@ -19,16 +20,18 @@ typedef struct {
     MemoryRegion* region;
 } MemoryList;
 void init_memregion(); 
-static MemoryRegion* memregion_new(uint64_t flags, uintptr_t address, size_t pages) {
+static MemoryRegion* memregion_new(uint16_t flags, uint16_t pageflags, uintptr_t address, size_t pages) {
     MemoryRegion* region;
     if(!(region=cache_alloc(kernel.memregion_cache))) return NULL;
     region->flags = flags;
+    region->pageflags = pageflags;
     region->address = address;
     region->pages = pages;
     region->shared = 1;
     return region;
 }
-static void memregion_drop(MemoryRegion* region, page_t* pml4) {
+MemoryRegion* memregion_clone(MemoryRegion* region, page_t src, page_t dst);
+static void memregion_drop(MemoryRegion* region, page_t pml4) {
     if(region->shared == 1) {
         // if(pml4) page_dealloc(pml4, region->address, region->pages);
         cache_dealloc(kernel.memregion_cache, region);
@@ -44,7 +47,7 @@ static MemoryList* memlist_new(MemoryRegion* region) {
     list_init(&list->list);
     return list;
 }
-static void memlist_dealloc(MemoryList* list, page_t* pml4) {
+static void memlist_dealloc(MemoryList* list, page_t pml4) {
     list_remove(&list->list);
     memregion_drop(list->region, pml4);
     cache_dealloc(kernel.memlist_cache, list);
