@@ -163,12 +163,10 @@ static intptr_t new_tty_private(void** private, const char* display, const char*
     return 0;
 }
 intptr_t create_tty_device(const char* display, const char* keyboard, Device* device) {
-    static_assert(sizeof(Device) == 48, "Update create_tty_device");
+    static_assert(sizeof(Device) == 32, "Update create_tty_device");
     intptr_t e = 0;
     device->ops = &ttyOps;
     device->open = tty_open;
-    device->init = NULL;
-    device->deinit = NULL;
     device->stat = NULL;
     if((e = new_tty_private(&device->private, display, keyboard)) < 0) return e;
     return 0;

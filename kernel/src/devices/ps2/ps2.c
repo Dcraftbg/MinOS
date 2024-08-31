@@ -6,7 +6,7 @@ void init_ps2() {
         printf("WARN: Failed to allocate ps2queue for the keyboard!\n");
     }
     idt_register(0x21, idt_ps2_keyboard_handler, IDT_HARDWARE_TYPE);
-    ps2keyboard_device.init();
+    ps2keyboard_init();
     intptr_t e = 0;
     if((e = vfs_register_device("ps2keyboard", &ps2keyboard_device)) < 0) {
         printf("ERROR: Could not register ps2keyboard device: %s\n", status_str(e));

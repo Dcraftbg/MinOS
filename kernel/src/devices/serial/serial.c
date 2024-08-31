@@ -13,16 +13,15 @@ static intptr_t serial_dev_write(VfsFile* file, const void* buf, size_t size, of
      }
      return size;
 }
-static intptr_t serial_dev_init() {
+intptr_t serial_dev_init() {
      memset(&serialOps, 0, sizeof(serialOps));
      serialOps.write = serial_dev_write;
      return 0;
 }
 
 Device serialDevice = {
-     &serialOps,
-     NULL,
-     serial_open,
-     serial_dev_init,
-     NULL,
+     .ops=&serialOps,
+     .private=NULL,
+     .open=serial_open,
+     .stat=NULL,
 };

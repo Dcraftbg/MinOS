@@ -142,15 +142,14 @@ static intptr_t ps2keyboard_open(Device* this, VfsFile* file, fmode_t mode) {
     file->private = this->private;
     return 0;
 }
-static intptr_t ps2keyboard_init() {
+intptr_t ps2keyboard_init() {
     memset(&ps2keyboardOps, 0, sizeof(ps2keyboardOps));
     ps2keyboardOps.read = ps2keyboard_read;
     return 0;
 }
 Device ps2keyboard_device = {
-    &ps2keyboardOps,
-    &ps2queue,
-    ps2keyboard_open,
-    ps2keyboard_init,
-    NULL,
+    .ops=&ps2keyboardOps,
+    .private=&ps2queue,
+    .open=ps2keyboard_open,
+    .stat=NULL
 };

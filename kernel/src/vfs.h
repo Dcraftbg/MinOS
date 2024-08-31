@@ -152,8 +152,6 @@ typedef struct Device {
     FsOps* ops;
     void* private;
     intptr_t (*open)(struct Device* this, VfsFile* file, fmode_t mode);
-    intptr_t (*init)();
-    intptr_t (*deinit)();
     intptr_t (*stat)(struct Device* this, VfsStats* stats);
 } Device;
 typedef struct InodeOps {
