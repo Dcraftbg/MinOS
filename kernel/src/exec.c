@@ -27,6 +27,8 @@ intptr_t exec(const char* path, Args args) {
     VfsFile file={0};
     bool fopened=false;
     Task* task = {0};
+    MemoryList* kstack_region = NULL;
+    MemoryList* ustack_region = NULL;
     Elf64ProgHeader* pheaders = NULL;
     if(!path) return -INVALID_PARAM;
     task = kernel_task_add();
@@ -35,6 +37,7 @@ intptr_t exec(const char* path, Args args) {
     task->ts_rsp = 0;
     task->rip = 0;
     task->flags |= TASK_FLAG_FIRST_RUN;
+    list_init(&task->memlist);
 
     if((e=vfs_open(path, &file, MODE_READ)) < 0) {
         return_defer_err(e);
@@ -83,8 +86,10 @@ intptr_t exec(const char* path, Args args) {
 #endif        
         if (pheader->p_type != ELF_PHREADER_LOAD || pheader->memsize == 0) continue;
         uint16_t flags = KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_USER | KERNEL_PTYPE_USER;
+        uint64_t regionflags = 0;
         if (pheader->flags & ELF_PROG_WRITE) {
             flags |= KERNEL_PFLAG_WRITE;
+            regionflags |= MEMREG_WRITE;
         }
         if(pheader->filesize > pheader->memsize) {
             return_defer_err(-SIZE_MISMATCH);
@@ -104,24 +109,42 @@ intptr_t exec(const char* path, Args args) {
            kernel_dealloc(memory, segment_pages * PAGE_SIZE);
            return_defer_err(e);
         }
+        MemoryList* region;
+        if(!(region=memlist_new(memregion_new(regionflags, virt, segment_pages)))) {
+           kernel_dealloc(memory, segment_pages * PAGE_SIZE);
+           return_defer_err(-NOT_ENOUGH_MEM);
+        }
         // TODO: Better return message. it could be either Incomplete Map or Not Enough Memory
         // We just don't know right now and Not Enough Memory seems more reasonable
         if (
           !page_mmap(task->cr3, virt_to_phys(kernel.pml4, (uintptr_t)memory), virt, segment_pages, flags)
         ) {
+           memlist_dealloc(region, NULL);
            kernel_dealloc(memory, segment_pages * PAGE_SIZE);
            return_defer_err(-NOT_ENOUGH_MEM);
         }
+        list_append(&region->list, &task->memlist);
     }
     if (header.entry == 0)
         return_defer_err(-NO_ENTRYPOINT);
 
     size_t stack_pages = USER_STACK_PAGES + 1 + (PAGE_ALIGN_UP(args.bytelen) / PAGE_SIZE);
-    if (!page_alloc(task->cr3, USER_STACK_ADDR  , stack_pages       , KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_USER | KERNEL_PTYPE_USER))  
+
+    if(!(ustack_region=memlist_new(memregion_new(MEMREG_WRITE, USER_STACK_ADDR, stack_pages)))) 
         return_defer_err(-NOT_ENOUGH_MEM);
     
+
+    if (!page_alloc(task->cr3, USER_STACK_ADDR  , stack_pages       , KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_USER | KERNEL_PTYPE_USER))  
+        return_defer_err(-NOT_ENOUGH_MEM);
+
+    list_append(&ustack_region->list, &task->memlist);
+    
+    if(!(kstack_region=memlist_new(memregion_new(MEMREG_WRITE, KERNEL_STACK_ADDR, KERNEL_STACK_PAGES))))
+        return_defer_err(-NOT_ENOUGH_MEM);
+    
+    list_append(&kstack_region->list, &task->memlist);
     // NOTE: If you're wondering why KERNEL_PTYPE_USER is applied here. The USER program OWNS that memory
-    if (!page_alloc(task->cr3, KERNEL_STACK_ADDR, KERNEL_STACK_PAGES, KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | KERNEL_PTYPE_USER)) 
+    if (!page_alloc(task->cr3, KERNEL_STACK_ADDR, KERNEL_STACK_PAGES, KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | KERNEL_PTYPE_USER))
         return_defer_err(-NOT_ENOUGH_MEM);
 
     // TODO: Kind of interesting but what if you swapped the cr3 AFTER YOU JOINED WITH THE KERNEL MEMORY MAP
@@ -164,6 +187,8 @@ intptr_t exec(const char* path, Args args) {
     return 0;
 DEFER_ERR:
     if(pheaders) kernel_dealloc(pheaders, prog_header_size);
+    if(kstack_region) memlist_dealloc(kstack_region, NULL);
+    if(ustack_region) memlist_dealloc(ustack_region, NULL);
     if(task->cr3) page_destruct(task->cr3, KERNEL_PTYPE_USER);
     if(fopened) vfs_close(&file);
     if(task->resources) delete_resource_block(task->resources);

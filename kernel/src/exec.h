@@ -3,6 +3,7 @@
 #include <minos/status.h>
 #include "vfs.h"
 #include "user.h"
+#include "memregion.h"
 #include <stdint.h>
 typedef struct {
     uint64_t rip;
