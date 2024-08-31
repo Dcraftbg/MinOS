@@ -13,6 +13,7 @@ MemoryRegion* memregion_clone(MemoryRegion* region, page_t src, page_t dst) {
             const void* saddr = (const void*)(virt_to_phys(src, at) | KERNEL_MEMORY_MASK);
             memcpy(taddr, saddr, PAGE_SIZE);
         }
+        region->shared++;
         return region;
     } 
     region->shared++;
