@@ -1,3 +1,4 @@
+#pragma once
 #include "mmap.h"
 #include "slab.h"
 #include "list.h"

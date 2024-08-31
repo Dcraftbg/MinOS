@@ -167,7 +167,7 @@ intptr_t create_tty_device(const char* display, const char* keyboard, Device* de
     intptr_t e = 0;
     device->ops = &ttyOps;
     device->open = tty_open;
-    device->init = tty_init;
+    device->init = NULL;
     device->deinit = NULL;
     device->stat = NULL;
     if((e = new_tty_private(&device->private, display, keyboard)) < 0) return e;
@@ -181,7 +181,7 @@ void destroy_tty_device(Device* device) {
     vfs_close(&tty->display);
 }
 
-intptr_t tty_init() {
+static intptr_t tty_init() {
     memset(&ttyOps, 0, sizeof(ttyOps));
     ttyOps.write = tty_dev_write;
     ttyOps.read = tty_dev_read;
@@ -189,4 +189,32 @@ intptr_t tty_init() {
     tty_cache = create_new_cache(sizeof(TtyDevice), "TtyDevice");
     if(!tty_cache) return -NOT_ENOUGH_MEM;
     return 0;
+}
+
+
+
+void init_tty() {
+    intptr_t e = 0;
+    if((e = tty_init()) < 0) {
+        printf("WARN: Failed to initialise VGA: %s\n",status_str(e));
+        return;
+    }
+    const char* display = "/devices/vga0";
+    const char* keyboard = "/devices/ps2keyboard";
+
+    Device* device = (Device*)cache_alloc(kernel.device_cache);
+    if(!device) return;
+    e = create_tty_device(display, keyboard, device);
+    if(e < 0) {
+        printf("WARN: Failed to initialise TTY (id=%zu): %s\n",0lu,status_str(e));
+        cache_dealloc(kernel.device_cache, device);
+        return;
+    }
+    if((e = vfs_register_device("tty0", device)) < 0) {
+        printf("WARN: Failed to register TTY device (id=%zu): %s\n",0lu,status_str(e));
+        destroy_vga_device(device);
+        cache_dealloc(kernel.device_cache, device);
+        return;
+    }
+    printf("TRACE: Initialised TTY (id=%zu)\n",0lu);
 }
