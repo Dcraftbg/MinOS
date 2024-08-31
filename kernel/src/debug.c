@@ -92,8 +92,14 @@ void dump_memregions(struct list* list) {
     while(first != list) {
         MemoryList* memlist = (MemoryList*)list;
         MemoryRegion* region = memlist->region;
+        char rflags[2] = {0};
+        char pflags[10] = {0};
+        page_flags_serialise(region->pageflags, pflags, sizeof(pflags)-1);
+        const char* strp_type = page_type_str(region->pageflags);
+        rflags[0] = region->flags & MEMREG_WRITE ? 'w' : '-';
         printf("Region:\n");
-        printf("   rflags = %u\n",region->flags);
+        printf("   rflags = %s\n",rflags);
+        printf("   pflags = %s (%s)\n",pflags, strp_type);
         printf("   address = %p\n",(void*)region->address);
         printf("   pages = %zu\n",region->pages);
         printf("   shared = %zu\n",region->shared);

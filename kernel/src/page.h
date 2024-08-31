@@ -45,3 +45,8 @@ void update_post_paging(); // Called after to update previous values
        : "r" ((uintptr_t)kernel.pml4 & ~KERNEL_MEMORY_MASK), \
          "r" (KERNEL_STACK_PTR)\
     )
+
+// debug functions
+void page_flags_serialise(uint16_t flags, char* buf, size_t cap);
+const char* page_type_str(uint16_t flags);
+

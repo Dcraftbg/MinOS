@@ -228,6 +228,7 @@ uintptr_t virt_to_phys(page_t pml4_addr, uintptr_t addr) {
 
     return PAGE_ALIGN_DOWN(pml1_addr[pml1]);
 }
+
 void init_paging() {
     Mempair addr_resp = {0};
     kernel_mempair(&addr_resp);
@@ -274,4 +275,24 @@ void init_paging() {
 }
 void update_post_paging() {
     kernel.map.addr = (uint8_t*)(((uintptr_t)kernel.map.addr) | KERNEL_MEMORY_MASK);
+}
+
+
+
+void page_flags_serialise(uint16_t flags, char* buf, size_t cap) {
+    assert(cap >= 3);
+    memset(buf, 0  ,cap);
+    buf[0] = flags & KERNEL_PFLAG_PRESENT ? 'p' : '-';
+    buf[1] = flags & KERNEL_PFLAG_WRITE   ? 'w' : '-';
+    buf[2] = flags & KERNEL_PFLAG_USER    ? 'u' : '-';
+}
+
+const char* page_type_str(uint16_t flags) {
+    switch(flags >> KERNEL_PTYPE_SHIFT) {
+    case (KERNEL_PTYPE_USER>>KERNEL_PTYPE_SHIFT):
+        return "User";
+    case (KERNEL_PTYPE_KERNEL>>KERNEL_PTYPE_SHIFT):
+        return "Kernel";
+    }
+    return "Unknown";
 }
