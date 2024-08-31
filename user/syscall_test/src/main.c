@@ -27,23 +27,39 @@ size_t strlen(const char* cstr) {
 }
 void printf(const char* fmt, ...) __attribute__((format(printf,1, 2)));
 void printf(const char* fmt, ...) {
-   va_list va;
-   va_start(va, fmt);
-   size_t n = stbsp_vsnprintf(tmp_printf, PRINTF_TMP, fmt, va);
-   va_end(va);
-   write(stdout, tmp_printf, n);
+    va_list va;
+    va_start(va, fmt);
+    size_t n = stbsp_vsnprintf(tmp_printf, PRINTF_TMP, fmt, va);
+    va_end(va);
+    write(stdout, tmp_printf, n);
 }
+intptr_t readline(char* buf, size_t bufmax) {
+    intptr_t e;
+    size_t left = bufmax;
+    while(left) {
+        if((e=read(stdin, buf, 1)) < 0) {
+            return e;
+        }
+        if(buf[0] == '\n') {
+            return bufmax-left;
+        }
+        buf++;
+        left--;
+    }
+    return -BUFFER_OVEWFLOW;
+}
+#define LINEBUF_MAX 1024
 int main() {
+    static char linebuf[LINEBUF_MAX];
     intptr_t e = 0;
     printf("Hello World!\n");
     printf("If you're seeing this it means that you successfully booted into user mode! :D\n");
     for(;;) {
-        char point;
-        if((e=read(stdin, &point, sizeof(point))) < 0) {
-            printf("Failed to read on stdin: %s!\n",status_str(e));
-            HALT();
+        if((e=readline(linebuf, sizeof(linebuf)-1)) < 0) {
+            printf("Failed to read on stdin: %s\n", status_str(e));
         }
-        printf("%c",point);
+        linebuf[e] = 0;
+        printf("Read line: %s\n",linebuf);
     }
     return 0;
 }

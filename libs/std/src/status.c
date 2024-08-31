@@ -23,6 +23,7 @@ static const char* status_map[] = {
     [SIZE_MISMATCH]      = "Size Mismatch",
     [WOULD_SEGFAULT]     = "Would Segfault",
     [RESOURCE_BUSY]      = "Resource Busy",
+    [BUFFER_OVEWFLOW]    = "Buffer Overflow",
 };
 static_assert(STATUS_COUNT==ARRAY_LEN(status_map), "You need to update the status map!");
 const char* status_str(intptr_t status) {

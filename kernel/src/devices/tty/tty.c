@@ -112,6 +112,9 @@ static intptr_t tty_dev_read(VfsFile* file, void* buf, size_t size, off_t offset
         if(code) {
             // NOTE: Non unicode keys are not yet supported cuz of reasons
             if(code >= 256) return -UNSUPPORTED; 
+            if((e = write_exact(&tty->display, &code, 1)) < 0) {
+                return e;
+            }
             *((char*)buf) = code;
             left--;
             buf++;
