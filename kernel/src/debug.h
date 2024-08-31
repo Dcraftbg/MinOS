@@ -5,6 +5,7 @@
 #include "vfs.h"
 #include "string.h"
 #include "ctype.h"
+#include "memregion.h"
 
 void dump_memmap(Memmap* map);
 void log_slab(void* p);
@@ -195,6 +196,6 @@ static intptr_t write_exact(VfsFile* file, const void* bytes, size_t amount) {
     return 0;
 }
 
-
+void dump_memregions(struct list* list);
 void dump_caches();
 void dump_inodes(Superblock* superblock);

@@ -84,3 +84,19 @@ void dump_caches() {
         list = list->next;
     }
 }
+
+void dump_memregions(struct list* list) {
+    printf("Region Dump:\n");
+    struct list* first = list;
+    list  = list->next;
+    while(first != list) {
+        MemoryList* memlist = (MemoryList*)list;
+        MemoryRegion* region = memlist->region;
+        printf("Region:\n");
+        printf("   rflags = %lu\n",region->flags);
+        printf("   address = %p\n",(void*)region->address);
+        printf("   pages = %zu\n",region->pages);
+        printf("   shared = %zu\n",region->shared);
+        list = list->next;
+    }
+}
