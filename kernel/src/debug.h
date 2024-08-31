@@ -6,22 +6,13 @@
 #include "string.h"
 #include "ctype.h"
 #include "memregion.h"
+#include "fileutils.h"
 
 void dump_memmap(Memmap* map);
 void log_slab(void* p);
 void log_list(struct list* list, void (*log_obj)(void* obj));
 void log_cache(Cache* cache);
 
-static intptr_t read_exact(VfsFile* file, void* bytes, size_t amount) {
-    while(amount) {
-        size_t rb = vfs_read(file, bytes, amount);
-        if(rb < 0) return rb;
-        if(rb == 0) return -PREMATURE_EOF;
-        amount-=rb;
-        bytes+=rb;
-    }
-    return 0;
-}
 static void cat(const char* path) {
     VfsFile file = {0};
     intptr_t e = 0;
@@ -185,15 +176,6 @@ static void ls(const char* path) {
     }
     vfs_diriter_close(&iter);
     vfs_dirclose(&dir);
-}
-static intptr_t write_exact(VfsFile* file, const void* bytes, size_t amount) {
-    while(amount) {
-        size_t wb = vfs_write(file, bytes, amount);
-        if(wb < 0) return wb;
-        amount-=wb;
-        bytes+=wb;
-    }
-    return 0;
 }
 
 void dump_memregions(struct list* list);

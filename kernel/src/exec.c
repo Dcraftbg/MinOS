@@ -5,6 +5,7 @@
 #include "gdt.h"
 #include "vfs.h"
 #include "string.h"
+#include "fileutils.h"
 #include "kernel.h"
 
 #define return_defer_err(x) do {\
@@ -12,16 +13,6 @@
     goto DEFER_ERR;\
 } while(0)
 
-static intptr_t read_exact(VfsFile* file, void* bytes, size_t amount) {
-    while(amount) {
-        size_t rb = vfs_read(file, bytes, amount);
-        if(rb < 0) return rb;
-        if(rb == 0) return -PREMATURE_EOF;
-        amount-=rb;
-        bytes+=rb;
-    }
-    return 0;
-}
 intptr_t exec(const char* path, Args args) {
     intptr_t e=0;
     VfsFile file={0};
