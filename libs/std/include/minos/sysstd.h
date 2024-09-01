@@ -23,3 +23,11 @@ static intptr_t read(uintptr_t handle, void* buf, size_t size) {
 static intptr_t close(uintptr_t handle) {
     return syscall1(SYS_CLOSE, handle);
 }
+
+static intptr_t fork(void) {
+    return syscall0(SYS_FORK);
+}
+
+static intptr_t exec(const char* path, const char** argv, size_t argc) {
+    return syscall3(SYS_EXEC, path, argv, argc);
+}

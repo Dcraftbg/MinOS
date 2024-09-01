@@ -36,8 +36,8 @@ Task* kernel_task_add() {
     if(task) {
         memset(task, 0, sizeof(Task));
         task->id = kernel.taskid++;
-        list_append(&task->list, &kernel.tasks);
         list_init(&task->memlist);
+        list_append(&task->list, &kernel.tasks);
     }
     return task;
 }
