@@ -13,6 +13,37 @@
     goto DEFER_ERR;\
 } while(0)
 
+intptr_t fork(Task* task, Task* result) {
+    assert(task->flags & TASK_FLAG_PRESENT);
+    intptr_t e=0;
+    struct list* list = &task->memlist;
+    struct list* first = list;
+    list = list->next;
+    while(first != list) {
+        MemoryList* memlist = (MemoryList*)list;
+        MemoryRegion* region = memlist->region;
+        MemoryRegion* nreg = memregion_clone(region, task->cr3, result->cr3);
+        if(!nreg) 
+            return_defer_err(-NOT_ENOUGH_MEM);
+        MemoryList* nlist = memlist_new(region);
+        if(!nlist) {
+            memregion_drop(region, result->cr3);
+            return_defer_err(-NOT_ENOUGH_MEM);
+        }
+        list_append(&nlist->list, &result->memlist);
+        list = list->next;
+    }
+    result->flags = task->flags;
+    result->resources = resourceblock_clone(task->resources);
+    if(!result->resources)
+        return_defer_err(-NOT_ENOUGH_MEM);
+    return 0;
+DEFER_ERR:
+    if(result->cr3) page_destruct(result->cr3, KERNEL_PTYPE_USER);
+    if(result->resources) resourceblock_dealloc(result->resources);
+    if(result) drop_task(result);
+    return e;
+}
 intptr_t exec(const char* path, Args args) {
     intptr_t e=0;
     VfsFile file={0};

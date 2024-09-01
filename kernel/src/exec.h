@@ -14,3 +14,4 @@ typedef struct {
 } IRQFrame;
 
 intptr_t exec(const char* path, Args args);
+intptr_t fork(Task* task, Task* result);
