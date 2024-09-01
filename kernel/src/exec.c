@@ -44,21 +44,56 @@ DEFER_ERR:
     if(result) drop_task(result);
     return e;
 }
-intptr_t exec(const char* path, Args args) {
+intptr_t exec_new(const char* path, Args args) {    
+    intptr_t e=0;
+    Task* task = kernel_task_add();
+    if(!task) return -LIMITS; // Reached max tasks and/or we're out of memory
+    if(!(task->resources = new_resource_block()))
+        return_defer_err(-NOT_ENOUGH_MEM);
+    if((e=exec(task, path, args)) < 0)
+        return_defer_err(e);
+    return 0;
+DEFER_ERR:
+    if(task->resources) resourceblock_dealloc(task->resources);
+    if(task) drop_task(task);
+    return e;
+}
+intptr_t exec(Task* task, const char* path, Args args) {
     intptr_t e=0;
     VfsFile file={0};
     bool fopened=false;
-    Task* task = {0};
     MemoryList* kstack_region = NULL;
     MemoryList* ustack_region = NULL;
     Elf64ProgHeader* pheaders = NULL;
+    Elf64Header header;
+
     if(!path) return -INVALID_PARAM;
-    task = kernel_task_add();
-    if(!task) return -LIMITS; // Reached max tasks and/or we're out of memory
-    task->cr3 = NULL;
+
+    {
+        struct list* list = &task->memlist;
+        struct list* first = list;
+        list = list->next;
+        while(first != list) {
+             MemoryList* memlist = (MemoryList*)list;
+             struct list* next = list->next;
+             memlist_dealloc(memlist, task->cr3);
+             list = next;
+        }
+    }
+
+    // TODO: Maybe remove this?
+    // I don't really see a purpose in calling page_destruct anymore now that we have the 
+    // memory regions
+    if(task->cr3) page_destruct(task->cr3, KERNEL_PTYPE_USER); // Clean it up
+    else {
+        if(!(task->cr3 = kernel_page_alloc())) {
+          return_defer_err(-NOT_ENOUGH_MEM);
+    }
+
+
     task->ts_rsp = 0;
     task->rip = 0;
-    task->flags |= TASK_FLAG_FIRST_RUN;
+    task->flags = TASK_FLAG_FIRST_RUN;
     list_init(&task->memlist);
 
     if((e=vfs_open(path, &file, MODE_READ)) < 0) {
@@ -66,7 +101,6 @@ intptr_t exec(const char* path, Args args) {
     }
     fopened = true;
 
-    Elf64Header header;
     if((e=read_exact(&file, &header, sizeof(header))) < 0) return_defer_err(e);
     
     if(!elf_header_verify(&header)) return_defer_err(-INVALID_MAGIC);
@@ -80,8 +114,6 @@ intptr_t exec(const char* path, Args args) {
         header.type != ELF_TYPE_EXEC
     ) return_defer_err(-INVALID_TYPE);
      
-    if(!(task->cr3 = kernel_page_alloc())) {
-      return_defer_err(-NOT_ENOUGH_MEM);
     }
 
     task->cr3 = (page_t)((uint64_t)task->cr3 | KERNEL_MEMORY_MASK);
@@ -200,20 +232,18 @@ intptr_t exec(const char* path, Args args) {
     frame->rsp    = (uint64_t)stack_head;
     task->ts_rsp = (void*)(KERNEL_STACK_PTR+sizeof(IRQFrame));
     task->rip    = header.entry;
-    task->flags |= TASK_FLAG_PRESENT;
-    if(!(task->resources = new_resource_block()))
-        return_defer_err(-NOT_ENOUGH_MEM);
+    if(!task->resources) {
+    }
     page_join(kernel.pml4, task->cr3);
     vfs_close(&file);
     fopened = false;
+    task->flags |= TASK_FLAG_PRESENT;
     return 0;
 DEFER_ERR:
     if(pheaders) kernel_dealloc(pheaders, prog_header_size);
     if(kstack_region) memlist_dealloc(kstack_region, NULL);
     if(ustack_region) memlist_dealloc(ustack_region, NULL);
-    if(task->cr3) page_destruct(task->cr3, KERNEL_PTYPE_USER);
     if(fopened) vfs_close(&file);
-    if(task->resources) resourceblock_dealloc(task->resources);
-    if(task) drop_task(task);
+    if(task->cr3) page_destruct(task->cr3, KERNEL_PTYPE_USER);
     return e;
 }
