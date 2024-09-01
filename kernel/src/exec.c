@@ -33,10 +33,10 @@ intptr_t fork(Task* task, Task* result) {
         list_append(&nlist->list, &result->memlist);
         list = list->next;
     }
-    result->flags = task->flags;
     result->resources = resourceblock_clone(task->resources);
     if(!result->resources)
         return_defer_err(-NOT_ENOUGH_MEM);
+    result->flags = task->flags;
     return 0;
 DEFER_ERR:
     if(result->cr3) page_destruct(result->cr3, KERNEL_PTYPE_USER);
