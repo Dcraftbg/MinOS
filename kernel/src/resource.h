@@ -28,9 +28,7 @@ static ResourceBlock* new_resource_block() {
    if(block) memset(block, 0, sizeof(*block));
    return block;
 }
-static void delete_resource_block(ResourceBlock* block) {
-   kernel_dealloc(block, sizeof(*block));
-}
+void resourceblock_dealloc(ResourceBlock* block);
 Resource* resource_add(ResourceBlock* block, size_t* id);
 Resource* resource_find_by_id(ResourceBlock* first, size_t id);
 void resource_remove(ResourceBlock* first, size_t id);

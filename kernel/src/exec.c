@@ -182,7 +182,7 @@ DEFER_ERR:
     if(ustack_region) memlist_dealloc(ustack_region, NULL);
     if(task->cr3) page_destruct(task->cr3, KERNEL_PTYPE_USER);
     if(fopened) vfs_close(&file);
-    if(task->resources) delete_resource_block(task->resources);
+    if(task->resources) resourceblock_dealloc(task->resources);
     if(task) drop_task(task);
     return e;
 }

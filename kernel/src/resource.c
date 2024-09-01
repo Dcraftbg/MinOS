@@ -2,8 +2,10 @@
 #include "slab.h"
 static Resource* new_resource() {
     Resource* res = (Resource*)cache_alloc(kernel.resource_cache);
-    if(res) memset(res, 0, sizeof(*res));
-    res->shared = 1;
+    if(res) {
+        memset(res, 0, sizeof(*res));
+        res->shared = 1;
+    }
     return res;
 }
 static void resource_drop(Resource* resource) {
@@ -55,8 +57,23 @@ Resource* resource_add(ResourceBlock* block, size_t* id) {
     }
     debug_assert(false && "Unreachable!");
 }
+static void resourceblock_shallow_dealloc(ResourceBlock* block) {
+    for(size_t i = 0; i < RESOURCES_PER_BLOCK; ++i) {
+        resource_drop(block->data[i]);
+    }
+    // @DEBUG
+    memset(block, 0, sizeof(*block));
+    kernel_dealloc(block, sizeof(*block));
+}
 
-ResourceBlock* resourceblock_clone(ResourceBlock* block) {
+void resourceblock_dealloc(ResourceBlock* block) {
+    while(block) {
+        ResourceBlock* next = block->next;
+        resourceblock_shallow_dealloc(block);
+        block = next;
+    }
+}
+static ResourceBlock* resourceblock_shallow_clone(ResourceBlock* block) {
     ResourceBlock* nblock = new_resource_block();
     if(!nblock) return NULL;
     for(size_t i = 0; i < RESOURCES_PER_BLOCK; ++i) {
@@ -66,4 +83,21 @@ ResourceBlock* resourceblock_clone(ResourceBlock* block) {
     nblock->available = block->available;
     memcpy(nblock->data, block->data, sizeof(block->data));
     return nblock;
+}
+ResourceBlock* resourceblock_clone(ResourceBlock* block) {
+    if(!block) return NULL;
+    ResourceBlock* first = resourceblock_shallow_clone(block);
+    if(!first) return NULL;
+    ResourceBlock* nblock = first;
+    block = block->next;
+    while(block) {
+        nblock->next = resourceblock_shallow_clone(block);
+        if(!nblock->next) {
+            resourceblock_dealloc(first);
+            return NULL;
+        }
+        block = block->next;
+        nblock = nblock->next;
+    }
+    return first;
 }
