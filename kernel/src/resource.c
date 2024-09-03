@@ -58,8 +58,12 @@ Resource* resource_add(ResourceBlock* block, size_t* id) {
     debug_assert(false && "Unreachable!");
 }
 static void resourceblock_shallow_dealloc(ResourceBlock* block) {
+    printf("resourceblock_shallow_dealloc(%p)\n",block);
     for(size_t i = 0; i < RESOURCES_PER_BLOCK; ++i) {
-        resource_drop(block->data[i]);
+        if(block->data[i]) {
+           printf("Resource %zu> %p\n", i, block->data[i]);
+           resource_drop(block->data[i]); 
+        }
     }
     // @DEBUG
     memset(block, 0, sizeof(*block));
@@ -77,7 +81,7 @@ static ResourceBlock* resourceblock_shallow_clone(ResourceBlock* block) {
     ResourceBlock* nblock = new_resource_block();
     if(!nblock) return NULL;
     for(size_t i = 0; i < RESOURCES_PER_BLOCK; ++i) {
-        block->data[i]->shared++;
+        if(block->data[i]) block->data[i]->shared++;
     }
     nblock->next = NULL;
     nblock->available = block->available;
