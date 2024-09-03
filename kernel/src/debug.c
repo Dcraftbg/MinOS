@@ -281,12 +281,12 @@ void dump_memregions(struct list* list) {
     }
 }
 
-void dump_pml4_perms(page_t pml4_addr, uint16_t flags_ignore) {
+void dump_pml4_perms(page_t pml4_addr, pageflags_t flags_ignore) {
     printf("dump_pml4_perms(%p)\n",pml4_addr);
     uintptr_t since=0;
     uintptr_t at=0;
-    uint16_t cflags=0;
-    uint16_t flags=0;
+    pageflags_t cflags=0;
+    pageflags_t flags=0;
     char perm_buf[10];
 
     uintptr_t pml4=0, pml3=0, pml2=0, pml1=0;
@@ -326,7 +326,7 @@ void dump_pml4_perms(page_t pml4_addr, uint16_t flags_ignore) {
                             dump_pml4_perms_empty();
                             continue;
                         }
-                        flags = (pml1_addr[pml1] & 0b111111111111) & (~(flags_ignore | BIT(7)));
+                        flags = (pml1_addr[pml1] & (0b111111111111 | KERNEL_PFLAG_EXEC_DISABLE)) & (~(flags_ignore | BIT(7)));
                         at = (pml4 << (12+27)) | (pml3 << (12+18)) | (pml2 << (12+9)) | (pml1<<12);
                         if(cflags != flags) {
                             if(cflags) {
