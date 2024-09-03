@@ -23,6 +23,7 @@
 #define KERNEL_PFLAG_USER          0b100
 #define KERNEL_PFLAG_WRITE_THROUGH 0b1000
 #define KERNEL_PFLAG_CACHE_DISABLE 0b10000
+#define KERNEL_PFLAG_EXEC_DISABLE  0b100000000000000000000000000000000000000000000000000000000000000
 // NOTE: Dirty
 #define KERNEL_PFLAG_ACCESSED      0b100000
 
@@ -32,8 +33,9 @@
 #define KERNEL_PTYPE_USER    (0b111 << KERNEL_PTYPE_SHIFT)
 
 typedef uint64_t *page_t;
-bool page_mmap(page_t pml4_addr, uintptr_t phys, uintptr_t virt, size_t pages_count, uint16_t flags);
-bool page_alloc(page_t pml4_addr, uintptr_t virt, size_t pages_count, uint16_t flags);
+typedef uint64_t pageflags_t;
+bool page_mmap(page_t pml4_addr, uintptr_t phys, uintptr_t virt, size_t pages_count, pageflags_t flags);
+bool page_alloc(page_t pml4_addr, uintptr_t virt, size_t pages_count, pageflags_t flags);
 void page_join(page_t parent, page_t child);
 void page_destruct(page_t pml4, uint16_t type);
 uintptr_t virt_to_phys(page_t pml4_addr, uintptr_t addr);
@@ -52,6 +54,6 @@ void update_post_paging(); // Called after to update previous values
     )
 
 // debug functions
-void page_flags_serialise(uint16_t flags, char* buf, size_t cap);
-const char* page_type_str(uint16_t flags);
+void page_flags_serialise(pageflags_t flags, char* buf, size_t cap);
+const char* page_type_str(pageflags_t flags);
 

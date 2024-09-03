@@ -5,7 +5,8 @@
 #include "string.h"
 #define PAGE_MASK 0xFFFF000000000000
 
-bool page_mmap(page_t pml4_addr, uintptr_t phys, uintptr_t virt, size_t pages_count, uint16_t flags) {
+// TODO: Fix XD. XD may not be supported always so checks to remove it are necessary
+bool page_mmap(page_t pml4_addr, uintptr_t phys, uintptr_t virt, size_t pages_count, pageflags_t flags) {
     // printf("Called page_mmap(/*pml4*/ 0x%p, /*phys*/ 0x%p, /*virt*/ 0x%p, /*pages*/ %zu, /*flags*/, %02X)\n",pml4_addr, phys,virt,pages_count,flags);
     virt &= ~PAGE_MASK;          // Clean up the top bits (reasons I won't get into)
     phys &= ~KERNEL_MEMORY_MASK; // Bring to a physical address just in case
@@ -67,7 +68,9 @@ bool page_mmap(page_t pml4_addr, uintptr_t phys, uintptr_t virt, size_t pages_co
     }
     return pages_count == 0;
 }
-bool page_alloc(page_t pml4_addr, uintptr_t virt, size_t pages_count, uint16_t flags) {
+
+// TODO: Fix XD. XD may not be supported always so checks to remove it are necessary
+bool page_alloc(page_t pml4_addr, uintptr_t virt, size_t pages_count, pageflags_t flags) {
     virt &= ~PAGE_MASK;
     uint16_t pml1 = (virt >> (12   )) & 0x1ff;
     uint16_t pml2 = (virt >> (12+9 )) & 0x1ff;
@@ -254,7 +257,10 @@ void init_paging() {
     for(size_t i = 0; i < header->phnum; ++i) {
         Elf64ProgHeader* h = &headers[i]; // I know it can be done with headers+i. I want to keep things simple for if others read it
         if(h->p_type == 0 || h->memsize == 0) continue;
-        uint16_t flags = KERNEL_PFLAG_PRESENT;
+        pageflags_t flags = KERNEL_PFLAG_PRESENT;
+        if(!(h->flags & ELF_PROG_EXEC)) {
+            flags |= KERNEL_PFLAG_EXEC_DISABLE;
+        }
         if(h->flags & ELF_PROG_WRITE) {
             flags |= KERNEL_PFLAG_WRITE;
         }
@@ -279,8 +285,8 @@ void update_post_paging() {
 
 
 
-void page_flags_serialise(uint16_t flags, char* buf, size_t cap) {
-    assert(cap >= 6);
+void page_flags_serialise(pageflags_t flags, char* buf, size_t cap) {
+    assert(cap >= 7);
     memset(buf, 0  ,cap);
     buf[0] = flags & KERNEL_PFLAG_PRESENT          ? 'p' : '-';
     buf[1] = flags & KERNEL_PFLAG_WRITE            ? 'w' : '-';
@@ -288,10 +294,11 @@ void page_flags_serialise(uint16_t flags, char* buf, size_t cap) {
     buf[3] = flags & KERNEL_PFLAG_WRITE_THROUGH    ? 'w' : '-';
     buf[4] = flags & KERNEL_PFLAG_CACHE_DISABLE    ? 'c' : '-';
     buf[5] = flags & KERNEL_PFLAG_ACCESSED         ? 'a' : '-';
+    buf[6] = flags & KERNEL_PFLAG_EXEC_DISABLE     ? 'x' : '-';
 }
 
-const char* page_type_str(uint16_t flags) {
-    switch(flags >> KERNEL_PTYPE_SHIFT) {
+const char* page_type_str(pageflags_t flags) {
+    switch((flags & KENREL_PTYPE_MASK) >> KERNEL_PTYPE_SHIFT) {
     case (KERNEL_PTYPE_USER>>KERNEL_PTYPE_SHIFT):
         return "User";
     case (KERNEL_PTYPE_KERNEL>>KERNEL_PTYPE_SHIFT):

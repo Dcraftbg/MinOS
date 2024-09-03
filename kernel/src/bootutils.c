@@ -43,7 +43,7 @@ void boot_map_phys_memory() {
                  PAGE_ALIGN_DOWN(entry->base),
                  PAGE_ALIGN_DOWN(entry->base | KERNEL_MEMORY_MASK),
                  entry->length/PAGE_SIZE,
-                 KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_WRITE
+                 KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_WRITE | KERNEL_PFLAG_EXEC_DISABLE
                )
             );
             break;

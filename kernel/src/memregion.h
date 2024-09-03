@@ -10,7 +10,7 @@ enum {
 };
 typedef struct {
     uint16_t flags;
-    uint16_t pageflags;
+    pageflags_t pageflags;
     uintptr_t address;
     size_t pages;
     atomic_size_t shared;
@@ -20,7 +20,7 @@ typedef struct {
     MemoryRegion* region;
 } MemoryList;
 void init_memregion(); 
-static MemoryRegion* memregion_new(uint16_t flags, uint16_t pageflags, uintptr_t address, size_t pages) {
+static MemoryRegion* memregion_new(uint16_t flags, pageflags_t pageflags, uintptr_t address, size_t pages) {
     MemoryRegion* region;
     if(!(region=cache_alloc(kernel.memregion_cache))) return NULL;
     region->flags = flags;
