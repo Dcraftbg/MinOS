@@ -7,6 +7,7 @@
 #include "string.h"
 #include "fileutils.h"
 #include "kernel.h"
+#include "debug.h"
 
 #define return_defer_err(x) do {\
     e=(x);\
@@ -19,6 +20,11 @@ intptr_t fork(Task* task, Task* result) {
     struct list* list = &task->memlist;
     struct list* first = list;
     list = list->next;
+    if(!(result->cr3 = kernel_page_alloc()))
+        return_defer_err(-NOT_ENOUGH_MEM);
+    result->cr3 = (page_t)((uint64_t)result->cr3 | KERNEL_MEMORY_MASK);
+    memset(result->cr3, 0, PAGE_SIZE);
+    result->flags = 0;
     while(first != list) {
         MemoryList* memlist = (MemoryList*)list;
         MemoryRegion* region = memlist->region;
@@ -33,10 +39,19 @@ intptr_t fork(Task* task, Task* result) {
         list_append(&nlist->list, &result->memlist);
         list = list->next;
     }
+
+    page_join(kernel.pml4, result->cr3);
+    if(result->resources) resourceblock_dealloc(result->resources);
     result->resources = resourceblock_clone(task->resources);
     if(!result->resources)
         return_defer_err(-NOT_ENOUGH_MEM);
-    result->flags = task->flags;
+
+    result->argc = task->argc;
+    result->argv = task->argv;
+    result->ts_rsp = task->ts_rsp;
+    result->rip = task->rip;
+    result->flags = task->flags & (~(TASK_FLAG_RUNNING | TASK_FLAG_PRESENT));
+    result->flags |= TASK_FLAG_PRESENT;
     return 0;
 DEFER_ERR:
     if(result->cr3) page_destruct(result->cr3, KERNEL_PTYPE_USER);
@@ -48,8 +63,6 @@ intptr_t exec_new(const char* path, Args args) {
     intptr_t e=0;
     Task* task = kernel_task_add();
     if(!task) return -LIMITS; // Reached max tasks and/or we're out of memory
-    if(!(task->resources = new_resource_block()))
-        return_defer_err(-NOT_ENOUGH_MEM);
     if((e=exec(task, path, args)) < 0)
         return_defer_err(e);
     return 0;
@@ -86,16 +99,15 @@ intptr_t exec(Task* task, const char* path, Args args) {
     // I don't really see a purpose in calling page_destruct anymore now that we have the 
     // memory regions
     if(task->cr3) page_destruct(task->cr3, KERNEL_PTYPE_USER); // Clean it up
-    else {
-        if(!(task->cr3 = kernel_page_alloc())) {
-          return_defer_err(-NOT_ENOUGH_MEM);
+    if(!(task->cr3 = kernel_page_alloc())) {
+        return_defer_err(-NOT_ENOUGH_MEM);
     }
-
+    task->cr3 = (page_t)((uint64_t)task->cr3 | KERNEL_MEMORY_MASK);
+    memset(task->cr3, 0, PAGE_SIZE);
 
     task->ts_rsp = 0;
     task->rip = 0;
     task->flags = TASK_FLAG_FIRST_RUN;
-    list_init(&task->memlist);
 
     if((e=vfs_open(path, &file, MODE_READ)) < 0) {
         return_defer_err(e);
@@ -114,11 +126,7 @@ intptr_t exec(Task* task, const char* path, Args args) {
     if(
         header.type != ELF_TYPE_EXEC
     ) return_defer_err(-INVALID_TYPE);
-     
-    }
 
-    task->cr3 = (page_t)((uint64_t)task->cr3 | KERNEL_MEMORY_MASK);
-    memset(task->cr3, 0, PAGE_SIZE);
 
     size_t prog_header_size = header.phnum * sizeof(Elf64ProgHeader);
     pheaders = kernel_malloc(prog_header_size);
