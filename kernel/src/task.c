@@ -37,6 +37,10 @@ Task* kernel_task_add() {
         memset(task, 0, sizeof(Task));
         task->id = kernel.taskid++;
         list_init(&task->memlist);
+        if(!(task->resources = new_resource_block())) {
+            cache_dealloc(kernel.task_cache, task);
+            return NULL;
+        }
         list_append(&task->list, &kernel.tasks);
     }
     return task;
