@@ -18,7 +18,22 @@
 #include "../config.h"
 #include <stdint.h>
 // TODO: Consider moving to ../config.h
-#define CFLAGS "-g", "-nostdlib", "-march=x86-64", "-ffreestanding", "-static", "-Werror", "-Wno-unused-function", "-Wall", /*"-fomit-frame-pointer",*/ "-fno-builtin", "-fno-stack-protector", "-mno-red-zone", "-mno-mmx", "-mno-sse", "-mno-sse2", "-mno-3dnow", "-fPIC", "-I", "libs/std/include", "-I", "kernel/src"
+#define CFLAGS\
+    "-g",\
+    "-nostdlib",\
+    "-march=x86-64",\
+    "-ffreestanding",\
+    "-static", \
+    "-Werror", "-Wno-unused-function",\
+    "-Wall", \
+    /*"-fomit-frame-pointer", "-fno-builtin", "-fno-stack-protector",*/\
+    /*"-mno-red-zone",*/\
+   "-mno-mmx",\
+   "-mno-sse", "-mno-sse2",\
+   "-mno-3dnow",\
+   "-fPIC",\
+   "-I", "libs/std/include",\
+   "-I", "kernel/src"
 
 #define LDFLAGS "-g"
 
