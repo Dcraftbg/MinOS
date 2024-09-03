@@ -280,3 +280,72 @@ void dump_memregions(struct list* list) {
         list = list->next;
     }
 }
+
+void dump_pml4_perms(page_t pml4_addr, uint16_t flags_ignore) {
+    printf("dump_pml4_perms(%p)\n",pml4_addr);
+    uintptr_t since=0;
+    uintptr_t at=0;
+    uint16_t cflags=0;
+    uint16_t flags=0;
+    char perm_buf[10];
+
+    uintptr_t pml4=0, pml3=0, pml2=0, pml1=0;
+#define dump_pml4_perms_empty() \
+    do {\
+        at = (pml4 << (12+27)) | (pml3 << (12+18)) | (pml2 << (12+9)) | (pml1<<12);\
+        if(cflags) {\
+            page_flags_serialise(cflags, perm_buf, sizeof(perm_buf));\
+            printf("  %p -> %p %s (%s)\n", (void*)since, (void*)at, perm_buf, page_type_str(cflags));\
+        }\
+        since = at;\
+        cflags = flags = 0;\
+    } while(0)
+    for(pml4 = 0; pml4 < KERNEL_PAGE_ENTRIES; ++pml4) {
+         if(pml4_addr[pml4] == 0) {
+             dump_pml4_perms_empty();
+             continue;
+         }
+         page_t pml3_addr = (page_t)PAGE_ALIGN_DOWN(pml4_addr[pml4] | KERNEL_MEMORY_MASK);
+
+         for(pml3 = 0; pml3 < KERNEL_PAGE_ENTRIES; ++pml3) {
+              if(pml3_addr[pml3] == 0) {
+                  dump_pml4_perms_empty();
+                  continue;
+              }
+              page_t pml2_addr = (page_t)PAGE_ALIGN_DOWN(pml3_addr[pml3] | KERNEL_MEMORY_MASK);
+
+              for(pml2 = 0; pml2 < KERNEL_PAGE_ENTRIES; ++pml2) {
+                   if(pml2_addr[pml2] == 0) {
+                       dump_pml4_perms_empty();
+                       continue;
+                   }
+                   page_t pml1_addr = (page_t)PAGE_ALIGN_DOWN(pml2_addr[pml2] | KERNEL_MEMORY_MASK);
+
+                   for(pml1 = 0; pml1 < KERNEL_PAGE_ENTRIES; ++pml1) {
+                        if(pml1_addr[pml1] == 0) {
+                            dump_pml4_perms_empty();
+                            continue;
+                        }
+                        flags = (pml1_addr[pml1] & 0b111111111111) & (~(flags_ignore | BIT(7)));
+                        at = (pml4 << (12+27)) | (pml3 << (12+18)) | (pml2 << (12+9)) | (pml1<<12);
+                        if(cflags != flags) {
+                            if(cflags) {
+                                page_flags_serialise(cflags, perm_buf, sizeof(perm_buf));
+                                printf("  %p -> %p %s (%s)\n", (void*)since, (void*)at, perm_buf, page_type_str(cflags));
+                            }
+                            since = at;
+                            cflags = flags;
+                        }
+                   }
+                   pml1 = 0;
+              }
+              pml2 = 0;
+         }
+         pml3 = 0;
+    }
+
+    if(cflags) {
+        page_flags_serialise(cflags, perm_buf, sizeof(perm_buf));
+        printf("  %p -> %p %s (%s)\n", (void*)since, (void*)at, perm_buf, page_type_str(cflags));
+    }
+}

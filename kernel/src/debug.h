@@ -21,3 +21,6 @@ void ls(const char* path);
 void dump_memregions(struct list* list);
 void dump_caches();
 void dump_inodes(Superblock* superblock);
+
+void dump_pml4_perms(page_t pml4, uint16_t flags_ignore);
+
