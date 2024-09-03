@@ -280,11 +280,14 @@ void update_post_paging() {
 
 
 void page_flags_serialise(uint16_t flags, char* buf, size_t cap) {
-    assert(cap >= 3);
+    assert(cap >= 6);
     memset(buf, 0  ,cap);
-    buf[0] = flags & KERNEL_PFLAG_PRESENT ? 'p' : '-';
-    buf[1] = flags & KERNEL_PFLAG_WRITE   ? 'w' : '-';
-    buf[2] = flags & KERNEL_PFLAG_USER    ? 'u' : '-';
+    buf[0] = flags & KERNEL_PFLAG_PRESENT          ? 'p' : '-';
+    buf[1] = flags & KERNEL_PFLAG_WRITE            ? 'w' : '-';
+    buf[2] = flags & KERNEL_PFLAG_USER             ? 'u' : '-';
+    buf[3] = flags & KERNEL_PFLAG_WRITE_THROUGH    ? 'w' : '-';
+    buf[4] = flags & KERNEL_PFLAG_CACHE_DISABLE    ? 'c' : '-';
+    buf[5] = flags & KERNEL_PFLAG_ACCESSED         ? 'a' : '-';
 }
 
 const char* page_type_str(uint16_t flags) {
