@@ -136,7 +136,6 @@ bool page_alloc(page_t pml4_addr, uintptr_t virt, size_t pages_count, pageflags_
     return pages_count == 0;
 }
 void page_join(page_t parent, page_t child) {
-    printf("page_join(%p, %p)\n", parent, child);
     for(size_t pml4 = 0; pml4 < KERNEL_PAGE_ENTRIES; ++pml4) {
          if(parent[pml4] == 0) continue;
          if(child[pml4] == 0) {
