@@ -21,7 +21,7 @@ bool page_mmap(page_t pml4_addr, uintptr_t phys, uintptr_t virt, size_t pages_co
             if(!pml4_addr[pml4]) return false; // Out of memory
             pml3_addr = (page_t)(pml4_addr[pml4] | KERNEL_MEMORY_MASK); 
             memset(pml3_addr, 0, PAGE_SIZE);
-            pml4_addr[pml4] |= KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | flags;
+            pml4_addr[pml4] |= KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT;
         } else {
             pml3_addr = (page_t)PAGE_ALIGN_DOWN(pml4_addr[pml4] | KERNEL_MEMORY_MASK);
         }
@@ -33,7 +33,7 @@ bool page_mmap(page_t pml4_addr, uintptr_t phys, uintptr_t virt, size_t pages_co
                 if(!pml3_addr[pml3]) return false; // Out of memory
                 pml2_addr = (page_t)(pml3_addr[pml3] | KERNEL_MEMORY_MASK); 
                 memset(pml2_addr, 0, PAGE_SIZE);
-                pml3_addr[pml3] |= KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | flags;
+                pml3_addr[pml3] |= KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT;
             } else {
                 pml2_addr = (page_t)PAGE_ALIGN_DOWN(pml3_addr[pml3] | KERNEL_MEMORY_MASK);
             }
@@ -45,7 +45,7 @@ bool page_mmap(page_t pml4_addr, uintptr_t phys, uintptr_t virt, size_t pages_co
                     if(!pml2_addr[pml2]) return false; // Out of memory
                     pml1_addr = (page_t)(pml2_addr[pml2] | KERNEL_MEMORY_MASK); 
                     memset(pml1_addr, 0, PAGE_SIZE);
-                    pml2_addr[pml2] |= KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | flags;
+                    pml2_addr[pml2] |= KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT;
                 } else {
                     pml1_addr = (page_t)PAGE_ALIGN_DOWN(pml2_addr[pml2] | KERNEL_MEMORY_MASK);
                 }
@@ -83,7 +83,7 @@ bool page_alloc(page_t pml4_addr, uintptr_t virt, size_t pages_count, pageflags_
             if(!pml4_addr[pml4]) return false; // Out of memory
             pml3_addr = (page_t)(pml4_addr[pml4] | KERNEL_MEMORY_MASK); 
             memset(pml3_addr, 0, PAGE_SIZE);
-            pml4_addr[pml4] |= KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | flags;
+            pml4_addr[pml4] |= KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT;
         } else {
             pml3_addr = (page_t)PAGE_ALIGN_DOWN(pml4_addr[pml4] | KERNEL_MEMORY_MASK);
         }
@@ -95,7 +95,7 @@ bool page_alloc(page_t pml4_addr, uintptr_t virt, size_t pages_count, pageflags_
                 if(!pml3_addr[pml3]) return false; // Out of memory
                 pml2_addr = (page_t)(pml3_addr[pml3] | KERNEL_MEMORY_MASK); 
                 memset(pml2_addr, 0, PAGE_SIZE);
-                pml3_addr[pml3] |= KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | flags;
+                pml3_addr[pml3] |= KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT;
             } else {
                 pml2_addr = (page_t)PAGE_ALIGN_DOWN(pml3_addr[pml3] | KERNEL_MEMORY_MASK);
             }
@@ -107,7 +107,7 @@ bool page_alloc(page_t pml4_addr, uintptr_t virt, size_t pages_count, pageflags_
                     if(!pml2_addr[pml2]) return false; // Out of memory
                     pml1_addr = (page_t)(pml2_addr[pml2] | KERNEL_MEMORY_MASK); 
                     memset(pml1_addr, 0, PAGE_SIZE);
-                    pml2_addr[pml2] |= KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | flags;
+                    pml2_addr[pml2] |= KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT;
                 } else {
                     pml1_addr = (page_t)PAGE_ALIGN_DOWN(pml2_addr[pml2] | KERNEL_MEMORY_MASK);
                 }
@@ -136,6 +136,7 @@ bool page_alloc(page_t pml4_addr, uintptr_t virt, size_t pages_count, pageflags_
     return pages_count == 0;
 }
 void page_join(page_t parent, page_t child) {
+    printf("page_join(%p, %p)\n", parent, child);
     for(size_t pml4 = 0; pml4 < KERNEL_PAGE_ENTRIES; ++pml4) {
          if(parent[pml4] == 0) continue;
          if(child[pml4] == 0) {
