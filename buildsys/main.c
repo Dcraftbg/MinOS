@@ -617,9 +617,10 @@ bool run(Build* build) {
         "qemu-system-x86_64",
         //"-serial", "none",
         "-serial", "file:kernel_logs.txt",
-        // "--no-reboot",
-        // "--no-shutdown",
-        // "-d", "int",
+        "--no-reboot",
+        "--no-shutdown",
+        "-d", "int",
+        "-D", "qemu.log",
         "-smp", "2",
         "-m", "128",
         "-cdrom", "./bin/OS.iso"
