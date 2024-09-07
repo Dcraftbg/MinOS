@@ -214,17 +214,33 @@ static intptr_t tty_dev_read(VfsFile* file, void* buf, size_t size, off_t offset
             }
         }
         key_set(&tty->input.as_kb.keystate, key.code, key.attribs);
-        int code = key_unicode(&tty->input.as_kb.keystate, key.code);
-        if(code) {
-            // NOTE: Non unicode keys are not yet supported cuz of reasons
-            if(code >= 256) return -UNSUPPORTED;
-            // NOTE: its fine to not clean it up but I do it just in case
-            if(fb->blink) ttyfb_fill_blink(fb, VGA_BG);
-            tty_draw_codepoint(fb, code, VGA_FG, VGA_BG);
-            *((char*)buf) = code;
-            if(left) ttyfb_fill_blink(fb, blink_color[fb->blink]);
-            left--;
-            buf++;
+        switch(key.code) {
+        case MINOS_KEY_BACKSPACE: {
+            if(!(key.attribs & KEY_ATTRIB_RELEASE)) {
+                if(left != size) {
+                    if(fb->blink) ttyfb_fill_blink(fb, VGA_BG);
+                    fb->x -= 8;
+                    ttyfb_fill_blink(fb, blink_color[fb->blink]);
+                    left++;
+                    buf--;
+                }
+            }
+        } break;
+        default: {
+            int code = key_unicode(&tty->input.as_kb.keystate, key.code);
+            if(code) {
+                // NOTE: Non unicode keys are not yet supported cuz of reasons
+                if(code >= 256) return -UNSUPPORTED;
+                // NOTE: its fine to not clean it up but I do it just in case
+                if(fb->blink) ttyfb_fill_blink(fb, VGA_BG);
+                tty_draw_codepoint(fb, code, VGA_FG, VGA_BG);
+                *((char*)buf) = code;
+                if(left) ttyfb_fill_blink(fb, blink_color[fb->blink]);
+                left--;
+                buf++;
+            }
+            if(key.code == MINOS_KEY_ENTER && !(key.attribs & KEY_ATTRIB_RELEASE)) return size-left;
+        } break;
         }
      }
 

@@ -35,6 +35,12 @@ void printf(const char* fmt, ...) {
 }
 intptr_t readline(char* buf, size_t bufmax) {
     intptr_t e;
+    if((e = read(stdin, buf, bufmax)) < 0) {
+        return e;
+    }
+    if(e > bufmax || buf[e-1] != '\n') return -BUFFER_OVEWFLOW;
+    return e;
+    /*
     size_t left = bufmax;
     while(left) {
         if((e=read(stdin, buf, 1)) < 0) {
@@ -47,6 +53,7 @@ intptr_t readline(char* buf, size_t bufmax) {
         left--;
     }
     return -BUFFER_OVEWFLOW;
+    */
 }
 #define LINEBUF_MAX 1024
 int main() {
@@ -59,7 +66,7 @@ int main() {
             printf("Failed to read on stdin: %s\n", status_str(e));
         }
         linebuf[e] = 0;
-        printf("Read line: %s\n",linebuf);
+        printf("Read line: %s",linebuf);
     }
     return 0;
 }
