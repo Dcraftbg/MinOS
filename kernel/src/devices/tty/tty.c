@@ -2,6 +2,7 @@
 #include "../../print.h"
 #include "../../debug.h"
 #include "../../kernel.h"
+#include "../../fonts/zap-light16.h"
 #include <minos/keycodes.h>
 #include <minos/key.h>
 
@@ -70,14 +71,88 @@ static int key_unicode(Keyboard* keyboard, uint16_t code) {
         return code;
     }
 }
-typedef struct {
-     VfsFile keyboard;
-     Keyboard keystate;
+enum {
+     TTY_INPUT_KEYBOARD,
+     TTY_INPUT_COUNT,
+};
 
-     VfsFile display;
-     size_t width, height;
+enum {
+     TTY_OUTPUT_DISPLAY,
+     TTY_OUTPUT_COUNT
+};
+typedef struct {
+     Framebuffer fb;
      size_t x, y;
+} TtyFb;
+typedef struct {
+     uint8_t input_kind;
+     union {
+         struct { 
+             VfsFile keyboard;
+             Keyboard keystate;
+         } as_kb;
+     } input;
+
+     uint8_t output_kind;
+     union {
+         TtyFb as_framebuffer;
+     } output;
 } TtyDevice;
+intptr_t tty_draw_codepoint_at(Framebuffer* fm, size_t x, size_t y, int codepoint, uint32_t fg, uint32_t bg) {
+    if(codepoint > 127) return -UNSUPPORTED; // Unsupported
+    if(fm->bpp != 32) return -UNSUPPORTED; // Because of optimisations we don't support anything besides 32 bits per pixel
+    uint8_t* fontPtr = fontGlythBuffer + (codepoint*fontHeader.charsize);
+    debug_assert(fontPtr + 16 < fontGlythBuffer+ARRAY_LEN(fontGlythBuffer));
+    uint32_t* strip = (uint32_t*)(((uint8_t*)fm->addr) + fm->pitch_bytes*y);
+    for(size_t cy = y; cy < y+16 && cy < fm->height; ++cy) {
+        for(size_t cx = x; cx < x+8 && cx < fm->width; ++cx) {
+            strip[cx] = ((*fontPtr & (0b10000000 >> (cx-x))) > 0) ? fg : bg;
+        }
+        fontPtr++;
+        strip = (uint32_t*)((uint8_t*)strip + fm->pitch_bytes);
+    }
+    return 0;
+}
+
+static intptr_t tty_draw_codepoint(TtyFb* fb, int codepoint, uint32_t fg, uint32_t bg) {
+    if(fb->y >= fb->fb.height) return 0;
+    switch(codepoint) {
+       case '\n':
+         fb->x=0;
+         fb->y+=16;
+         break;
+       case '\t': {
+         size_t w = 8 * 4;
+         fmbuf_draw_rect(&fb->fb, fb->x, fb->y, fb->x+w, fb->y+16, bg);
+         if(fb->x+w >= fb->fb.width) {
+            fb->y += 16;
+            fb->x = 0;
+         }
+         fb->x += w;
+       } break;
+       case '\r':
+         fb->x = 0;
+         break;
+       case ' ':
+         fmbuf_draw_rect(&fb->fb, fb->x, fb->y, fb->x+8, fb->y+16, bg);
+         if (fb->x+8 >= fb->fb.width) {
+             fb->y += 16;
+             fb->x = 0;
+         }
+         fb->x += 8;
+         break;
+       default: {
+         if(fb->x+8 >= fb->fb.width) {
+             fb->y += 16;
+             fb->x = 0;
+         }
+         intptr_t e = tty_draw_codepoint_at(&fb->fb, fb->x, fb->y, codepoint, fg, bg);
+         if(e >= 0) fb->x += 8;
+         return e;
+       }
+    }
+    return 0;
+}
 static Cache* tty_cache = NULL;
 static intptr_t tty_open(struct Device* this, VfsFile* file, fmode_t mode) {
      file->private = this->private;
@@ -91,7 +166,16 @@ static void tty_close(VfsFile* file) {
 static intptr_t tty_dev_write(VfsFile* file, const void* buf, size_t size, off_t offset) {
      (void)offset;
      TtyDevice* tty = (TtyDevice*)file->private;
-     return vfs_write(&tty->display, buf, size);
+     assert(tty->output_kind == TTY_OUTPUT_DISPLAY);
+     TtyFb* fb = &tty->output.as_framebuffer;
+     for(size_t i = 0; i < size; ++i) {
+        tty_draw_codepoint(fb, ((uint8_t*)buf)[i], VGA_FG, VGA_BG);
+     }
+     return 0;
+#if 0
+     TtyDevice* tty = (TtyDevice*)file->private;
+     return vfs_write(&tty->output.as_display.display, buf, size);
+#endif
 }
 // TODO: Unicode support
 static intptr_t tty_dev_read(VfsFile* file, void* buf, size_t size, off_t offset) {
@@ -101,20 +185,22 @@ static intptr_t tty_dev_read(VfsFile* file, void* buf, size_t size, off_t offset
      Key key;
      size_t left=size;
      while(left) {
+        assert(tty->input_kind == TTY_INPUT_KEYBOARD);
         for(;;) {
-            if((e=vfs_read(&tty->keyboard, &key, sizeof(key))) < 0) {
+            if((e=vfs_read(&tty->input.as_kb.keyboard, &key, sizeof(key))) < 0) {
                 return e;
             } else if (e > 0) break;
         }
 
-        key_set(&tty->keystate, key.code, key.attribs);
-        int code = key_unicode(&tty->keystate, key.code);
+        key_set(&tty->input.as_kb.keystate, key.code, key.attribs);
+        int code = key_unicode(&tty->input.as_kb.keystate, key.code);
         if(code) {
             // NOTE: Non unicode keys are not yet supported cuz of reasons
-            if(code >= 256) return -UNSUPPORTED; 
-            if((e = write_exact(&tty->display, &code, 1)) < 0) {
-                return e;
-            }
+            if(code >= 256) return -UNSUPPORTED;
+
+            assert(tty->input_kind == TTY_OUTPUT_DISPLAY);
+            TtyFb* fb = &tty->output.as_framebuffer;
+            tty_draw_codepoint(fb, code, VGA_FG, VGA_BG);
             *((char*)buf) = code;
             left--;
             buf++;
@@ -124,59 +210,47 @@ static intptr_t tty_dev_read(VfsFile* file, void* buf, size_t size, off_t offset
 }
 
 
-static intptr_t new_tty_private(void** private, const char* display, const char* keyboard) {
-    printf("TRACE: [new_tty_private] display: %s\n",display);
+static intptr_t new_tty_private_display(void** private, size_t display, const char* keyboard) {
+    printf("TRACE: [new_tty_private] display (id=%zu)\n",display);
     printf("TRACE: [new_tty_private] keyboard: %s\n",keyboard);
     debug_assert(private);
-    debug_assert(display);
     debug_assert(keyboard);
     TtyDevice* tty = cache_alloc(tty_cache);
     intptr_t e;
     if(tty == NULL) return -NOT_ENOUGH_MEM;
     memset(tty, 0, sizeof(*tty));
     *private = tty;
-    VfsStats stats;
-    VfsDirEntry displayEntry;
-    if((e=vfs_find(display, &displayEntry)) < 0) {
-        printf("  [new_tty_private] (vfs_find) Error\n");
+    tty->output_kind = TTY_OUTPUT_DISPLAY;
+    tty->output.as_framebuffer.fb = get_framebuffer_by_id(display);
+    tty->output.as_framebuffer.x = 0;
+    tty->output.as_framebuffer.y = 0;
+
+    if(!tty->output.as_framebuffer.fb.addr) {
         cache_dealloc(tty_cache, tty);
-        return e;
+        return -NOT_FOUND;
     }
-    if((e=vfs_stat(&displayEntry, &stats)) < 0) {
-        printf("  [new_tty_private] (vfs_stat) Error\n");
-        cache_dealloc(tty_cache, tty);
-        return e;
-    }
-    tty->width = stats.width;
-    tty->height = stats.height;
-    if((e=vfs_open(display, &tty->display, MODE_WRITE)) < 0) {
-        printf("  [new_tty_private] (vfs_open) Display Error\n");
-        cache_dealloc(tty_cache, tty);
-        return e;
-    }
-    if((e=vfs_open(keyboard, &tty->keyboard, MODE_READ)) < 0) {
+    tty->input_kind = TTY_INPUT_KEYBOARD;
+    if((e=vfs_open(keyboard, &tty->input.as_kb.keyboard, MODE_READ)) < 0) {
         printf("  [new_tty_private] (vfs_open) Keyboard Error\n");
         cache_dealloc(tty_cache, tty);
-        vfs_close(&tty->display);
         return e;
     }
     return 0;
 }
-intptr_t create_tty_device(const char* display, const char* keyboard, Device* device) {
+intptr_t create_tty_device_display(size_t display, const char* keyboard, Device* device) {
     static_assert(sizeof(Device) == 32, "Update create_tty_device");
     intptr_t e = 0;
     device->ops = &ttyOps;
     device->open = tty_open;
     device->stat = NULL;
-    if((e = new_tty_private(&device->private, display, keyboard)) < 0) return e;
+    if((e = new_tty_private_display(&device->private, display, keyboard)) < 0) return e;
     return 0;
 }
 
 void destroy_tty_device(Device* device) {
     if(!device || !device->private) return;
     TtyDevice* tty = device->private;
-    vfs_close(&tty->keyboard);
-    vfs_close(&tty->display);
+    vfs_close(&tty->input.as_kb.keyboard);
 }
 
 static intptr_t tty_init() {
@@ -197,12 +271,12 @@ void init_tty() {
         printf("WARN: Failed to initialise VGA: %s\n",status_str(e));
         return;
     }
-    const char* display = "/devices/vga0";
+    size_t display = 0;
     const char* keyboard = "/devices/ps2keyboard";
 
     Device* device = (Device*)cache_alloc(kernel.device_cache);
     if(!device) return;
-    e = create_tty_device(display, keyboard, device);
+    e = create_tty_device_display(display, keyboard, device);
     if(e < 0) {
         printf("WARN: Failed to initialise TTY (id=%zu): %s\n",0lu,status_str(e));
         cache_dealloc(kernel.device_cache, device);
