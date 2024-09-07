@@ -83,6 +83,8 @@ enum {
 typedef struct {
      Framebuffer fb;
      size_t x, y;
+     bool blink;
+     size_t blink_time;
 } TtyFb;
 typedef struct {
      uint8_t input_kind;
@@ -163,20 +165,29 @@ static void tty_close(VfsFile* file) {
     file->private = NULL;
 }
 
+#define TTY_MILISECOND_BLINK 500
+#define TTY_BLINK_WIDTH 8
+#define TTY_BLINK_HEIGHT 16
+static void ttyfb_fill_blink(TtyFb* fb, uint32_t color) {
+     fmbuf_draw_rect(&fb->fb, fb->x, fb->y, fb->x+TTY_BLINK_WIDTH, fb->y+TTY_BLINK_HEIGHT, color);
+}
+
+static const uint32_t blink_color[2] = {
+     VGA_BG,
+     VGA_FG
+};
 static intptr_t tty_dev_write(VfsFile* file, const void* buf, size_t size, off_t offset) {
      (void)offset;
      TtyDevice* tty = (TtyDevice*)file->private;
      assert(tty->output_kind == TTY_OUTPUT_DISPLAY);
      TtyFb* fb = &tty->output.as_framebuffer;
+     if(fb->blink) ttyfb_fill_blink(fb, VGA_BG);
      for(size_t i = 0; i < size; ++i) {
         tty_draw_codepoint(fb, ((uint8_t*)buf)[i], VGA_FG, VGA_BG);
      }
      return 0;
-#if 0
-     TtyDevice* tty = (TtyDevice*)file->private;
-     return vfs_write(&tty->output.as_display.display, buf, size);
-#endif
 }
+
 // TODO: Unicode support
 static intptr_t tty_dev_read(VfsFile* file, void* buf, size_t size, off_t offset) {
      (void)offset;
@@ -184,28 +195,39 @@ static intptr_t tty_dev_read(VfsFile* file, void* buf, size_t size, off_t offset
      intptr_t e;
      Key key;
      size_t left=size;
+
+     assert(tty->input_kind == TTY_OUTPUT_DISPLAY);
+     TtyFb* fb = &tty->output.as_framebuffer;
+
      while(left) {
         assert(tty->input_kind == TTY_INPUT_KEYBOARD);
         for(;;) {
             if((e=vfs_read(&tty->input.as_kb.keyboard, &key, sizeof(key))) < 0) {
+                if(fb->blink) ttyfb_fill_blink(fb, VGA_BG);
                 return e;
             } else if (e > 0) break;
+            size_t now = kernel.pit_info.ticks;
+            if(now-fb->blink_time >= TTY_MILISECOND_BLINK) {
+                fb->blink = !fb->blink;
+                fb->blink_time = now;
+                ttyfb_fill_blink(fb, blink_color[fb->blink]);
+            }
         }
-
         key_set(&tty->input.as_kb.keystate, key.code, key.attribs);
         int code = key_unicode(&tty->input.as_kb.keystate, key.code);
         if(code) {
             // NOTE: Non unicode keys are not yet supported cuz of reasons
             if(code >= 256) return -UNSUPPORTED;
-
-            assert(tty->input_kind == TTY_OUTPUT_DISPLAY);
-            TtyFb* fb = &tty->output.as_framebuffer;
+            // NOTE: its fine to not clean it up but I do it just in case
+            if(fb->blink) ttyfb_fill_blink(fb, VGA_BG);
             tty_draw_codepoint(fb, code, VGA_FG, VGA_BG);
             *((char*)buf) = code;
+            if(left) ttyfb_fill_blink(fb, blink_color[fb->blink]);
             left--;
             buf++;
         }
      }
+
      return size;
 }
 
