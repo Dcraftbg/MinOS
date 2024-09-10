@@ -23,4 +23,4 @@ void dump_caches();
 void dump_inodes(Superblock* superblock);
 
 void dump_pml4_perms(page_t pml4, pageflags_t flags_ignore);
-
+void dump_pml4_diff (page_t s1_pml4, page_t s2_pml4, pageflags_t flags_ignore);

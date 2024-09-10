@@ -281,6 +281,72 @@ void dump_memregions(struct list* list) {
     }
 }
 
+void dump_pml4_diff(page_t s1_pml4, page_t s2_pml4, pageflags_t flags_ignore) {
+    size_t pml4=0, pml3=0, pml2=0, pml1=0;
+#define dump_pml4_diff_if(a,b,at) \
+    if(a[at] == 0 && b[at] == 0) continue;\
+    if(a[at] == 0) {\
+        printf("<Hole> in s1 (" #a "): %zu : %zu : %zu : %zu\n", pml4, pml3, pml2, pml1);\
+        continue;\
+    } else if (b[at] == 0) {\
+        printf("<Hole> in s2 (" #b "): %zu : %zu : %zu : %zu\n", pml4, pml3, pml2, pml1);\
+        continue;\
+    }
+    char s1_pflags[10] = {0};
+    char s2_pflags[10] = {0};
+
+    for(pml4 = 0; pml4 < KERNEL_PAGE_ENTRIES; ++pml4) {
+         dump_pml4_diff_if(s1_pml4, s2_pml4, pml4);
+
+         page_t s1_pml3 = (page_t)PAGE_ALIGN_DOWN(s1_pml4[pml4] | KERNEL_MEMORY_MASK);
+         page_t s2_pml3 = (page_t)PAGE_ALIGN_DOWN(s2_pml4[pml4] | KERNEL_MEMORY_MASK);
+
+         for(pml3 = 0; pml3 < KERNEL_PAGE_ENTRIES; ++pml3) {
+              dump_pml4_diff_if(s1_pml3, s2_pml3, pml3);
+
+              page_t s1_pml2 = (page_t)PAGE_ALIGN_DOWN(s1_pml3[pml3] | KERNEL_MEMORY_MASK);
+              page_t s2_pml2 = (page_t)PAGE_ALIGN_DOWN(s2_pml3[pml3] | KERNEL_MEMORY_MASK);
+
+              for(pml2 = 0; pml2 < KERNEL_PAGE_ENTRIES; ++pml2) {
+                   dump_pml4_diff_if(s1_pml2, s2_pml2, pml2);
+
+                   page_t s1_pml1 = (page_t)PAGE_ALIGN_DOWN(s1_pml2[pml2] | KERNEL_MEMORY_MASK);
+                   page_t s2_pml1 = (page_t)PAGE_ALIGN_DOWN(s2_pml2[pml2] | KERNEL_MEMORY_MASK);
+
+                   for(pml1 = 0; pml1 < KERNEL_PAGE_ENTRIES; ++pml1) {
+                        dump_pml4_diff_if(s1_pml1, s2_pml1, pml1);
+
+                        uint64_t s1_entry = s1_pml1[pml1];
+                        uint64_t s2_entry = s2_pml1[pml2];
+
+                        pageflags_t s1_flags = (s1_entry & (0b111111111111 | KERNEL_PFLAG_EXEC_DISABLE)) & (~(flags_ignore | BIT(7)));
+                        pageflags_t s2_flags = (s2_entry & (0b111111111111 | KERNEL_PFLAG_EXEC_DISABLE)) & (~(flags_ignore | BIT(7)));
+
+                        uintptr_t s1_phys = PAGE_ALIGN_DOWN(s1_entry) & (~(KERNEL_PFLAG_EXEC_DISABLE));
+                        uintptr_t s2_phys = PAGE_ALIGN_DOWN(s2_entry) & (~(KERNEL_PFLAG_EXEC_DISABLE));
+
+                        if(s1_flags != s2_flags) {
+                            page_flags_serialise(s1_flags, s1_pflags, sizeof(s1_pflags)-1);
+                            page_flags_serialise(s2_flags, s2_pflags, sizeof(s2_pflags)-1);
+                            printf("<Flags> in s1 %s in s2 %s: %zu : %zu : %zu : %zu\n", s1_pflags, s2_pflags, pml4, pml3, pml2, pml1);
+                            continue;
+                        }
+                        void* s1_virt = (void*)(s1_phys | KERNEL_MEMORY_MASK);
+                        void* s2_virt = (void*)(s2_phys | KERNEL_MEMORY_MASK);
+                        if(s1_virt == s2_virt) continue;
+                        if(memcmp(s1_virt, s2_virt, PAGE_SIZE) != 0) {
+                            printf("<Data> in s1 in s2: %zu : %zu : %zu : %zu\n", pml4, pml3, pml2, pml1);
+                            continue;
+                        }
+                   }
+                   pml1 = 0;
+              }
+              pml2 = 0;
+         }
+         pml3 = 0;
+    }
+}
+
 void dump_pml4_perms(page_t pml4_addr, pageflags_t flags_ignore) {
     printf("dump_pml4_perms(%p)\n",pml4_addr);
     uintptr_t since=0;
