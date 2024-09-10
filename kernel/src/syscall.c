@@ -26,7 +26,7 @@ intptr_t sys_open(const char* path, fmode_t mode) {
 }
 intptr_t sys_write(uintptr_t handle, const void* buf, size_t size) {
 #ifdef CONFIG_LOG_SYSCALLS
-    printf("sys_write(%llu, %p, %zu)\n",handle, buf, size);
+    printf("sys_write(%lu, %p, %zu)\n",handle, buf, size);
 #endif
     Task* current = current_task();
     Resource* res = resource_find_by_id(current->resources, handle);
@@ -36,7 +36,7 @@ intptr_t sys_write(uintptr_t handle, const void* buf, size_t size) {
 }
 intptr_t sys_read(uintptr_t handle, void* buf, size_t size) {
 #ifdef CONFIG_LOG_SYSCALLS
-    printf("sys_read(%llu, %p, %zu)\n", handle, buf, size);
+    printf("sys_read(%lu, %p, %zu)\n", handle, buf, size);
 #endif
     Task* current = current_task();
     Resource* res = resource_find_by_id(current->resources, handle);
@@ -47,7 +47,7 @@ intptr_t sys_read(uintptr_t handle, void* buf, size_t size) {
 // TODO: More generic close for everything including directories, networking sockets, etc. etc.
 intptr_t sys_close(uintptr_t handle) {
 #ifdef CONFIG_LOG_SYSCALLS
-    printf("sys_close(%llu)\n",handle);
+    printf("sys_close(%lu)\n",handle);
 #endif
     Task* current = current_task();
     Resource* res = resource_find_by_id(current->resources, handle);
