@@ -16,4 +16,5 @@ void tss_load_cpu(size_t cpu) {
         :
         : "r" ((uint16_t)((uint64_t)tss & 0xFFF)) // Offset within the GDT
     );
+    kernel_reload_gdt_registers();
 }
