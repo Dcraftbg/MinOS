@@ -18,7 +18,6 @@ void init_kernel_task() {
     kt->cr3 = kernel.pml4;
     kt->flags |= TASK_FLAG_PRESENT | TASK_FLAG_RUNNING;
     kernel.current_taskid = kt->id;
-
     IRQFrame* frame = (IRQFrame*)(virt_to_phys(kt->cr3, KERNEL_STACK_PTR) | KERNEL_MEMORY_MASK);
     frame->cs     = GDT_KERNELCODE; 
     frame->rflags = 0x286;
@@ -29,7 +28,7 @@ void init_kernel_task() {
 }
 
 void init_task_switch() {
-    idt_register(0x20, pit_handler, IDT_HARDWARE_TYPE);
+    idt_register(0x20, pit_handler, IDT_EXCEPTION_TYPE);
 }
 Task* kernel_task_add() {
     Task* task = (Task*)cache_alloc(kernel.task_cache);
@@ -73,61 +72,36 @@ static Task* task_select(Task* ct) {
     }
     return NULL;
 }
+
+
+typedef struct {
+    uint64_t cr3;
+    uint64_t rsp;
+} ContextFrame;
+
+__attribute__((noreturn)) 
+void irq_ret_user(uint64_t ts_rsp, uint64_t cr3, uint64_t argc, const char** argv);
+
+
 __attribute__((optimize("O3")))
-void task_switch() {
+void task_switch(ContextFrame* frame) {
     kernel.pit_info.ticks++;
     Task* current = NULL;
     current = current_task();
     debug_assert(current);
-    asm volatile (
-        "movq %%rsp, %0"
-        : "=r" (current->ts_rsp)
-    );
+    frame->cr3 = (uintptr_t)current->cr3 & ~KERNEL_MEMORY_MASK;
     Task* select = NULL;
     if((select = task_select(current))) {
+        current->ts_rsp = (void*)frame->rsp;
         current->flags &= ~TASK_FLAG_RUNNING;
-        // printf("SELECT: %p\n",select);
-        __asm__ volatile (
-            "movq %0, %%cr3\n"
-            :: "r" ((uintptr_t)select->cr3 & ~KERNEL_MEMORY_MASK)
-        );
-        __asm__ volatile (
-            "movq %0, %%rsp"
-            :
-            : "r" (select->ts_rsp)
-        );
-        //printf("Got here!\n");
-        //printf("current: %p\n",current);
+        frame->cr3 = (uintptr_t)select->cr3 & ~KERNEL_MEMORY_MASK;
+        frame->rsp = (uintptr_t)select->ts_rsp;
         select->flags |= TASK_FLAG_RUNNING;
         kernel.current_taskid = select->id;
         if (select->flags & TASK_FLAG_FIRST_RUN) {
-            // printf("Got here!\n");
             select->flags &= ~TASK_FLAG_FIRST_RUN;
             outb(PIC1_CMD, 0x20);
-            asm volatile (
-               ""
-               :
-               : "D"(select->argc), "S"(select->argv)
-            );
-            asm volatile (
-               "xor %rax, %rax\n"
-               "xor %rbx, %rbx\n"
-               "xor %rcx, %rcx\n"
-               "xor %rdx, %rdx\n"
-               // "xor %rsi, %rsi\n"
-               // "xor %rdi, %rdi\n"
-               "xor %rbp, %rbp\n"
-               "xor %r8 , %r8 \n"
-               "xor %r9 , %r9 \n"
-               "xor %r10, %r10\n"
-               "xor %r11, %r11\n"
-               "xor %r12, %r12\n"
-               "xor %r13, %r13\n"
-               "xor %r14, %r14\n"
-               "xor %r15, %r15\n"
-               "xchg %bx, %bx\n"
-               "iretq"
-            );
+            irq_ret_user((uint64_t)select->ts_rsp, (uint64_t)select->cr3 & ~KERNEL_MEMORY_MASK, select->argc, select->argv);
         }
     }
     pic_end(0);
