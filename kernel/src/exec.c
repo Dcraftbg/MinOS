@@ -14,7 +14,8 @@
     goto DEFER_ERR;\
 } while(0)
 
-intptr_t fork(Task* task, Task* result) {
+
+intptr_t fork(Task* task, Task* result, void* frame) {
     assert(task->flags & TASK_FLAG_PRESENT);
     intptr_t e=0;
     struct list* list = &task->memlist;
@@ -39,21 +40,21 @@ intptr_t fork(Task* task, Task* result) {
         list_append(&nlist->list, &result->memlist);
         list = list->next;
     }
-
     page_join(kernel.pml4, result->cr3);
     if(result->resources) resourceblock_dealloc(result->resources);
     result->resources = resourceblock_clone(task->resources);
     if(!result->resources)
         return_defer_err(-NOT_ENOUGH_MEM);
 
-    result->argc = task->argc;
-    result->argv = task->argv;
-    result->ts_rsp = task->ts_rsp;
-    result->rip = task->rip;
-    result->flags = task->flags & (~(TASK_FLAG_RUNNING | TASK_FLAG_PRESENT));
-    result->flags |= TASK_FLAG_PRESENT;
+    result->argc  = task->argc;
+    result->argv  = task->argv;
+    result->ts_rsp = frame;
+    result->rip    = task->rip;
+    result->flags  = task->flags & (~(TASK_FLAG_RUNNING));
     return 0;
 DEFER_ERR:
+    // TODO: Remove this:
+    // Destruct cr3, which we should NOT do
     if(result->cr3) page_destruct(result->cr3, KERNEL_PTYPE_USER);
     if(result->resources) resourceblock_dealloc(result->resources);
     if(result) drop_task(result);
@@ -98,7 +99,6 @@ intptr_t exec(Task* task, const char* path, Args args) {
     // TODO: Maybe remove this?
     // I don't really see a purpose in calling page_destruct anymore now that we have the 
     // memory regions
-    if(task->cr3) page_destruct(task->cr3, KERNEL_PTYPE_USER); // Clean it up
     if(!(task->cr3 = kernel_page_alloc())) {
         return_defer_err(-NOT_ENOUGH_MEM);
     }
@@ -151,6 +151,7 @@ intptr_t exec(Task* task, const char* path, Args args) {
         pageflags_t flags = KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_USER | KERNEL_PTYPE_USER;
         uint64_t regionflags = 0;
         if (!(pheader->flags & ELF_PROG_EXEC)) {
+            
             flags |= KERNEL_PFLAG_EXEC_DISABLE;
         }
         if (pheader->flags & ELF_PROG_WRITE) {
@@ -200,12 +201,12 @@ intptr_t exec(Task* task, const char* path, Args args) {
         return_defer_err(-NOT_ENOUGH_MEM);
     
 
-    if (!page_alloc(task->cr3, USER_STACK_ADDR  , stack_pages       , KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_USER | KERNEL_PFLAG_EXEC_DISABLE | KERNEL_PTYPE_USER))  
+    if (!page_alloc(task->cr3, USER_STACK_ADDR, stack_pages, KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_USER | KERNEL_PFLAG_EXEC_DISABLE | KERNEL_PTYPE_USER))  
         return_defer_err(-NOT_ENOUGH_MEM);
 
     list_append(&ustack_region->list, &task->memlist);
     
-    if(!(kstack_region=memlist_new(memregion_new(MEMREG_WRITE, KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | KERNEL_PTYPE_USER, KERNEL_STACK_ADDR, KERNEL_STACK_PAGES))))
+    if(!(kstack_region=memlist_new(memregion_new(MEMREG_WRITE, KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_EXEC_DISABLE | KERNEL_PTYPE_USER, KERNEL_STACK_ADDR, KERNEL_STACK_PAGES))))
         return_defer_err(-NOT_ENOUGH_MEM);
     
     list_append(&kstack_region->list, &task->memlist);

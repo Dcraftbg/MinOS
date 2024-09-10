@@ -15,4 +15,4 @@ typedef struct {
 
 intptr_t exec_new(const char* path, Args args);
 intptr_t exec(Task* task, const char* path, Args args);
-intptr_t fork(Task* task, Task* result);
+intptr_t fork_trampoline(Task* task, Task* result);

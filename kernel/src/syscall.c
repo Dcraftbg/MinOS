@@ -65,7 +65,7 @@ intptr_t sys_fork() {
     Task* current = current_task();
     Task* task = kernel_task_add();
     if(!task) return -LIMITS; // Reached max tasks and/or we're out of memory
-    if((e=fork(current, task)) < 0) {
+    if((e=fork_trampoline(current, task)) < 0) {
         drop_task(task);
         return e;
     }
