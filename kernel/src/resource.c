@@ -58,7 +58,6 @@ Resource* resource_add(ResourceBlock* block, size_t* id) {
     debug_assert(false && "Unreachable!");
 }
 static void resourceblock_shallow_dealloc(ResourceBlock* block) {
-    printf("resourceblock_shallow_dealloc(%p)\n",block);
     for(size_t i = 0; i < RESOURCES_PER_BLOCK; ++i) {
         if(block->data[i]) {
            printf("Resource %zu> %p\n", i, block->data[i]);
