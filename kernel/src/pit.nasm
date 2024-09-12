@@ -21,6 +21,4 @@ pit_handler:
    mov rax, [rax+ContextFrame.cr3]
    mov cr3, rax
    irq_pop_regs
-   xchg bx, bx
    iretq
-
