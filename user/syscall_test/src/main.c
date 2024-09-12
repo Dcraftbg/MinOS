@@ -69,14 +69,11 @@ int main() {
         printf("I am child!\n");
         HALT();
     } else if (e >= 0) {
-        intptr_t s = open("/devices/serial0", MODE_WRITE);
-        write(s, "parent\n", 7);
-        // printf("I am parent!\n");
+        printf("I am parent!\n");
         HALT();
     } else {
-        intptr_t s = open("/devices/serial0", MODE_WRITE);
-        write(s, "error\n", 6);
         printf("ERROR: fork %s\n",status_str(e));
+        HALT();
     }
     return 0;
 }
