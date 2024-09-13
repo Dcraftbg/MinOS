@@ -1,5 +1,5 @@
 #include "tty.h"
-#include "../../print.h"
+#include "../../log.h"
 #include "../../debug.h"
 #include "../../kernel.h"
 #include "../../fonts/zap-light16.h"
@@ -249,8 +249,8 @@ static intptr_t tty_dev_read(VfsFile* file, void* buf, size_t size, off_t offset
 
 
 static intptr_t new_tty_private_display(void** private, size_t display, const char* keyboard) {
-    printf("TRACE: [new_tty_private] display (id=%zu)\n",display);
-    printf("TRACE: [new_tty_private] keyboard: %s\n",keyboard);
+    ktrace("[new_tty_private] display (id=%zu)",display);
+    ktrace("[new_tty_private] keyboard: %s",keyboard);
     debug_assert(private);
     debug_assert(keyboard);
     TtyDevice* tty = cache_alloc(tty_cache);
@@ -269,7 +269,7 @@ static intptr_t new_tty_private_display(void** private, size_t display, const ch
     }
     tty->input_kind = TTY_INPUT_KEYBOARD;
     if((e=vfs_open(keyboard, &tty->input.as_kb.keyboard, MODE_READ)) < 0) {
-        printf("  [new_tty_private] (vfs_open) Keyboard Error\n");
+        kwarn("[new_tty_private] (vfs_open) Keyboard Error\n");
         cache_dealloc(tty_cache, tty);
         return e;
     }
@@ -306,7 +306,7 @@ static intptr_t tty_init() {
 void init_tty() {
     intptr_t e = 0;
     if((e = tty_init()) < 0) {
-        printf("WARN: Failed to initialise VGA: %s\n",status_str(e));
+        kwarn("Failed to initialise VGA: %s",status_str(e));
         return;
     }
     size_t display = 0;
@@ -316,15 +316,15 @@ void init_tty() {
     if(!device) return;
     e = create_tty_device_display(display, keyboard, device);
     if(e < 0) {
-        printf("WARN: Failed to initialise TTY (id=%zu): %s\n",0lu,status_str(e));
+        kwarn("Failed to initialise TTY (id=%zu): %s",0lu,status_str(e));
         cache_dealloc(kernel.device_cache, device);
         return;
     }
     if((e = vfs_register_device("tty0", device)) < 0) {
-        printf("WARN: Failed to register TTY device (id=%zu): %s\n",0lu,status_str(e));
+        kwarn("Failed to register TTY device (id=%zu): %s",0lu,status_str(e));
         destroy_vga_device(device);
         cache_dealloc(kernel.device_cache, device);
         return;
     }
-    printf("TRACE: Initialised TTY (id=%zu)\n",0lu);
+    ktrace("Initialised TTY (id=%zu)",0lu);
 }
