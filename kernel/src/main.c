@@ -25,7 +25,6 @@
 #include "pic.h"
 #include "pit.h"
 #include "syscall.h"
-#include "vga.h"
 #include "devices.h"
 #include "./devices/tty/tty.h"
 #include <minos/keycodes.h>
@@ -87,7 +86,6 @@ void _start() {
     pit_set_count(1000);
     assert(kernel.device_cache = create_new_cache(sizeof(Device), "Device"));
     fbt();
-    init_vga();
     init_tty();
 
     // dev_test();

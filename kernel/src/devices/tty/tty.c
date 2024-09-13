@@ -322,7 +322,7 @@ void init_tty() {
     }
     if((e = vfs_register_device("tty0", device)) < 0) {
         kwarn("Failed to register TTY device (id=%zu): %s",0lu,status_str(e));
-        destroy_vga_device(device);
+        destroy_tty_device(device);
         cache_dealloc(kernel.device_cache, device);
         return;
     }
