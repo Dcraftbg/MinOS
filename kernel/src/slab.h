@@ -5,7 +5,6 @@
 #include "list.h"
 #define MAX_CACHE_NAME 20
 // TODO: Deallocation of caches and cache_destory, cache_shrink etc.
-// TODO: Give caches a name field like what linux has for @STAT purposes
 typedef struct Cache {
     struct list list;
     // Linked list to either:
