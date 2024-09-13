@@ -281,6 +281,7 @@ void dump_memregions(struct list* list) {
     }
 }
 
+// NOTE: Temporary diff function. Will probably be removed later on
 void dump_pml4_diff(page_t s1_pml4, page_t s2_pml4, pageflags_t flags_ignore) {
     size_t pml4=0, pml3=0, pml2=0, pml1=0;
 #define dump_pml4_diff_if(a,b,at) \
@@ -347,6 +348,7 @@ void dump_pml4_diff(page_t s1_pml4, page_t s2_pml4, pageflags_t flags_ignore) {
     }
 }
 
+// NOTE: Temporary perms function. Will probably be removed later on
 void dump_pml4_perms(page_t pml4_addr, pageflags_t flags_ignore) {
     printf("dump_pml4_perms(%p)\n",pml4_addr);
     uintptr_t since=0;
