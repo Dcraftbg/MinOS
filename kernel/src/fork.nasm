@@ -11,7 +11,6 @@ extern fork
 ;   rsi = task
 global fork_trampoline
 fork_trampoline:
-    xchg bx, bx
     mov rax, [rsp]
     lea rdx, [rsp+8]
     ; Push ss
@@ -26,11 +25,14 @@ fork_trampoline:
     push rcx
     ; Push rip
     push rax
+    ; Cleanup rax which will be "result" from fork.
+    ; And I think its fairly reasonable to set it as 0
+    ; given that if we ever got to iretq back to sys_fork() it means we probably succeeded in forking
+    ; Maybe -YOU_ARE_CHILD and we have no conditional logic in sys_fork()?
     xor rax, rax
     irq_push_regs
     mov rdx, rsp
     call fork
-    xchg bx, bx
     add rsp, 5*PTR_SIZE + IRQ_REGS_SIZE
     ret
 
