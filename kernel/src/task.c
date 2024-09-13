@@ -100,7 +100,7 @@ void task_switch(ContextFrame* frame) {
         kernel.current_taskid = select->id;
         if (select->flags & TASK_FLAG_FIRST_RUN) {
             select->flags &= ~TASK_FLAG_FIRST_RUN;
-            outb(PIC1_CMD, 0x20);
+            pic_end(0);
             irq_ret_user((uint64_t)select->ts_rsp, (uint64_t)select->cr3 & ~KERNEL_MEMORY_MASK, select->argc, select->argv);
         }
     }
