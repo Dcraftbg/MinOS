@@ -4,6 +4,8 @@
 #include <stdbool.h>
 #include "port.h"
 #include "serial.h"
+#include "logger.h"
+#include "log.h"
 #include "assert.h"
 #include "print.h"
 #include "utils.h"
@@ -59,6 +61,7 @@ static void dev_test() {
 void _start() {
     BREAKPOINT();
     serial_init();
+    init_loggers();
     init_memmap();
     init_paging();
     KERNEL_SWITCH_VTABLE();

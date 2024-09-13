@@ -1,4 +1,5 @@
 #include "serial.h"
+#include "logger.h"
 #define COM_PORT 0x3f8
 #define COM_5 (COM_PORT+5)
 #define COM_STATUS COM_5
@@ -30,3 +31,22 @@ void serial_printstr(const char* str) {
         serial_print_u8(c);
     }
 }
+
+
+static intptr_t serial_log_write_str(Logger* this, const char* str, size_t len) {
+    for(size_t i = 0; i < len; ++i) {
+        serial_print_u8(str[i]);
+    }
+    return 0;
+}
+static intptr_t serial_log_draw_color(Logger* this, uint32_t color) {
+    serial_printstr(get_ansi_color_from_log(color));
+    return 0;
+}
+Logger serial_logger = {
+    .log = NULL,
+    .write_str = serial_log_write_str,
+    .draw_color = serial_log_draw_color,
+    .level = LOG_ALL,
+    .private = NULL,
+};

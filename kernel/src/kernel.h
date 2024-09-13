@@ -6,6 +6,7 @@
 #include "tss.h"
 #include "vfs.h"
 #include "pit.h"
+struct Logger;
 struct Cache;
 typedef struct {
     Memmap map;
@@ -25,6 +26,7 @@ typedef struct {
     struct Cache* memregion_cache;
     struct Cache* memlist_cache;
     struct list cache_list;
+    struct Logger* logger;
     PitInfo pit_info;
 } Kernel;
 extern Kernel kernel;

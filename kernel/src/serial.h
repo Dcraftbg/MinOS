@@ -7,3 +7,5 @@ void serial_init();
 void serial_print_u8(uint8_t c);
 void serial_printstr(const char* str);
 
+
+extern struct Logger serial_logger;
