@@ -77,6 +77,9 @@ intptr_t sys_fork() {
     return task->id;
 }
 intptr_t sys_exec(const char* path, const char** argv, size_t argc) {
+    // NOTE: Exec isn't really supported yet. I just wanna make it abudnantly clear that it will be supported soon
+    return -UNSUPPORTED;
+#if 0
 #ifdef CONFIG_LOG_SYSCALLS
     printf("sys_exec(%s, %p, %zu)\n", path, argv, argc);
 #endif
@@ -85,4 +88,5 @@ intptr_t sys_exec(const char* path, const char** argv, size_t argc) {
     if((e=exec(current, path, create_args(argc, argv))) < 0) return e;
     // Not reachable
     return 0;
+#endif
 }
