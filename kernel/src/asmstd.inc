@@ -1,5 +1,8 @@
 ; -- General macros for EOU for irqs --
-%define PTR_SIZE 8
+PTR_SIZE equ 8
+IRQ_REGS_SIZE equ PTR_SIZE*15
+KERNEL_CS equ 8
+KERNEL_SS equ 16
 %macro irq_push_regs 0
  push rax
  push rbx

@@ -23,6 +23,7 @@ typedef struct {
     page_t cr3;
     size_t argc;
     const char** argv;
+    struct list memlist;
 
     ResourceBlock* resources;
     // Task switch rsp

@@ -5,43 +5,115 @@
 #include "gdt.h"
 #include "vfs.h"
 #include "string.h"
+#include "fileutils.h"
 #include "kernel.h"
+#include "debug.h"
 
 #define return_defer_err(x) do {\
     e=(x);\
     goto DEFER_ERR;\
 } while(0)
 
-static intptr_t read_exact(VfsFile* file, void* bytes, size_t amount) {
-    while(amount) {
-        size_t rb = vfs_read(file, bytes, amount);
-        if(rb < 0) return rb;
-        if(rb == 0) return -PREMATURE_EOF;
-        amount-=rb;
-        bytes+=rb;
+
+intptr_t fork(Task* task, Task* result, void* frame) {
+    assert(task->flags & TASK_FLAG_PRESENT);
+    intptr_t e=0;
+    struct list* list = &task->memlist;
+    struct list* first = list;
+    list = list->next;
+    if(!(result->cr3 = kernel_page_alloc()))
+        return_defer_err(-NOT_ENOUGH_MEM);
+    result->cr3 = (page_t)((uint64_t)result->cr3 | KERNEL_MEMORY_MASK);
+    memset(result->cr3, 0, PAGE_SIZE);
+    result->flags = 0;
+    while(first != list) {
+        MemoryList* memlist = (MemoryList*)list;
+        MemoryRegion* region = memlist->region;
+        MemoryRegion* nreg = memregion_clone(region, task->cr3, result->cr3);
+        if(!nreg) 
+            return_defer_err(-NOT_ENOUGH_MEM);
+        MemoryList* nlist = memlist_new(region);
+        if(!nlist) {
+            memregion_drop(region, result->cr3);
+            return_defer_err(-NOT_ENOUGH_MEM);
+        }
+        list_append(&nlist->list, &result->memlist);
+        list = list->next;
     }
+    page_join(kernel.pml4, result->cr3);
+    if(result->resources) resourceblock_dealloc(result->resources);
+    result->resources = resourceblock_clone(task->resources);
+    if(!result->resources)
+        return_defer_err(-NOT_ENOUGH_MEM);
+
+    result->argc  = task->argc;
+    result->argv  = task->argv;
+    result->ts_rsp = frame;
+    result->rip    = task->rip;
+    result->flags  = task->flags & (~(TASK_FLAG_RUNNING));
     return 0;
+DEFER_ERR:
+    // TODO: Remove this:
+    // Destruct cr3, which we should NOT do
+    if(result->cr3) page_destruct(result->cr3, KERNEL_PTYPE_USER);
+    if(result->resources) resourceblock_dealloc(result->resources);
+    if(result) drop_task(result);
+    return e;
 }
-intptr_t exec(const char* path, Args args) {
+intptr_t exec_new(const char* path, Args args) {    
+    intptr_t e=0;
+    Task* task = kernel_task_add();
+    if(!task) return -LIMITS; // Reached max tasks and/or we're out of memory
+    if((e=exec(task, path, args)) < 0)
+        return_defer_err(e);
+    return 0;
+DEFER_ERR:
+    if(task->resources) resourceblock_dealloc(task->resources);
+    if(task) drop_task(task);
+    return e;
+}
+// TODO: Fix XD. XD may not be supported always so checks to remove it are necessary
+intptr_t exec(Task* task, const char* path, Args args) {
     intptr_t e=0;
     VfsFile file={0};
     bool fopened=false;
-    Task* task = {0};
+    MemoryList* kstack_region = NULL;
+    MemoryList* ustack_region = NULL;
     Elf64ProgHeader* pheaders = NULL;
+    Elf64Header header;
+
     if(!path) return -INVALID_PARAM;
-    task = kernel_task_add();
-    if(!task) return -LIMITS; // Reached max tasks and/or we're out of memory
-    task->cr3 = NULL;
+
+    {
+        struct list* list = &task->memlist;
+        struct list* first = list;
+        list = list->next;
+        while(first != list) {
+             MemoryList* memlist = (MemoryList*)list;
+             struct list* next = list->next;
+             memlist_dealloc(memlist, task->cr3);
+             list = next;
+        }
+    }
+
+    // TODO: Maybe remove this?
+    // I don't really see a purpose in calling page_destruct anymore now that we have the 
+    // memory regions
+    if(!(task->cr3 = kernel_page_alloc())) {
+        return_defer_err(-NOT_ENOUGH_MEM);
+    }
+    task->cr3 = (page_t)((uint64_t)task->cr3 | KERNEL_MEMORY_MASK);
+    memset(task->cr3, 0, PAGE_SIZE);
+
     task->ts_rsp = 0;
     task->rip = 0;
-    task->flags |= TASK_FLAG_FIRST_RUN;
+    task->flags = TASK_FLAG_FIRST_RUN;
 
     if((e=vfs_open(path, &file, MODE_READ)) < 0) {
         return_defer_err(e);
     }
     fopened = true;
 
-    Elf64Header header;
     if((e=read_exact(&file, &header, sizeof(header))) < 0) return_defer_err(e);
     
     if(!elf_header_verify(&header)) return_defer_err(-INVALID_MAGIC);
@@ -54,13 +126,7 @@ intptr_t exec(const char* path, Args args) {
     if(
         header.type != ELF_TYPE_EXEC
     ) return_defer_err(-INVALID_TYPE);
-     
-    if(!(task->cr3 = kernel_page_alloc())) {
-      return_defer_err(-NOT_ENOUGH_MEM);
-    }
 
-    task->cr3 = (page_t)((uint64_t)task->cr3 | KERNEL_MEMORY_MASK);
-    memset(task->cr3, 0, PAGE_SIZE);
 
     size_t prog_header_size = header.phnum * sizeof(Elf64ProgHeader);
     pheaders = kernel_malloc(prog_header_size);
@@ -82,9 +148,15 @@ intptr_t exec(const char* path, Args args) {
                              pheader->p_type, pheader->flags,pheader->offset, (void*)pheader->virt_addr, (void*)pheader->phys_addr, pheader->filesize, pheader->memsize, pheader->align);
 #endif        
         if (pheader->p_type != ELF_PHREADER_LOAD || pheader->memsize == 0) continue;
-        uint16_t flags = KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_USER | KERNEL_PTYPE_USER;
+        pageflags_t flags = KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_USER | KERNEL_PTYPE_USER;
+        uint64_t regionflags = 0;
+        if (!(pheader->flags & ELF_PROG_EXEC)) {
+            
+            flags |= KERNEL_PFLAG_EXEC_DISABLE;
+        }
         if (pheader->flags & ELF_PROG_WRITE) {
             flags |= KERNEL_PFLAG_WRITE;
+            regionflags |= MEMREG_WRITE;
         }
         if(pheader->filesize > pheader->memsize) {
             return_defer_err(-SIZE_MISMATCH);
@@ -104,24 +176,42 @@ intptr_t exec(const char* path, Args args) {
            kernel_dealloc(memory, segment_pages * PAGE_SIZE);
            return_defer_err(e);
         }
+        MemoryList* region;
+        if(!(region=memlist_new(memregion_new(regionflags, flags, virt, segment_pages)))) {
+           kernel_dealloc(memory, segment_pages * PAGE_SIZE);
+           return_defer_err(-NOT_ENOUGH_MEM);
+        }
         // TODO: Better return message. it could be either Incomplete Map or Not Enough Memory
         // We just don't know right now and Not Enough Memory seems more reasonable
         if (
           !page_mmap(task->cr3, virt_to_phys(kernel.pml4, (uintptr_t)memory), virt, segment_pages, flags)
         ) {
+           memlist_dealloc(region, NULL);
            kernel_dealloc(memory, segment_pages * PAGE_SIZE);
            return_defer_err(-NOT_ENOUGH_MEM);
         }
+        list_append(&region->list, &task->memlist);
     }
     if (header.entry == 0)
         return_defer_err(-NO_ENTRYPOINT);
 
     size_t stack_pages = USER_STACK_PAGES + 1 + (PAGE_ALIGN_UP(args.bytelen) / PAGE_SIZE);
-    if (!page_alloc(task->cr3, USER_STACK_ADDR  , stack_pages       , KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_USER | KERNEL_PTYPE_USER))  
+
+    if(!(ustack_region=memlist_new(memregion_new(MEMREG_WRITE, KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_USER | KERNEL_PFLAG_EXEC_DISABLE | KERNEL_PTYPE_USER, USER_STACK_ADDR, stack_pages)))) 
         return_defer_err(-NOT_ENOUGH_MEM);
     
+
+    if (!page_alloc(task->cr3, USER_STACK_ADDR, stack_pages, KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_USER | KERNEL_PFLAG_EXEC_DISABLE | KERNEL_PTYPE_USER))  
+        return_defer_err(-NOT_ENOUGH_MEM);
+
+    list_append(&ustack_region->list, &task->memlist);
+    
+    if(!(kstack_region=memlist_new(memregion_new(MEMREG_WRITE, KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_EXEC_DISABLE | KERNEL_PTYPE_USER, KERNEL_STACK_ADDR, KERNEL_STACK_PAGES))))
+        return_defer_err(-NOT_ENOUGH_MEM);
+    
+    list_append(&kstack_region->list, &task->memlist);
     // NOTE: If you're wondering why KERNEL_PTYPE_USER is applied here. The USER program OWNS that memory
-    if (!page_alloc(task->cr3, KERNEL_STACK_ADDR, KERNEL_STACK_PAGES, KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | KERNEL_PTYPE_USER)) 
+    if (!page_alloc(task->cr3, KERNEL_STACK_ADDR, KERNEL_STACK_PAGES, KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_EXEC_DISABLE | KERNEL_PTYPE_USER))
         return_defer_err(-NOT_ENOUGH_MEM);
 
     // TODO: Kind of interesting but what if you swapped the cr3 AFTER YOU JOINED WITH THE KERNEL MEMORY MAP
@@ -155,18 +245,16 @@ intptr_t exec(const char* path, Args args) {
     frame->rsp    = (uint64_t)stack_head;
     task->ts_rsp = (void*)(KERNEL_STACK_PTR+sizeof(IRQFrame));
     task->rip    = header.entry;
-    task->flags |= TASK_FLAG_PRESENT;
-    if(!(task->resources = new_resource_block()))
-        return_defer_err(-NOT_ENOUGH_MEM);
     page_join(kernel.pml4, task->cr3);
     vfs_close(&file);
     fopened = false;
+    task->flags |= TASK_FLAG_PRESENT;
     return 0;
 DEFER_ERR:
     if(pheaders) kernel_dealloc(pheaders, prog_header_size);
-    if(task->cr3) page_destruct(task->cr3, KERNEL_PTYPE_USER);
+    if(kstack_region) memlist_dealloc(kstack_region, NULL);
+    if(ustack_region) memlist_dealloc(ustack_region, NULL);
     if(fopened) vfs_close(&file);
-    if(task->resources) delete_resource_block(task->resources);
-    if(task) drop_task(task);
+    if(task->cr3) page_destruct(task->cr3, KERNEL_PTYPE_USER);
     return e;
 }

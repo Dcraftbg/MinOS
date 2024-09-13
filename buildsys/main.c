@@ -18,7 +18,22 @@
 #include "../config.h"
 #include <stdint.h>
 // TODO: Consider moving to ../config.h
-#define CFLAGS "-g", "-nostdlib", "-march=x86-64", "-ffreestanding", "-static", "-Werror", "-Wno-unused-function", "-Wall", /*"-fomit-frame-pointer",*/ "-fno-builtin", "-fno-stack-protector", "-mno-red-zone", "-mno-mmx", "-mno-sse", "-mno-sse2", "-mno-3dnow", "-fPIC", "-I", "libs/std/include", "-I", "kernel/src"
+#define CFLAGS\
+    "-g",\
+    "-nostdlib",\
+    "-march=x86-64",\
+    "-ffreestanding",\
+    "-static", \
+    "-Werror", "-Wno-unused-function",\
+    "-Wall", \
+    /*"-fomit-frame-pointer", "-fno-builtin", "-fno-stack-protector",*/\
+    /*"-mno-red-zone",*/\
+   "-mno-mmx",\
+   "-mno-sse", "-mno-sse2",\
+   "-mno-3dnow",\
+   "-fPIC",\
+   "-I", "libs/std/include",\
+   "-I", "kernel/src"
 
 #define LDFLAGS "-g"
 
@@ -65,6 +80,7 @@ bool make_build_dirs() {
     if(!nob_mkdir_if_not_exists_silent("./bin/user"        )) return false;
     if(!nob_mkdir_if_not_exists_silent("./bin/user/nothing")) return false;
     if(!nob_mkdir_if_not_exists_silent("./bin/user/syscall_test")) return false;
+    if(!nob_mkdir_if_not_exists_silent("./bin/user/hello")) return false;
     return true;
 }
 bool remove_objs(const char* dirpath) {
@@ -555,9 +571,31 @@ bool build_syscall_test() {
     #undef LIBDIR
     return true;
 }
+bool build_hello() {
+    #define BINDIR "./bin/user/hello/"
+    #define SRCDIR "./user/hello/src/"
+    #define LIBDIR "./bin/std/"
+    if(!cc         (SRCDIR "main.c"        , BINDIR "hello.o")) return false;
+    Nob_File_Paths paths = {0};
+    nob_da_append(&paths, BINDIR "hello.o");
+    if(!find_objs(LIBDIR, &paths)) {
+        nob_da_free(paths);
+        return false;
+    }
+    if(!ld(&paths, BINDIR "hello"  , "./user/hello/link.ld")) {
+        nob_da_free(paths);
+        return false;
+    }
+    nob_da_free(paths);
+    #undef BINDIR
+    #undef SRCDIR
+    #undef LIBDIR
+    return true;
+}
 bool build_user() {
     if(!build_nothing()) return false;
     if(!build_syscall_test()) return false;
+    if(!build_hello()) return false;
     return true; 
 }
 // TODO Separate these out maybe? Idk
@@ -579,9 +617,10 @@ bool run(Build* build) {
         "qemu-system-x86_64",
         //"-serial", "none",
         "-serial", "file:kernel_logs.txt",
-        // "--no-reboot",
-        // "--no-shutdown",
-        // "-d", "int",
+        "--no-reboot",
+        "--no-shutdown",
+        "-d", "int",
+        "-D", "qemu.log",
         "-smp", "2",
         "-m", "128",
         "-cdrom", "./bin/OS.iso"

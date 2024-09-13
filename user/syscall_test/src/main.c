@@ -57,6 +57,7 @@ intptr_t readline(char* buf, size_t bufmax) {
 }
 #define LINEBUF_MAX 1024
 int main() {
+#if 0
     static char linebuf[LINEBUF_MAX];
     intptr_t e = 0;
     printf("Hello World!\n");
@@ -67,6 +68,19 @@ int main() {
         }
         linebuf[e] = 0;
         printf("Read line: %s",linebuf);
+    }
+#endif
+    printf("Before fork....\n");
+    intptr_t e = fork();
+    if(e == (-YOU_ARE_CHILD)) {
+        printf("I am child!\n");
+        HALT();
+    } else if (e >= 0) {
+        printf("I am parent!\n");
+        HALT();
+    } else {
+        printf("ERROR: fork %s\n",status_str(e));
+        HALT();
     }
     return 0;
 }

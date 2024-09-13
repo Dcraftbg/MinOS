@@ -5,7 +5,8 @@
 #include "string.h"
 #define PAGE_MASK 0xFFFF000000000000
 
-bool page_mmap(page_t pml4_addr, uintptr_t phys, uintptr_t virt, size_t pages_count, uint16_t flags) {
+// TODO: Fix XD. XD may not be supported always so checks to remove it are necessary
+bool page_mmap(page_t pml4_addr, uintptr_t phys, uintptr_t virt, size_t pages_count, pageflags_t flags) {
     // printf("Called page_mmap(/*pml4*/ 0x%p, /*phys*/ 0x%p, /*virt*/ 0x%p, /*pages*/ %zu, /*flags*/, %02X)\n",pml4_addr, phys,virt,pages_count,flags);
     virt &= ~PAGE_MASK;          // Clean up the top bits (reasons I won't get into)
     phys &= ~KERNEL_MEMORY_MASK; // Bring to a physical address just in case
@@ -20,7 +21,7 @@ bool page_mmap(page_t pml4_addr, uintptr_t phys, uintptr_t virt, size_t pages_co
             if(!pml4_addr[pml4]) return false; // Out of memory
             pml3_addr = (page_t)(pml4_addr[pml4] | KERNEL_MEMORY_MASK); 
             memset(pml3_addr, 0, PAGE_SIZE);
-            pml4_addr[pml4] |= KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | flags;
+            pml4_addr[pml4] |= KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | (flags & KERNEL_PFLAG_USER);
         } else {
             pml3_addr = (page_t)PAGE_ALIGN_DOWN(pml4_addr[pml4] | KERNEL_MEMORY_MASK);
         }
@@ -32,7 +33,7 @@ bool page_mmap(page_t pml4_addr, uintptr_t phys, uintptr_t virt, size_t pages_co
                 if(!pml3_addr[pml3]) return false; // Out of memory
                 pml2_addr = (page_t)(pml3_addr[pml3] | KERNEL_MEMORY_MASK); 
                 memset(pml2_addr, 0, PAGE_SIZE);
-                pml3_addr[pml3] |= KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | flags;
+                pml3_addr[pml3] |= KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | (flags & KERNEL_PFLAG_USER);
             } else {
                 pml2_addr = (page_t)PAGE_ALIGN_DOWN(pml3_addr[pml3] | KERNEL_MEMORY_MASK);
             }
@@ -44,7 +45,7 @@ bool page_mmap(page_t pml4_addr, uintptr_t phys, uintptr_t virt, size_t pages_co
                     if(!pml2_addr[pml2]) return false; // Out of memory
                     pml1_addr = (page_t)(pml2_addr[pml2] | KERNEL_MEMORY_MASK); 
                     memset(pml1_addr, 0, PAGE_SIZE);
-                    pml2_addr[pml2] |= KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | flags;
+                    pml2_addr[pml2] |= KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | (flags & KERNEL_PFLAG_USER);
                 } else {
                     pml1_addr = (page_t)PAGE_ALIGN_DOWN(pml2_addr[pml2] | KERNEL_MEMORY_MASK);
                 }
@@ -67,7 +68,9 @@ bool page_mmap(page_t pml4_addr, uintptr_t phys, uintptr_t virt, size_t pages_co
     }
     return pages_count == 0;
 }
-bool page_alloc(page_t pml4_addr, uintptr_t virt, size_t pages_count, uint16_t flags) {
+
+// TODO: Fix XD. XD may not be supported always so checks to remove it are necessary
+bool page_alloc(page_t pml4_addr, uintptr_t virt, size_t pages_count, pageflags_t flags) {
     virt &= ~PAGE_MASK;
     uint16_t pml1 = (virt >> (12   )) & 0x1ff;
     uint16_t pml2 = (virt >> (12+9 )) & 0x1ff;
@@ -80,7 +83,7 @@ bool page_alloc(page_t pml4_addr, uintptr_t virt, size_t pages_count, uint16_t f
             if(!pml4_addr[pml4]) return false; // Out of memory
             pml3_addr = (page_t)(pml4_addr[pml4] | KERNEL_MEMORY_MASK); 
             memset(pml3_addr, 0, PAGE_SIZE);
-            pml4_addr[pml4] |= KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | flags;
+            pml4_addr[pml4] |= KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | (flags & KERNEL_PFLAG_USER);
         } else {
             pml3_addr = (page_t)PAGE_ALIGN_DOWN(pml4_addr[pml4] | KERNEL_MEMORY_MASK);
         }
@@ -92,7 +95,7 @@ bool page_alloc(page_t pml4_addr, uintptr_t virt, size_t pages_count, uint16_t f
                 if(!pml3_addr[pml3]) return false; // Out of memory
                 pml2_addr = (page_t)(pml3_addr[pml3] | KERNEL_MEMORY_MASK); 
                 memset(pml2_addr, 0, PAGE_SIZE);
-                pml3_addr[pml3] |= KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | flags;
+                pml3_addr[pml3] |= KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | (flags & KERNEL_PFLAG_USER);
             } else {
                 pml2_addr = (page_t)PAGE_ALIGN_DOWN(pml3_addr[pml3] | KERNEL_MEMORY_MASK);
             }
@@ -104,7 +107,7 @@ bool page_alloc(page_t pml4_addr, uintptr_t virt, size_t pages_count, uint16_t f
                     if(!pml2_addr[pml2]) return false; // Out of memory
                     pml1_addr = (page_t)(pml2_addr[pml2] | KERNEL_MEMORY_MASK); 
                     memset(pml1_addr, 0, PAGE_SIZE);
-                    pml2_addr[pml2] |= KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | flags;
+                    pml2_addr[pml2] |= KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | (flags & KERNEL_PFLAG_USER);
                 } else {
                     pml1_addr = (page_t)PAGE_ALIGN_DOWN(pml2_addr[pml2] | KERNEL_MEMORY_MASK);
                 }
@@ -228,6 +231,7 @@ uintptr_t virt_to_phys(page_t pml4_addr, uintptr_t addr) {
 
     return PAGE_ALIGN_DOWN(pml1_addr[pml1]);
 }
+
 void init_paging() {
     Mempair addr_resp = {0};
     kernel_mempair(&addr_resp);
@@ -253,7 +257,10 @@ void init_paging() {
     for(size_t i = 0; i < header->phnum; ++i) {
         Elf64ProgHeader* h = &headers[i]; // I know it can be done with headers+i. I want to keep things simple for if others read it
         if(h->p_type == 0 || h->memsize == 0) continue;
-        uint16_t flags = KERNEL_PFLAG_PRESENT;
+        pageflags_t flags = KERNEL_PFLAG_PRESENT;
+        if(!(h->flags & ELF_PROG_EXEC)) {
+            flags |= KERNEL_PFLAG_EXEC_DISABLE;
+        }
         if(h->flags & ELF_PROG_WRITE) {
             flags |= KERNEL_PFLAG_WRITE;
         }
@@ -274,4 +281,28 @@ void init_paging() {
 }
 void update_post_paging() {
     kernel.map.addr = (uint8_t*)(((uintptr_t)kernel.map.addr) | KERNEL_MEMORY_MASK);
+}
+
+
+
+void page_flags_serialise(pageflags_t flags, char* buf, size_t cap) {
+    assert(cap >= 7);
+    memset(buf, 0  ,cap);
+    buf[0] = flags & KERNEL_PFLAG_PRESENT          ? 'p' : '-';
+    buf[1] = flags & KERNEL_PFLAG_WRITE            ? 'w' : '-';
+    buf[2] = flags & KERNEL_PFLAG_USER             ? 'u' : '-';
+    buf[3] = flags & KERNEL_PFLAG_WRITE_THROUGH    ? 'w' : '-';
+    buf[4] = flags & KERNEL_PFLAG_CACHE_DISABLE    ? 'c' : '-';
+    buf[5] = flags & KERNEL_PFLAG_ACCESSED         ? 'a' : '-';
+    buf[6] = flags & KERNEL_PFLAG_EXEC_DISABLE     ? 'x' : '-';
+}
+
+const char* page_type_str(pageflags_t flags) {
+    switch((flags & KENREL_PTYPE_MASK) >> KERNEL_PTYPE_SHIFT) {
+    case (KERNEL_PTYPE_USER>>KERNEL_PTYPE_SHIFT):
+        return "User";
+    case (KERNEL_PTYPE_KERNEL>>KERNEL_PTYPE_SHIFT):
+        return "Kernel";
+    }
+    return "Unknown";
 }

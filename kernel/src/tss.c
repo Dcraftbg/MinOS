@@ -1,8 +1,9 @@
 #include "tss.h"
 #include "kernel.h"
 void tss_load_cpu(size_t cpu) {
-    TSSSegment* tss = (TSSSegment*)(((uint64_t*)kernel.gdt)+(7+cpu*2));
-    tss->limit_low = sizeof(TSS);
+    TSSSegment* tss = (TSSSegment*)&kernel.gdt->tss;
+    // (TSSSegment*)(((uint64_t*)kernel.gdt)+(5+cpu*2));
+    tss->limit_low = sizeof(TSS)-1;
     uint64_t tss_ptr = (uint64_t)&kernel.tss;
     tss->base_low    = tss_ptr;
     tss->base_middle = tss_ptr>>16;
@@ -15,4 +16,5 @@ void tss_load_cpu(size_t cpu) {
         :
         : "r" ((uint16_t)((uint64_t)tss & 0xFFF)) // Offset within the GDT
     );
+    kernel_reload_gdt_registers();
 }

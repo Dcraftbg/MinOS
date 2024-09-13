@@ -4,4 +4,6 @@ enum {
     SYS_WRITE,
     SYS_READ,
     SYS_CLOSE,
+    SYS_FORK,
+    SYS_EXEC,
 };

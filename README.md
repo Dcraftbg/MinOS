@@ -8,6 +8,8 @@ MinOS is a mini operating system written in C.
 - [@Tsoding](https://github.com/tsoding) - for the amazing [nob.h library](https://github.com/tsoding/musializer)
 - [@lordmilko](https://github.com/lordmilko) - for the [precompiled binaries](https://github.com/lordmilko/i686-elf-tools) for gcc and binutils
 - [nothings stb libraries](https://github.com/nothings/stb)
+- [@AProgrammablePhoenix](https://github.com/AProgrammablePhoenix) - for helping me out and generally supporting the development of the OS <3.
+- [@Bananymous](https://github.com/Bananymous) - for helping me out and generally supporting the development of the OS <3 (Couldn't have done it without ya guys)
 
 ## Quickstart
 

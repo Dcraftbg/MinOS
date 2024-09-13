@@ -5,196 +5,22 @@
 #include "vfs.h"
 #include "string.h"
 #include "ctype.h"
+#include "memregion.h"
+#include "fileutils.h"
 
 void dump_memmap(Memmap* map);
 void log_slab(void* p);
 void log_list(struct list* list, void (*log_obj)(void* obj));
 void log_cache(Cache* cache);
 
-static intptr_t read_exact(VfsFile* file, void* bytes, size_t amount) {
-    while(amount) {
-        size_t rb = vfs_read(file, bytes, amount);
-        if(rb < 0) return rb;
-        if(rb == 0) return -PREMATURE_EOF;
-        amount-=rb;
-        bytes+=rb;
-    }
-    return 0;
-}
-static void cat(const char* path) {
-    VfsFile file = {0};
-    intptr_t e = 0;
-    if((e=vfs_open(path, &file, MODE_READ)) < 0) {
-        printf("ERROR: cat: Failed to open %s : %ld\n",path,e);
-        return;
-    }
-    if((e=vfs_seek(&file, 0, SEEK_END)) < 0) {
-        printf("ERROR: cat: Could not seek to file end : %ld\n",e);
-        vfs_close(&file);
-        return;
-    }
-    size_t size = e;
-    if((e=vfs_seek(&file, 0, SEEK_START) < 0)) {
-        printf("ERROR: cat: Could not seek to file start : %ld\n",e);
-        vfs_close(&file);
-        return;
-    }
-    char* buf = (char*)kernel_malloc(size+1);
-    if((e=read_exact(&file, buf, size)) < 0) {
-        printf("ERROR: cat: Could not read file contents : %ld\n",e);
-        vfs_close(&file);
-        return;
-    }
-    buf[size] = '\0';
-    printf("%s\n",buf);
-    kernel_dealloc(buf,size+1);
-    vfs_close(&file);
-}
-static void hexdump_mem(uint8_t* buf, size_t size) {
-    uint8_t* prev = NULL;
-    bool rep = false;
-    for(size_t i = 0; i < size/16; ++i) {
-        uint8_t* current = &buf[i*16];
-        if(prev == NULL || memcmp(current, prev, 16) != 0) {
-           printf("%08X:  ",(uint32_t)i*16);
-           for(size_t x = 0; x < 16; ++x) {
-              if(x != 0) {
-                if(x % 8 == 0) {
-                   printf("  ");
-                } else {
-                   printf(" ");
-                }
-              }
-              uint8_t byte = current[x];
-              printf("%02X",byte);
-           }
-           printf("  |");
-           for(size_t x = 0; x < 16; ++x) {
-              uint8_t byte = current[x];
-              char c = isprint(byte) ? byte : '.';
-              printf("%c",c);
-           }
-           printf("|");
-           printf("\n");
-           rep = false;
-        } else if (!rep) {
-           printf("*\n");
-           rep = true;
-        }
-        prev = current;
-    }
-    if(size%16) {
-       size_t i = size-(size%16);
-       uint8_t* current = &buf[i];
+void cat(const char* path);
+void hexdump_mem(uint8_t* buf, size_t size);
+void hexdump(const char* path);
+void ls(const char* path);
 
-       printf("%08X:  ",(uint32_t)i);
-       size_t left = size-i;
-       for(size_t x = 0; x < left; ++x) {
-          if(x != 0) {
-            if(x % 8 == 0) {
-               printf("  ");
-            } else {
-               printf(" ");
-            }
-          }
-          uint8_t byte = current[x];
-          printf("%02X",byte);
-       }
-       printf("  |");
-       for(size_t x = 0; x < left; ++x) {
-          uint8_t byte = current[x];
-          char c = isprint(byte) ? byte : '.';
-          printf("%c",c);
-       }
-       printf("|");
-       printf("\n");
-    }
-}
-static void hexdump(const char* path) {
-    VfsFile file = {0};
-    intptr_t e = 0;
-    if((e=vfs_open(path, &file, MODE_READ)) < 0) {
-        printf("ERROR: hexdump: Failed to open %s : %ld\n",path,e);
-        return;
-    }
-    if((e=vfs_seek(&file, 0, SEEK_END)) < 0) {
-        printf("ERROR: hexdump: Could not seek to file end : %ld\n",e);
-        vfs_close(&file);
-        return;
-    }
-    size_t size = e;
-    if((e=vfs_seek(&file, 0, SEEK_START) < 0)) {
-        printf("ERROR: hexdump: Could not seek to file start : %ld\n",e);
-        vfs_close(&file);
-        return;
-    }
-    uint8_t* buf = (uint8_t*)kernel_malloc(size);
-    if((e=read_exact(&file, buf, size)) < 0) {
-        printf("ERROR: hexdump: Could not read file contents : %ld\n",e);
-        vfs_close(&file);
-        return;
-    }
-    hexdump_mem(buf, size);
-    kernel_dealloc(buf,size);
-    vfs_close(&file);
-}
-static const char* inode_kind_map[] = {
-    "DIR",
-    "FILE",
-    "DEVICE",
-};
-static_assert(ARRAY_LEN(inode_kind_map) == INODE_COUNT, "Update inode_kind_map");
-// TODO: Fix this, DirEntry should contain lba and size and other stuff
-static void ls(const char* path) {
-    printf("%s:\n",path);
-    VfsDir dir = {0};
-    VfsDirIter iter = {0};
-    VfsDirEntry entry = {0};
-    intptr_t e = 0;
-    char namebuf[MAX_INODE_NAME];
-    if ((e=vfs_diropen(path, &dir, MODE_READ)) < 0) {
-        printf("ERROR: ls: Could not open directory: %s\n", status_str(e));
-        return;
-    }
-    if ((e=vfs_diriter_open(&dir, &iter)) < 0) {
-        printf("ERROR: ls: Could not open iter: %s\n", status_str(e));
-        vfs_dirclose(&dir);
-        return;
-    }
-
-    VfsStats stats = {0};
-    while((e = vfs_diriter_next(&iter, &entry)) == 0) {
-        if((e=vfs_identify(&entry, namebuf, sizeof(namebuf))) < 0) {
-            printf("ERROR: ls: Could not identify inode: %s\n",status_str(e));
-            vfs_diriter_close(&iter);
-            vfs_dirclose(&dir);
-            return;
-        }
-        if((e=vfs_stat(&entry, &stats)) < 0) {
-            printf("WARN: ls: Could not get stats for %s: %s\n",namebuf,status_str(e));
-            continue;
-        }
-        printf("%6s %15s %zu bytes \n", inode_kind_map[entry.kind], namebuf, stats.size * (1<<stats.lba));
-    }
-    if(e != -NOT_FOUND) {
-        printf("ERROR: ls: Failed to iterate: %ld\n",e);
-        vfs_diriter_close(&iter);
-        vfs_dirclose(&dir);
-        return;
-    }
-    vfs_diriter_close(&iter);
-    vfs_dirclose(&dir);
-}
-static intptr_t write_exact(VfsFile* file, const void* bytes, size_t amount) {
-    while(amount) {
-        size_t wb = vfs_write(file, bytes, amount);
-        if(wb < 0) return wb;
-        amount-=wb;
-        bytes+=wb;
-    }
-    return 0;
-}
-
-
+void dump_memregions(struct list* list);
 void dump_caches();
 void dump_inodes(Superblock* superblock);
+
+void dump_pml4_perms(page_t pml4, pageflags_t flags_ignore);
+void dump_pml4_diff (page_t s1_pml4, page_t s2_pml4, pageflags_t flags_ignore);

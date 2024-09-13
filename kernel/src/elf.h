@@ -44,7 +44,10 @@ typedef struct {
 #define ELF_SECTION_STRTABLE 3
 #define ELF_SECTION_NOTE 7
 #define ELF_CLASS_64BIT 2
+
+#define ELF_PROG_EXEC  0b1
 #define ELF_PROG_WRITE 0b10
+
 #define ELF_TYPE_EXEC 2
 #define ELF_PHREADER_LOAD 0b1
 

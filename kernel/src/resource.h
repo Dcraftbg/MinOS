@@ -5,12 +5,14 @@
 #include "assert.h"
 #include "string.h"
 #include "slab.h"
+#include <stdatomic.h>
 enum {
    RESOURCE_FILE=1
 };
 typedef uint32_t resourcekind_t;
 typedef struct {
    resourcekind_t kind;
+   atomic_size_t shared;
    union {
        VfsFile file;
    } data;
@@ -26,12 +28,11 @@ static ResourceBlock* new_resource_block() {
    if(block) memset(block, 0, sizeof(*block));
    return block;
 }
-static void delete_resource_block(ResourceBlock* block) {
-   kernel_dealloc(block, sizeof(*block));
-}
+void resourceblock_dealloc(ResourceBlock* block);
 Resource* resource_add(ResourceBlock* block, size_t* id);
 Resource* resource_find_by_id(ResourceBlock* first, size_t id);
 void resource_remove(ResourceBlock* first, size_t id);
+ResourceBlock* resourceblock_clone(ResourceBlock* block);
 static void init_resources() {
    assert(kernel.resource_cache = create_new_cache(sizeof(Resource), "Resources"));
 }
