@@ -172,6 +172,9 @@ bool bootstrap_config(Build* build) {
      const char* ld  = build->ld  ? build->ld  : LD_DEFAULT;
      fprintf(f, "#define GCC \"%s\"\n", gcc);
      fprintf(f, "#define LD  \"%s\"\n", ld);
+     fprintf(f, "//// Other options\n");
+     fprintf(f, "//// Enable/Disable serial colors for loggers\n");
+     fprintf(f, "#define NO_SERIAL_COLOR\n");
      fclose(f);
      return true;
 }

@@ -43,10 +43,15 @@ static intptr_t serial_log_draw_color(Logger* this, uint32_t color) {
     serial_printstr(get_ansi_color_from_log(color));
     return 0;
 }
+#include "../../config.h"
 Logger serial_logger = {
     .log = NULL,
     .write_str = serial_log_write_str,
+#ifdef NO_SERIAL_COLOR
+    .draw_color = NULL,
+#else
     .draw_color = serial_log_draw_color,
+#endif
     .level = LOG_ALL,
     .private = NULL,
 };
