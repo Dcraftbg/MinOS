@@ -174,6 +174,7 @@ bool embed_fs() {
     if(!embed_mkdir(&fs, "/user")) nob_return_defer(false);
     if(!embed(&fs, "./bin/user/nothing/nothing", "/user/nothing")) nob_return_defer(false);
     if(!embed(&fs, "./bin/user/syscall_test/syscall_test", "/user/syscall_test")) nob_return_defer(false);
+    if(!embed(&fs, "./bin/user/hello/hello", "/user/hello")) nob_return_defer(false);
     const char* opath = "./kernel/embed.h";
     FILE* f = fopen(opath, "wb");
     if(!f) {
