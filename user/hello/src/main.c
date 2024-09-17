@@ -29,7 +29,7 @@ void printf(const char* fmt, ...) {
     write(stdout, tmp_printf, n);
 }
 int main() {
-    printf("Hello World!\n");
+    printf("Hello from /user/hello!\n");
     return 0;
 }
 void _start(int argc, const char** argv) {
