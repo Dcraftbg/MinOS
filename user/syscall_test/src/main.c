@@ -74,6 +74,13 @@ int main() {
     intptr_t e = fork();
     if(e == (-YOU_ARE_CHILD)) {
         printf("I am child!\n");
+        const char* path = "/user/hello";
+        const char* argv[] = { path };
+
+        if((e=exec(path, argv, sizeof(argv)/sizeof(*argv))) < 0) {
+            printf("ERROR: Failed to do exec: %s\n", status_str(e));
+            HALT();
+        }
         HALT();
     } else if (e >= 0) {
         printf("I am parent!\n");
