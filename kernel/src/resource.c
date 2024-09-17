@@ -1,5 +1,7 @@
 #include "resource.h"
 #include "slab.h"
+#include "log.h"
+
 static Resource* new_resource() {
     Resource* res = (Resource*)cache_alloc(kernel.resource_cache);
     if(res) {
@@ -37,7 +39,7 @@ void resource_remove(ResourceBlock* first, size_t id) {
 Resource* resource_add(ResourceBlock* block, size_t* id) {
     debug_assert(block);
     debug_assert(id);
-    while(block->available == 0) {
+    while(block->occupied == RESOURCES_PER_BLOCK) {
         if(!block->next) { 
            block->next = new_resource_block();
            if(!block->next) return NULL;
@@ -50,7 +52,7 @@ Resource* resource_add(ResourceBlock* block, size_t* id) {
         Resource* res = block->data[i];
         if(!block->data[i]) {
             res = (block->data[i] = new_resource());
-            block->available--;
+            block->occupied++;
             (*id) += i;
             return res;
         }
@@ -60,7 +62,6 @@ Resource* resource_add(ResourceBlock* block, size_t* id) {
 static void resourceblock_shallow_dealloc(ResourceBlock* block) {
     for(size_t i = 0; i < RESOURCES_PER_BLOCK; ++i) {
         if(block->data[i]) {
-           printf("Resource %zu> %p\n", i, block->data[i]);
            resource_drop(block->data[i]); 
         }
     }
@@ -80,11 +81,13 @@ static ResourceBlock* resourceblock_shallow_clone(ResourceBlock* block) {
     ResourceBlock* nblock = new_resource_block();
     if(!nblock) return NULL;
     for(size_t i = 0; i < RESOURCES_PER_BLOCK; ++i) {
-        if(block->data[i]) block->data[i]->shared++;
+        if(block->data[i]) {
+            block->data[i]->shared++;
+            nblock->data[i] = block->data[i];
+        }
     }
     nblock->next = NULL;
-    nblock->available = block->available;
-    memcpy(nblock->data, block->data, sizeof(block->data));
+    nblock->occupied = block->occupied;
     return nblock;
 }
 ResourceBlock* resourceblock_clone(ResourceBlock* block) {

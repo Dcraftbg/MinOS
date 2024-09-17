@@ -20,7 +20,7 @@ typedef struct {
 #define RESOURCES_PER_BLOCK 1022
 typedef struct ResourceBlock {
    struct ResourceBlock* next;
-   uintptr_t available;
+   size_t occupied;
    Resource* data[RESOURCES_PER_BLOCK];
 } ResourceBlock;
 static ResourceBlock* new_resource_block() {
