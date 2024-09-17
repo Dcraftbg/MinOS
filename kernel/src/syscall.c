@@ -3,6 +3,7 @@
 #include "kernel.h"
 #include "task.h"
 #include "exec.h"
+#include "log.h"
 
 void init_syscalls() {
     idt_register(0x80, syscall_base, IDT_SOFTWARE_TYPE);
@@ -77,16 +78,17 @@ intptr_t sys_fork() {
     return task->id;
 }
 intptr_t sys_exec(const char* path, const char** argv, size_t argc) {
-    // NOTE: Exec isn't really supported yet. I just wanna make it abudnantly clear that it will be supported soon
-    return -UNSUPPORTED;
-#if 0
 #ifdef CONFIG_LOG_SYSCALLS
     printf("sys_exec(%s, %p, %zu)\n", path, argv, argc);
 #endif
     intptr_t e;
     Task* current = current_task();
-    if((e=exec(current, path, create_args(argc, argv))) < 0) return e;
+    current->flags &= ~(KERNEL_PFLAG_PRESENT);
+    Task* ntask = kernel_task_add();
+    if (!ntask) return -LIMITS;
+    resourceblock_dealloc(ntask->resources);
+    ntask->resources = current->resources;
+    if ((e=exec(ntask, path, create_args(argc, argv))) < 0) return e;
     // Not reachable
     return 0;
-#endif
 }
