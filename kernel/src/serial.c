@@ -1,4 +1,5 @@
 #include "serial.h"
+#include "../../config.h"
 #include "logger.h"
 #define COM_PORT 0x3f8
 #define COM_5 (COM_PORT+5)
@@ -43,9 +44,26 @@ static intptr_t serial_log_draw_color(Logger* this, uint32_t color) {
     serial_printstr(get_ansi_color_from_log(color));
     return 0;
 }
+#include "print.h"
+static intptr_t serial_log(Logger* logger, uint32_t level, const char* fmt, va_list args) {
+    if(level >= LOG_COUNT) return -UNSUPPORTED;
+    #ifndef NO_SERIAL_COLOR
+    serial_log_draw_color(logger, logger_color_map[level]);
+    #endif
+
+    static char tmp_logger_buffer[1024];
+    size_t n = stbsp_snprintf(tmp_logger_buffer, sizeof(tmp_logger_buffer), "[%s] ", logger_str_map[level]);
+    stbsp_vsnprintf(tmp_logger_buffer+n, sizeof(tmp_logger_buffer)-n, fmt, args);
+    serial_printstr(tmp_logger_buffer);
+    #ifndef NO_SERIAL_COLOR
+    serial_log_draw_color(logger, LOG_COLOR_RESET);
+    #endif
+    serial_print_u8('\n');
+    return 0;
+}
 #include "../../config.h"
 Logger serial_logger = {
-    .log = NULL,
+    .log = serial_log,
     .write_str = serial_log_write_str,
 #ifdef NO_SERIAL_COLOR
     .draw_color = NULL,
