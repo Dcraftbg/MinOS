@@ -1,7 +1,7 @@
 #include "logger.h"
 #include "print.h"
 
-static const char* str_map[LOG_COUNT] = {
+const char* logger_str_map[LOG_COUNT] = {
     "ALL",
     "TRACE",
     "DEBUG",
@@ -11,7 +11,7 @@ static const char* str_map[LOG_COUNT] = {
     "FATAL",
     "NONE"
 };
-static int color_map[LOG_COUNT] = {
+int logger_color_map[LOG_COUNT] = {
     LOG_COLOR_RESET,
     LOG_COLOR_GRAY,
     LOG_COLOR_WHITE,
@@ -28,9 +28,9 @@ static intptr_t logger_log_default(Logger* logger, uint32_t level, const char* f
         logger_log(logger, LOG_WARN, "Invalid log level %u >= %u", level, LOG_COUNT);
         return -UNSUPPORTED;
     }
-    if(logger->draw_color) logger->draw_color(logger, color_map[level]);
+    if(logger->draw_color) logger->draw_color(logger, logger_color_map[level]);
     logger->write_str(logger, "[" , 1);
-    const char* strlevel = str_map[level];
+    const char* strlevel = logger_str_map[level];
     logger->write_str(logger, strlevel, strlen(strlevel));
     logger->write_str(logger, "] ", 2);
     static char tmp_logger_buffer[1024];

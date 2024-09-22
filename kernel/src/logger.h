@@ -48,6 +48,9 @@ static void logger_log(Logger* logger, uint32_t level, const char* fmt, ...) {
     logger_log_va(logger, level, fmt, args);
     va_end(args);
 }
+
+extern int logger_color_map[LOG_COUNT];
+extern const char* logger_str_map[LOG_COUNT];
 const char* get_ansi_color_from_log(uint32_t color);
 intptr_t logger_init(Logger* logger);
 
