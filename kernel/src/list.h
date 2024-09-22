@@ -28,13 +28,21 @@ static inline void list_insert(struct list *new, struct list *link) {
 static void list_append(struct list *new, struct list *into) {
     list_insert(new, into);
 }
-static void list_remove(struct list* list) {
+static void list_remove(struct list *list) {
     list->prev->next = list->next;
     list->next->prev = list->prev;
     list->next = list;
     list->prev = list;
 }
-static size_t list_len(struct list* list) {
+static void list_move(struct list *to, struct list *what) {
+    to->next = what->next;
+    to->prev = what->prev;
+    to->prev->next = to;
+    to->next->prev = to;
+    what->next = what;
+    what->prev = what;
+}
+static size_t list_len(struct list *list) {
     size_t n = 0;
     struct list* first = list;
     list = list->next;
@@ -44,3 +52,4 @@ static size_t list_len(struct list* list) {
     }
     return n;
 }
+
