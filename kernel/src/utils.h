@@ -36,4 +36,6 @@
 #       error ERROR: Cannot build with this old of a version of C. Please use C11 or later
 #   endif
 #endif
+
+__attribute__((noreturn))
 void kabort();
