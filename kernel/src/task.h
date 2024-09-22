@@ -16,21 +16,30 @@ static Args create_args(size_t argc, const char** argv) {
     }
     return (Args) { sum, argc, argv };
 }
+
 typedef struct {
-    struct list list;
-    size_t id;
     uint64_t flags;
     page_t cr3;
     size_t argc;
     const char** argv;
     struct list memlist;
-
-    ResourceBlock* resources;
     // Task switch rsp
     // The rsp of the task switch at which the swap initialially happened
     // By default it starts 0xFFFFFFFFFFFFF000 as defined in the TSS
     void* ts_rsp;
     uintptr_t rip;
+} TaskImage;
+static inline void taskimage_move(TaskImage* to, TaskImage* from) {
+    memcpy(to, from, sizeof(*to));
+    list_move(&to->memlist, &from->memlist);
+    memset(from, 0, sizeof(*from));
+    list_init(&from->memlist);
+}
+typedef struct {
+    struct list list;
+    size_t id;
+    ResourceBlock* resources;
+    TaskImage image;
 } Task;
 #define TASK_FLAG_PRESENT   0b1
 #define TASK_FLAG_RUNNING   0b10
