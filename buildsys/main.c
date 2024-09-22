@@ -35,6 +35,20 @@
    "-I", "libs/std/include",\
    "-I", "kernel/src"
 
+#define USER_CFLAGS\
+    "-g",\
+    "-nostdlib",\
+    "-march=x86-64",\
+    "-ffreestanding",\
+    "-static", \
+    "-Werror", "-Wno-unused-function",\
+    "-Wall", \
+    "-mno-mmx",\
+    "-mno-sse", "-mno-sse2",\
+    "-mno-3dnow",\
+    "-fPIC",\
+    "-I", "libs/std/include",\
+    "-I", "kernel/src"
 #define LDFLAGS "-g"
 
 const char* get_ext(const char* path) {
@@ -224,6 +238,22 @@ bool cc(const char* ipath, const char* opath) {
     Nob_Cmd cmd = {0};
     nob_cmd_append(&cmd, GCC);
     nob_cmd_append(&cmd, CFLAGS);
+    nob_cmd_append(&cmd, "-I", "./kernel/vendor/limine");
+    nob_cmd_append(&cmd, "-I", "./kernel/vendor/stb");
+    nob_cmd_append(&cmd, "-c", ipath, "-o", opath);
+    if(!nob_cmd_run_sync(cmd)) {
+       nob_cmd_free(cmd);
+       return false;
+    }
+    nob_cmd_free(cmd);
+    return true;
+}
+
+// TODO: cc but async
+bool cc_user(const char* ipath, const char* opath) {
+    Nob_Cmd cmd = {0};
+    nob_cmd_append(&cmd, GCC);
+    nob_cmd_append(&cmd, USER_CFLAGS);
     nob_cmd_append(&cmd, "-I", "./kernel/vendor/limine");
     nob_cmd_append(&cmd, "-I", "./kernel/vendor/stb");
     nob_cmd_append(&cmd, "-c", ipath, "-o", opath);
@@ -555,7 +585,7 @@ bool build_syscall_test() {
     #define BINDIR "./bin/user/syscall_test/"
     #define SRCDIR "./user/syscall_test/src/"
     #define LIBDIR "./bin/std/"
-    if(!cc         (SRCDIR "main.c"        , BINDIR "syscall_test.o")) return false;
+    if(!cc_user    (SRCDIR "main.c"        , BINDIR "syscall_test.o")) return false;
     Nob_File_Paths paths = {0};
     nob_da_append(&paths, BINDIR "syscall_test.o");
     if(!find_objs(LIBDIR, &paths)) {
@@ -576,7 +606,7 @@ bool build_hello() {
     #define BINDIR "./bin/user/hello/"
     #define SRCDIR "./user/hello/src/"
     #define LIBDIR "./bin/std/"
-    if(!cc         (SRCDIR "main.c"        , BINDIR "hello.o")) return false;
+    if(!cc_user    (SRCDIR "main.c"        , BINDIR "hello.o")) return false;
     Nob_File_Paths paths = {0};
     nob_da_append(&paths, BINDIR "hello.o");
     if(!find_objs(LIBDIR, &paths)) {
