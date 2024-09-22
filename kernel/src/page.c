@@ -3,6 +3,7 @@
 #include "kernel.h"
 #include "elf.h"
 #include "string.h"
+#include "log.h"
 #define PAGE_MASK 0xFFFF000000000000
 
 // TODO: Fix XD. XD may not be supported always so checks to remove it are necessary
@@ -173,6 +174,7 @@ void page_join(page_t parent, page_t child) {
     }
 }
 void page_destruct(page_t pml4_addr, uint16_t type) {
+    kwarn("page_destruct is not good. Will be removed at some point");
     for(size_t pml4 = 0; pml4 < KERNEL_PAGE_ENTRIES; ++pml4) {
          if(pml4_addr[pml4] == 0) continue;
          page_t pml3_addr = (page_t)PAGE_ALIGN_DOWN(pml4_addr[pml4] | KERNEL_MEMORY_MASK);
