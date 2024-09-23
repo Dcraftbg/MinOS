@@ -101,6 +101,7 @@ void task_switch(ContextFrame* frame) {
         frame->rsp = (uintptr_t)select->image.ts_rsp;
         select->image.flags |= TASK_FLAG_RUNNING;
         kernel.current_taskid = select->id;
+        kernel.current_processid = select->processid;
         if (select->image.flags & TASK_FLAG_FIRST_RUN) {
             select->image.flags &= ~TASK_FLAG_FIRST_RUN;
             pic_end(0);
