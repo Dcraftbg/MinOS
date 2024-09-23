@@ -67,6 +67,7 @@ intptr_t exec_new(const char* path, Args args) {
     task->processid = process->id;
     if((e=exec(task, path, args)) < 0)
         return_defer_err(e);
+    task->image.flags |= TASK_FLAG_PRESENT;
     return 0;
 DEFER_ERR:
     if(task) drop_task(task);
@@ -237,7 +238,6 @@ intptr_t exec(Task* task, const char* path, Args args) {
     page_join(kernel.pml4, task->image.cr3);
     vfs_close(&file);
     fopened = false;
-    task->image.flags |= TASK_FLAG_PRESENT;
     return 0;
 DEFER_ERR:
     if(pheaders) kernel_dealloc(pheaders, prog_header_size);

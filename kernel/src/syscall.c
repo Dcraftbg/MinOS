@@ -94,9 +94,30 @@ intptr_t sys_fork() {
     }
     return process->id;
 }
+#include "idt.h"
 intptr_t sys_exec(const char* path, const char** argv, size_t argc) {
 #ifdef CONFIG_LOG_SYSCALLS
     printf("sys_exec(%s, %p, %zu)\n", path, argv, argc);
 #endif
-    return -UNSUPPORTED;
+    intptr_t e;
+    Process* cur_proc = current_process();
+    Task* cur_task = current_task();
+    assert(cur_task->processid     == cur_proc->id);
+    assert(cur_proc->main_threadid == cur_task->id && "Exec on multiple threads is not supported yet");
+    Task* task = kernel_task_add();
+    if(!task) return -LIMITS;
+    task->processid = cur_proc->id;
+    if((e=exec(task, path, create_args(argc, argv))) < 0) {
+        drop_task(task);
+        return e;
+    }
+    disable_interrupts();
+    cur_task->image.flags &= ~(TASK_FLAG_PRESENT);
+    cur_task->image.flags |= TASK_FLAG_DYING;
+    cur_proc->main_threadid = cur_task->id;
+    task->image.flags |= TASK_FLAG_PRESENT;
+    enable_interrupts();
+    // Thread yield?
+    for(;;) asm volatile("hlt");
+    return 0;
 }
