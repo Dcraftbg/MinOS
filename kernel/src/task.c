@@ -51,11 +51,12 @@ void drop_task(Task* task) {
         cache_dealloc(kernel.task_cache, task);
     }
 }
-Task* current_task() {
-    debug_assert(kernel.current_taskid != INVALID_TASK_ID);
+
+Task* get_task_by_id(size_t id) {
+    debug_assert(id != INVALID_TASK_ID);
     Task* task = (Task*)kernel.tasks.next;
     while(task != (Task*)&kernel.tasks) {
-        if(task->id == kernel.current_taskid) return task;
+        if(task->id == id) return task;
         task = (Task*)task->list.next;
     }
     return NULL;

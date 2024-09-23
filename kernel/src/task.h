@@ -36,6 +36,9 @@ typedef struct {
 void init_tasks();
 void init_kernel_task();
 void init_task_switch();
+Task* get_task_by_id(size_t id);
 Task* kernel_task_add();
-Task* current_task();
+static Task* current_task() {
+     return get_task_by_id(kernel.current_taskid);
+}
 void drop_task(Task* task);
