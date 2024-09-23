@@ -23,3 +23,6 @@ Process* kernel_process_add() {
     }
     return process;
 } 
+void process_drop(Process* process) {
+    cache_dealloc(kernel.process_cache, process);
+}

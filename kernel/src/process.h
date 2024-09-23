@@ -28,3 +28,4 @@ typedef struct {
 
 void init_processes();
 Process* kernel_process_add(); 
+void process_drop(Process* process);
