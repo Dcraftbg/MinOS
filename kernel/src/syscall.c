@@ -1,9 +1,11 @@
 #include "syscall.h"
 #include "print.h"
 #include "kernel.h"
+#include "process.h"
 #include "task.h"
 #include "exec.h"
 #include "log.h"
+#include "benchmark.h"
 
 void init_syscalls() {
     idt_register(0x80, syscall_base, IDT_SOFTWARE_TYPE);
