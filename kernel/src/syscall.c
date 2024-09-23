@@ -83,14 +83,5 @@ intptr_t sys_exec(const char* path, const char** argv, size_t argc) {
 #ifdef CONFIG_LOG_SYSCALLS
     printf("sys_exec(%s, %p, %zu)\n", path, argv, argc);
 #endif
-    intptr_t e;
-    Task* current = current_task();
-    current->flags &= ~(KERNEL_PFLAG_PRESENT);
-    Task* ntask = kernel_task_add();
-    if (!ntask) return -LIMITS;
-    resourceblock_dealloc(ntask->resources);
-    ntask->resources = current->resources;
-    if ((e=exec(ntask, path, create_args(argc, argv))) < 0) return e;
-    // Not reachable
-    return 0;
+    return -UNSUPPORTED;
 }

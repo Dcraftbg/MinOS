@@ -1,4 +1,5 @@
 #pragma once
+#include "process.h"
 #include "task.h"
 #include <minos/status.h>
 #include "vfs.h"
