@@ -62,14 +62,19 @@ DEFER_ERR:
 }
 intptr_t exec_new(const char* path, Args args) {    
     intptr_t e=0;
+    Process* process = kernel_process_add();
+    if(!process) return -LIMITS; // Reached max tasks and/or we're out of memory
     Task* task = kernel_task_add();
-    if(!task) return -LIMITS; // Reached max tasks and/or we're out of memory
+    if(!task) return_defer_err(-LIMITS); // Reached max tasks and/or we're out of memory
+    process->main_threadid = task->id;
+    task->processid = process->id;
     if((e=exec(task, path, args)) < 0)
         return_defer_err(e);
     return 0;
 DEFER_ERR:
     if(task->resources) resourceblock_dealloc(task->resources);
     if(task) drop_task(task);
+    if(process) process_drop(process);
     return e;
 }
 // TODO: Fix XD. XD may not be supported always so checks to remove it are necessary

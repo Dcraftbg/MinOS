@@ -79,6 +79,7 @@ void _start() {
     init_devices();
 
     init_memregion();
+    init_processes();
     init_tasks();
     init_kernel_task();
     init_task_switch();

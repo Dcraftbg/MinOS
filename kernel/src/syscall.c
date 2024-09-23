@@ -66,9 +66,17 @@ intptr_t sys_fork() {
 #endif
     intptr_t e;
     Task* current = current_task();
+    Process* process = kernel_process_add();
+    if(!process) return -LIMITS; // Reached max tasks and/or we're out of memory
     Task* task = kernel_task_add();
-    if(!task) return -LIMITS; // Reached max tasks and/or we're out of memory
+    if(!task) {
+        process_drop(process);
+        return -LIMITS;
+    } 
+    process->main_threadid = task->id;
+    task->processid = process->id;
     if((e=fork_trampoline(current, task)) < 0) {
+        process_drop(process);
         drop_task(task);
         return e;
     }
@@ -77,7 +85,7 @@ intptr_t sys_fork() {
     if(now->id == task->id) {
         return -YOU_ARE_CHILD;
     }
-    return task->id;
+    return process->id;
 }
 intptr_t sys_exec(const char* path, const char** argv, size_t argc) {
 #ifdef CONFIG_LOG_SYSCALLS

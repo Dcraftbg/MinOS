@@ -24,6 +24,7 @@ static inline void taskimage_move(TaskImage* to, TaskImage* from) {
 typedef struct {
     struct list list;
     size_t id;
+    size_t processid;
     ResourceBlock* resources;
     TaskImage image;
 } Task;
