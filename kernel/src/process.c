@@ -24,5 +24,17 @@ Process* kernel_process_add() {
     return process;
 } 
 void process_drop(Process* process) {
+    if(process->resources) resourceblock_dealloc(process->resources);
     cache_dealloc(kernel.process_cache, process);
+}
+
+
+Process* get_process_by_id(size_t id) {
+    debug_assert(id != INVALID_TASK_ID);
+    Process* proc = (Process*)kernel.processes.next;
+    while(proc != (Process*)&kernel.processes) {
+        if(proc->id == id) return proc;
+        proc = (Process*)proc->list.next;
+    }
+    return NULL;
 }

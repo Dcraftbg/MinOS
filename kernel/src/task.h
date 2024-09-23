@@ -25,7 +25,6 @@ typedef struct {
     struct list list;
     size_t id;
     size_t processid;
-    ResourceBlock* resources;
     TaskImage image;
 } Task;
 #define TASK_FLAG_PRESENT   0b1

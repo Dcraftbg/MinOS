@@ -41,10 +41,6 @@ intptr_t fork(Task* task, Task* result, void* frame) {
         list = list->next;
     }
     page_join(kernel.pml4, result->image.cr3);
-    if(result->resources) resourceblock_dealloc(result->resources);
-    result->resources = resourceblock_clone(task->resources);
-    if(!result->resources)
-        return_defer_err(-NOT_ENOUGH_MEM);
 
     result->image.argc  = task->image.argc;
     result->image.argv  = task->image.argv;
@@ -56,7 +52,6 @@ DEFER_ERR:
     // TODO: Remove this:
     // Destruct cr3, which we should NOT do
     if(result->image.cr3) page_destruct(result->image.cr3, KERNEL_PTYPE_USER);
-    if(result->resources) resourceblock_dealloc(result->resources);
     if(result) drop_task(result);
     return e;
 }
@@ -64,6 +59,8 @@ intptr_t exec_new(const char* path, Args args) {
     intptr_t e=0;
     Process* process = kernel_process_add();
     if(!process) return -LIMITS; // Reached max tasks and/or we're out of memory
+    process->resources = new_resource_block();
+    if(!process->resources) return_defer_err(-NOT_ENOUGH_MEM);
     Task* task = kernel_task_add();
     if(!task) return_defer_err(-LIMITS); // Reached max tasks and/or we're out of memory
     process->main_threadid = task->id;
@@ -72,7 +69,6 @@ intptr_t exec_new(const char* path, Args args) {
         return_defer_err(e);
     return 0;
 DEFER_ERR:
-    if(task->resources) resourceblock_dealloc(task->resources);
     if(task) drop_task(task);
     if(process) process_drop(process);
     return e;

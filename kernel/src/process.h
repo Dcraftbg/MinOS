@@ -24,8 +24,14 @@ typedef struct {
     struct list list;
     size_t id; 
     size_t main_threadid;
+    ResourceBlock* resources;
 } Process;
 
 void init_processes();
 Process* kernel_process_add(); 
 void process_drop(Process* process);
+Process* get_process_by_id(size_t id);
+
+static Process* current_process() {
+    return get_process_by_id(kernel.current_processid);
+}
