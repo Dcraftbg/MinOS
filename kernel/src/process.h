@@ -1,5 +1,6 @@
 #pragma once
 #include "list.h"
+#include "task.h"
 #include "page.h"
 #include "resource.h"
 #include <stddef.h>
@@ -17,3 +18,13 @@ static Args create_args(size_t argc, const char** argv) {
     return (Args) { sum, argc, argv };
 }
 
+
+#define INVALID_PROCESS_ID -1
+typedef struct {
+    struct list list;
+    size_t id; 
+    size_t main_threadid;
+} Process;
+
+void init_processes();
+Process* kernel_process_add(); 

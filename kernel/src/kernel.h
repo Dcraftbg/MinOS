@@ -17,7 +17,10 @@ typedef struct {
     Superblock rootBlock;
     size_t current_taskid;
     size_t taskid; // Task ID counter
+    size_t current_processid; // Cache of tasks[current_taskid]->processid
+    size_t processid;
     struct list tasks;
+    struct list processes;
     struct Cache* cache_cache;
     struct Cache* inode_cache;
     struct Cache* task_cache;
@@ -25,9 +28,11 @@ typedef struct {
     struct Cache* device_cache;
     struct Cache* memregion_cache;
     struct Cache* memlist_cache;
+    struct Cache* process_cache;
     struct list cache_list;
     struct Logger* logger;
     PitInfo pit_info;
 } Kernel;
 extern Kernel kernel;
+
 
