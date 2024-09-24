@@ -73,10 +73,8 @@ int main() {
     printf("Before fork....\n");
     intptr_t e = fork();
     if(e == (-YOU_ARE_CHILD)) {
-        printf("I am child!\n");
         const char* path = "/user/hello";
         const char* argv[] = { path };
-
         if((e=exec(path, argv, sizeof(argv)/sizeof(*argv))) < 0) {
             printf("ERROR: Failed to do exec: %s\n", status_str(e));
             exit(1);
@@ -84,7 +82,9 @@ int main() {
         // Unreachable
         exit(0);
     } else if (e >= 0) {
-        printf("I am parent!\n");
+        size_t pid = e;
+        e=wait_pid(pid);
+        printf("Child exited with: %lu\n", e);
         exit(0);
     } else {
         printf("ERROR: fork %s\n",status_str(e));
