@@ -41,7 +41,6 @@ void page_destruct(page_t pml4, uint16_t type);
 uintptr_t virt_to_phys(page_t pml4_addr, uintptr_t addr);
 
 void init_paging(); // Called to initialse
-void update_post_paging(); // Called after to update previous values
 
 #define KERNEL_SWITCH_VTABLE() \
     __asm__ volatile (\

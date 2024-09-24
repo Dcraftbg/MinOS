@@ -281,9 +281,6 @@ void init_paging() {
     } 
     assert(page_alloc(kernel.pml4, KERNEL_STACK_ADDR, KERNEL_STACK_PAGES, KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_WRITE));
 }
-void update_post_paging() {
-    kernel.map.addr = (uint8_t*)(((uintptr_t)kernel.map.addr) | KERNEL_MEMORY_MASK);
-}
 
 
 

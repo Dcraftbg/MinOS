@@ -65,7 +65,6 @@ void _start() {
     init_memmap();
     init_paging();
     KERNEL_SWITCH_VTABLE();
-    update_post_paging();
     init_gdt();
     disable_interrupts();
     init_idt();
