@@ -7,4 +7,5 @@ enum {
     SYS_FORK,
     SYS_EXEC,
     SYS_EXIT,
+    SYS_WAITPID,
 };

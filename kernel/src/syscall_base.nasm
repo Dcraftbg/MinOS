@@ -7,6 +7,7 @@ extern sys_close
 extern sys_fork
 extern sys_exec
 extern sys_exit
+extern sys_waitpid
 %define KERNEL_UNSUPPORTED 7
 section .text
 global syscall_base
@@ -19,6 +20,7 @@ syscall_table:
    dq sys_fork
    dq sys_exec
    dq sys_exit
+   dq sys_waitpid
 syscall_table_end:
 section .text
 syscall_base:

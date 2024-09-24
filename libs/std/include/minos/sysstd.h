@@ -35,3 +35,7 @@ static intptr_t exec(const char* path, const char** argv, size_t argc) {
 static void exit(int64_t code) {
     syscall1(SYS_EXIT, code);
 }
+
+static intptr_t wait_pid(size_t pid) {
+    return syscall1(SYS_WAITPID, pid);
+}

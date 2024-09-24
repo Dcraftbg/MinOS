@@ -117,7 +117,7 @@ intptr_t sys_exec(const char* path, const char** argv, size_t argc) {
     cur_proc->main_threadid = cur_task->id;
     task->image.flags |= TASK_FLAG_PRESENT;
     enable_interrupts();
-    // Thread yield?
+    // TODO: thread yield
     for(;;) asm volatile("hlt");
     return 0;
 }
@@ -133,4 +133,14 @@ void sys_exit(int64_t code) {
     enable_interrupts();
     // TODO: thread yield
     for(;;) asm volatile("hlt");
+}
+
+intptr_t sys_waitpid(size_t pid) {
+    for(;;) {
+        Process* proc = get_process_by_id(pid);
+        if(!proc) return -NOT_FOUND;
+        if(proc->flags & PROC_FLAG_DYING) return proc->exit_code;
+        // TODO: thread yield
+        asm volatile("hlt");
+    }
 }
