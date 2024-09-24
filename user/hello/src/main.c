@@ -33,6 +33,5 @@ int main() {
     return 0;
 }
 void _start(int argc, const char** argv) {
-    main();
-    HALT();
+    exit(main());
 }

@@ -79,15 +79,16 @@ int main() {
 
         if((e=exec(path, argv, sizeof(argv)/sizeof(*argv))) < 0) {
             printf("ERROR: Failed to do exec: %s\n", status_str(e));
-            HALT();
+            exit(1);
         }
-        HALT();
+        // Unreachable
+        exit(0);
     } else if (e >= 0) {
         printf("I am parent!\n");
-        HALT();
+        exit(0);
     } else {
         printf("ERROR: fork %s\n",status_str(e));
-        HALT();
+        exit(1);
     }
     return 0;
 }
@@ -102,8 +103,8 @@ void _start(int argc, const char** argv) {
     for(size_t i = 0; i < argc; ++i) {
         printf("%zu> ",i+1); printf("%p",argv[i]); printf(" %s\n",argv[i]);
     }
-    main();
+    int code = main();
     close(stdout);
     if(stdin != stdout) close(stdin);
-    HALT();
+    exit(code);
 }

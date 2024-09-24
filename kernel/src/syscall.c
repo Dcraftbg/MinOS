@@ -121,3 +121,16 @@ intptr_t sys_exec(const char* path, const char** argv, size_t argc) {
     for(;;) asm volatile("hlt");
     return 0;
 }
+
+void sys_exit(int64_t code) {
+    Process* cur_proc = current_process();
+    Task* cur_task = current_task();
+    disable_interrupts();
+    cur_task->image.flags &= ~(TASK_FLAG_PRESENT);
+    cur_task->image.flags |= TASK_FLAG_DYING;
+    cur_proc->flags |= PROC_FLAG_DYING;
+    cur_proc->exit_code = code;
+    enable_interrupts();
+    // TODO: thread yield
+    for(;;) asm volatile("hlt");
+}

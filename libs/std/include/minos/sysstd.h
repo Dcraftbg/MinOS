@@ -31,3 +31,7 @@ static intptr_t fork(void) {
 static intptr_t exec(const char* path, const char** argv, size_t argc) {
     return syscall3(SYS_EXEC, path, argv, argc);
 }
+
+static void exit(int64_t code) {
+    syscall1(SYS_EXIT, code);
+}

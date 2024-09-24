@@ -6,6 +6,7 @@ extern sys_read
 extern sys_close
 extern sys_fork
 extern sys_exec
+extern sys_exit
 %define KERNEL_UNSUPPORTED 7
 section .text
 global syscall_base
@@ -17,6 +18,7 @@ syscall_table:
    dq sys_close
    dq sys_fork
    dq sys_exec
+   dq sys_exit
 syscall_table_end:
 section .text
 syscall_base:

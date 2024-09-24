@@ -6,4 +6,5 @@ enum {
     SYS_CLOSE,
     SYS_FORK,
     SYS_EXEC,
+    SYS_EXIT,
 };

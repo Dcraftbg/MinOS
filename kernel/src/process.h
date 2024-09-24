@@ -18,13 +18,15 @@ static Args create_args(size_t argc, const char** argv) {
     return (Args) { sum, argc, argv };
 }
 
-
+#define PROC_FLAG_DYING 0b1
 #define INVALID_PROCESS_ID -1
 typedef struct {
     struct list list;
     size_t id; 
     size_t main_threadid;
     ResourceBlock* resources;
+    uint64_t flags;
+    int64_t exit_code;
 } Process;
 
 void init_processes();
