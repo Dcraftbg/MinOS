@@ -1,7 +1,7 @@
 #include "process.h"
 #include "assert.h"
 #include "kernel.h"
-#include "slab.h"
+#include "mem/slab.h"
 #include "string.h"
 #include "port.h"
 #include "pic.h"

@@ -1,5 +1,5 @@
 #include "resource.h"
-#include "slab.h"
+#include "mem/slab.h"
 #include "log.h"
 
 static Resource* new_resource() {

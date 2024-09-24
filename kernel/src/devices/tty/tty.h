@@ -3,7 +3,7 @@
 #include <minos/status.h>
 #include "../../serial.h"
 #include "../../string.h"
-#include "../../slab.h"
+#include "../../mem/slab.h"
 #include "../../framebuffer.h"
 #include "../../bootutils.h"
 #include <stdint.h>

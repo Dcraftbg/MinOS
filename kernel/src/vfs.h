@@ -118,7 +118,7 @@ typedef struct FsOps {
 #ifdef INODEMAP_DEFINE
 #define HASHMAP_DEFINE
 #endif
-#include "slab.h"
+#include "mem/slab.h"
 #include "string.h"
 #include "memory.h"
 #include <collections/hashmap.h>

@@ -4,7 +4,7 @@ struct Cache* hashpair_cache = NULL;
 #include "kernel.h"
 #include "vfs.h"
 #include "./fs/tmpfs/tmpfs.h"
-#include "slab.h"
+#include "mem/slab.h"
 #include "string.h"
 #include "debug.h"
 

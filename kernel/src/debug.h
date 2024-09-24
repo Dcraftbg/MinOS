@@ -1,11 +1,11 @@
 #pragma once
-#include "mmap.h"
-#include "slab.h"
+#include "mem/mmap.h"
+#include "mem/slab.h"
 #include "list.h"
 #include "vfs.h"
 #include "string.h"
 #include "ctype.h"
-#include "memregion.h"
+#include "mem/memregion.h"
 #include "fileutils.h"
 
 void dump_memmap(Memmap* map);

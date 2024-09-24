@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include "assert.h"
 #include "string.h"
-#include "slab.h"
+#include "mem/slab.h"
 #include <stdatomic.h>
 enum {
    RESOURCE_FILE=1
