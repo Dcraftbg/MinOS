@@ -26,7 +26,8 @@
     "-static", \
     "-Werror", "-Wno-unused-function",\
     "-Wall", \
-    /*"-fomit-frame-pointer", "-fno-builtin", "-fno-stack-protector",*/\
+    "-fno-stack-protector", \
+    /*"-fomit-frame-pointer", "-fno-builtin", */\
     /*"-mno-red-zone",*/\
    "-mno-mmx",\
    "-mno-sse", "-mno-sse2",\
@@ -43,6 +44,7 @@
     "-static", \
     "-Werror", "-Wno-unused-function",\
     "-Wall", \
+    "-fno-stack-protector", \
     "-mno-mmx",\
     "-mno-sse", "-mno-sse2",\
     "-mno-3dnow",\
