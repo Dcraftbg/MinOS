@@ -93,8 +93,9 @@ bool make_build_dirs() {
     if(!nob_mkdir_if_not_exists_silent("./bin/iso"         )) return false;
     if(!nob_mkdir_if_not_exists_silent("./bin/user"        )) return false;
     if(!nob_mkdir_if_not_exists_silent("./bin/user/nothing")) return false;
-    if(!nob_mkdir_if_not_exists_silent("./bin/user/init")) return false;
-    if(!nob_mkdir_if_not_exists_silent("./bin/user/hello")) return false;
+    if(!nob_mkdir_if_not_exists_silent("./bin/user/init"   )) return false;
+    if(!nob_mkdir_if_not_exists_silent("./bin/user/shell"  )) return false;
+    if(!nob_mkdir_if_not_exists_silent("./bin/user/hello"  )) return false;
     return true;
 }
 bool remove_objs(const char* dirpath) {
@@ -188,6 +189,7 @@ bool embed_fs() {
     if(!embed_mkdir(&fs, "/user")) nob_return_defer(false);
     if(!embed(&fs, "./bin/user/nothing/nothing", "/user/nothing")) nob_return_defer(false);
     if(!embed(&fs, "./bin/user/init/init", "/user/init")) nob_return_defer(false);
+    if(!embed(&fs, "./bin/user/shell/shell", "/user/shell")) nob_return_defer(false);
     if(!embed(&fs, "./bin/user/hello/hello", "/user/hello")) nob_return_defer(false);
     const char* opath = "./kernel/embed.h";
     FILE* f = fopen(opath, "wb");
@@ -623,9 +625,32 @@ bool build_hello() {
     #undef LIBDIR
     return true;
 }
+
+bool build_shell() {
+    #define BINDIR "./bin/user/shell/"
+    #define SRCDIR "./user/shell/src/"
+    #define LIBDIR "./bin/std/"
+    if(!cc_user    (SRCDIR "main.c"        , BINDIR "shell.o")) return false;
+    Nob_File_Paths paths = {0};
+    nob_da_append(&paths, BINDIR "shell.o");
+    if(!find_objs(LIBDIR, &paths)) {
+        nob_da_free(paths);
+        return false;
+    }
+    if(!ld(&paths, BINDIR "shell"  , "./user/shell/link.ld")) {
+        nob_da_free(paths);
+        return false;
+    }
+    nob_da_free(paths);
+    #undef BINDIR
+    #undef SRCDIR
+    #undef LIBDIR
+    return true;
+}
 bool build_user() {
     if(!build_nothing()) return false;
     if(!build_init()) return false;
+    if(!build_shell()) return false;
     if(!build_hello()) return false;
     return true; 
 }

@@ -73,7 +73,7 @@ int main() {
     printf("Before fork....\n");
     intptr_t e = fork();
     if(e == (-YOU_ARE_CHILD)) {
-        const char* path = "/user/hello";
+        const char* path = "/user/shell";
         const char* argv[] = { path };
         if((e=exec(path, argv, sizeof(argv)/sizeof(*argv))) < 0) {
             printf("ERROR: Failed to do exec: %s\n", status_str(e));
