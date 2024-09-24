@@ -99,7 +99,7 @@ void _start() {
         kabort();
     }
 
-    epath = "/user/syscall_test";
+    epath = "/user/init";
     const char* args[] = {epath, "test_arg"};
     if((e = exec_new(epath, create_args(ARRAY_LEN(args), args))) < 0) {
         printf("Failed to exec %s : %s\n",epath,status_str(e));

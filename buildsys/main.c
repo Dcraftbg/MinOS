@@ -93,7 +93,7 @@ bool make_build_dirs() {
     if(!nob_mkdir_if_not_exists_silent("./bin/iso"         )) return false;
     if(!nob_mkdir_if_not_exists_silent("./bin/user"        )) return false;
     if(!nob_mkdir_if_not_exists_silent("./bin/user/nothing")) return false;
-    if(!nob_mkdir_if_not_exists_silent("./bin/user/syscall_test")) return false;
+    if(!nob_mkdir_if_not_exists_silent("./bin/user/init")) return false;
     if(!nob_mkdir_if_not_exists_silent("./bin/user/hello")) return false;
     return true;
 }
@@ -187,7 +187,7 @@ bool embed_fs() {
     EmbedFs fs = {0};
     if(!embed_mkdir(&fs, "/user")) nob_return_defer(false);
     if(!embed(&fs, "./bin/user/nothing/nothing", "/user/nothing")) nob_return_defer(false);
-    if(!embed(&fs, "./bin/user/syscall_test/syscall_test", "/user/syscall_test")) nob_return_defer(false);
+    if(!embed(&fs, "./bin/user/init/init", "/user/init")) nob_return_defer(false);
     if(!embed(&fs, "./bin/user/hello/hello", "/user/hello")) nob_return_defer(false);
     const char* opath = "./kernel/embed.h";
     FILE* f = fopen(opath, "wb");
@@ -581,18 +581,18 @@ bool build_nothing() {
     #undef SRCDIR
     return true;
 }
-bool build_syscall_test() {
-    #define BINDIR "./bin/user/syscall_test/"
-    #define SRCDIR "./user/syscall_test/src/"
+bool build_init() {
+    #define BINDIR "./bin/user/init/"
+    #define SRCDIR "./user/init/src/"
     #define LIBDIR "./bin/std/"
-    if(!cc_user    (SRCDIR "main.c"        , BINDIR "syscall_test.o")) return false;
+    if(!cc_user    (SRCDIR "main.c"        , BINDIR "init.o")) return false;
     Nob_File_Paths paths = {0};
-    nob_da_append(&paths, BINDIR "syscall_test.o");
+    nob_da_append(&paths, BINDIR "init.o");
     if(!find_objs(LIBDIR, &paths)) {
         nob_da_free(paths);
         return false;
     }
-    if(!ld(&paths, BINDIR "syscall_test"  , "./user/syscall_test/link.ld")) {
+    if(!ld(&paths, BINDIR "init"  , "./user/init/link.ld")) {
         nob_da_free(paths);
         return false;
     }
@@ -625,7 +625,7 @@ bool build_hello() {
 }
 bool build_user() {
     if(!build_nothing()) return false;
-    if(!build_syscall_test()) return false;
+    if(!build_init()) return false;
     if(!build_hello()) return false;
     return true; 
 }
