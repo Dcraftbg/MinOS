@@ -2,6 +2,7 @@
 #include "mmap.h"
 #include "string.h"
 #include "kernel.h"
+#include "bootutils.h"
 volatile struct limine_memmap_request limine_memmap_request = {
     .id = LIMINE_MEMMAP_REQUEST,
     .revision = 0,
@@ -91,7 +92,8 @@ void init_memmap() {
     assert(biggest_avail != -1 && "Cannot operate on 0 RAM");
     struct limine_memmap_entry* biggest = limine_memmap_request.response->entries[biggest_avail];
     struct limine_memmap_entry* last = limine_memmap_request.response->entries[last_available];
-    kernel.map.addr = (uint8_t*)biggest->base;
+    assert(biggest->base < PHYS_RAM_MIRROR_SIZE && "Biggest data block has to be below 4GB. Sorry");
+    kernel.map.addr = (uint8_t*)(biggest->base | KERNEL_MEMORY_MASK);
     kernel.map.page_count = PAGE_ALIGN_UP(last->base + last->length) / PAGE_SIZE;
     if((kernel.map.page_count+7)/8 > biggest->length) {
         printf("Could not fit memory map all in one place. Probably due to fragmentation\n");
@@ -105,5 +107,5 @@ void init_memmap() {
             memmap_free_range(&kernel.map, (void*)entry->base, entry->length/PAGE_SIZE);
         }
     }
-    memmap_occupy_range(&kernel.map, (void*)kernel.map.addr, PAGE_ALIGN_UP((kernel.map.page_count+7)/8)/PAGE_SIZE);
+    memmap_occupy_range(&kernel.map, (void*)biggest->base, PAGE_ALIGN_UP((kernel.map.page_count+7)/8)/PAGE_SIZE);
 }
