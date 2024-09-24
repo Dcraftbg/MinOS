@@ -10,7 +10,7 @@ typedef struct {
     uint8_t* addr;
     size_t page_count;
     size_t page_available;
-} Memmap;
-void* memmap_alloc(Memmap* map, size_t pages_count);
-void memmap_dealloc(Memmap* map, void* at, size_t pages_count);
-void init_memmap();
+} Bitmap;
+void* bitmap_alloc(Bitmap* map, size_t pages_count);
+void bitmap_dealloc(Bitmap* map, void* at, size_t pages_count);
+void init_bitmap();

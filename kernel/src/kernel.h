@@ -1,5 +1,5 @@
 #pragma once
-#include "mem/mmap.h"
+#include "mem/bitmap.h"
 #include "page.h"
 #include "gdt.h"
 #include "idt.h"
@@ -9,7 +9,7 @@
 struct Logger;
 struct Cache;
 typedef struct {
-    Memmap map;
+    Bitmap map;
     page_t pml4;
     GDT* gdt; // Allocated in the bitmap
     IDT* idt;

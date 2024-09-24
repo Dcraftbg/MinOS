@@ -1,5 +1,5 @@
 #pragma once
-#include "mem/mmap.h"
+#include "mem/bitmap.h"
 #include "mem/slab.h"
 #include "list.h"
 #include "vfs.h"
@@ -8,7 +8,7 @@
 #include "mem/memregion.h"
 #include "fileutils.h"
 
-void dump_memmap(Memmap* map);
+void dump_bitmap(Bitmap* map);
 void log_slab(void* p);
 void log_list(struct list* list, void (*log_obj)(void* obj));
 void log_cache(Cache* cache);

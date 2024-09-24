@@ -1,5 +1,5 @@
 #include <limine.h>
-#include "mmap.h"
+#include "bitmap.h"
 #include "string.h"
 #include "kernel.h"
 #include "bootutils.h"
@@ -8,7 +8,7 @@ volatile struct limine_memmap_request limine_memmap_request = {
     .revision = 0,
 };
 
-static void memmap_free_range(Memmap* map, void* from, size_t pages_count) {
+static void bitmap_free_range(Bitmap* map, void* from, size_t pages_count) {
     size_t page = PAGE_ALIGN_DOWN((size_t)from)/4096;
     assert(page+pages_count < map->page_count && "Out of range");
     for(size_t i = page; i < page+pages_count; ++i) {
@@ -17,7 +17,7 @@ static void memmap_free_range(Memmap* map, void* from, size_t pages_count) {
     map->page_available+=pages_count;
 }
 
-static void memmap_occupy_range(Memmap* map, void* from, size_t pages_count) {
+static void bitmap_occupy_range(Bitmap* map, void* from, size_t pages_count) {
     size_t page = PAGE_ALIGN_DOWN((size_t)from)/PAGE_SIZE;
     assert(page+pages_count < map->page_count && "Out of range");
 
@@ -26,7 +26,7 @@ static void memmap_occupy_range(Memmap* map, void* from, size_t pages_count) {
     }
     map->page_available-=pages_count;
 }
-void* memmap_alloc(Memmap* map, size_t pages_count) {
+void* bitmap_alloc(Bitmap* map, size_t pages_count) {
     if(map->page_available < pages_count) return NULL;
     size_t block_count = (map->page_count+7)/8;
     for(size_t i=0; i < block_count; ++i) {
@@ -40,7 +40,7 @@ void* memmap_alloc(Memmap* map, size_t pages_count) {
         size_t at = p;
         while(((map->addr[at/8] & (1<<(at%8))) == 0) && at < map->page_count) {
             if((at-p) == pages_count) {
-                memmap_occupy_range(map, (void*)(p*PAGE_SIZE), pages_count);
+                bitmap_occupy_range(map, (void*)(p*PAGE_SIZE), pages_count);
                 return (void*)(p*PAGE_SIZE);
             }
             at++;
@@ -48,8 +48,8 @@ void* memmap_alloc(Memmap* map, size_t pages_count) {
     }
     return NULL;
 }
-void memmap_dealloc(Memmap* map, void* at, size_t pages_count) {
-    memmap_free_range(map,at,pages_count);
+void bitmap_dealloc(Bitmap* map, void* at, size_t pages_count) {
+    bitmap_free_range(map,at,pages_count);
 }
 #ifndef KERNEL_NO_MMAP_PRINT
 static const char* limine_memmap_str[] = {
@@ -64,7 +64,7 @@ static const char* limine_memmap_str[] = {
 };
 #endif
 // TODO: Refactor this. Uses a lot of limine specific things
-void init_memmap() {
+void init_bitmap() {
     assert(limine_memmap_request.response && "No memmap response???");
     size_t last_available = (size_t)-1;
     size_t biggest_size = 0;
@@ -104,8 +104,8 @@ void init_memmap() {
     for(size_t i = 0; i < last_available; ++i) {
         struct limine_memmap_entry* entry = limine_memmap_request.response->entries[i];
         if(entry->type == LIMINE_MEMMAP_USABLE) {
-            memmap_free_range(&kernel.map, (void*)entry->base, entry->length/PAGE_SIZE);
+            bitmap_free_range(&kernel.map, (void*)entry->base, entry->length/PAGE_SIZE);
         }
     }
-    memmap_occupy_range(&kernel.map, (void*)biggest->base, PAGE_ALIGN_UP((kernel.map.page_count+7)/8)/PAGE_SIZE);
+    bitmap_occupy_range(&kernel.map, (void*)biggest->base, PAGE_ALIGN_UP((kernel.map.page_count+7)/8)/PAGE_SIZE);
 }

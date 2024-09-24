@@ -10,7 +10,7 @@
 #include "print.h"
 #include "utils.h"
 #include "memory.h"
-#include "mem/mmap.h"
+#include "mem/bitmap.h"
 #include "kernel.h"
 #include "debug.h"
 #include "page.h"
@@ -62,7 +62,7 @@ void _start() {
     BREAKPOINT();
     serial_init();
     init_loggers();
-    init_memmap();
+    init_bitmap();
     init_paging();
     KERNEL_SWITCH_VTABLE();
     init_gdt();

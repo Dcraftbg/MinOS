@@ -1,7 +1,7 @@
 #include "debug.h"
 #include "fs/tmpfs/tmpfs.h"
 #include "kernel.h"
-void dump_memmap(Memmap* map) {
+void dump_bitmap(Bitmap* map) {
     printf("Memory map %p; pages: %zu; available: %zu;\n",map->addr,map->page_count,map->page_available);
     for(size_t i = 0; i < (map->page_count+7)/8; ++i) {
         printf("%02X",map->addr[i]);
