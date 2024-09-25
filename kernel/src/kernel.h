@@ -1,9 +1,9 @@
 #pragma once
 #include "mem/bitmap.h"
 #include "page.h"
-#include "gdt.h"
-#include "idt.h"
-#include "tss.h"
+#include "arch/x86_64/gdt.h"
+#include "arch/x86_64/idt.h"
+#include "arch/x86_64/tss.h"
 #include "vfs.h"
 #include "pit.h"
 struct Logger;

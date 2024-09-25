@@ -6,6 +6,7 @@
 #include "exec.h"
 #include "log.h"
 #include "benchmark.h"
+#include "arch/x86_64/idt.h"
 
 void init_syscalls() {
     idt_register(0x80, syscall_base, IDT_SOFTWARE_TYPE);
@@ -94,7 +95,6 @@ intptr_t sys_fork() {
     }
     return process->id;
 }
-#include "idt.h"
 intptr_t sys_exec(const char* path, const char** argv, size_t argc) {
 #ifdef CONFIG_LOG_SYSCALLS
     printf("sys_exec(%s, %p, %zu)\n", path, argv, argc);

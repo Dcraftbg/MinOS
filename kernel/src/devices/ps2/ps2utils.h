@@ -10,7 +10,7 @@
 #include "../../assert.h"
 #include "../../pic.h"
 #include "../../memory.h"
-#include "../../idt.h"
+#include "../../arch/x86_64/idt.h"
 #include "../../kernel.h"
 
 #define PS2_MAX_RETRIES 3

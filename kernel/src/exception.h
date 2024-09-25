@@ -1,7 +1,7 @@
 #pragma once
 #include "utils.h"
 #include "print.h"
-#include "idt.h"
+#include "arch/x86_64/idt.h"
 // Defined by assembly
 void idt_exception_division();
 void idt_exception_debug();

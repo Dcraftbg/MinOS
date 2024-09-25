@@ -14,7 +14,7 @@
 #include "kernel.h"
 #include "debug.h"
 #include "page.h"
-#include "gdt.h"
+#include "arch/x86_64/gdt.h"
 #include "exception.h"
 #include "vfs.h"
 #include "rootfs.h"

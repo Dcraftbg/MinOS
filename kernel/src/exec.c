@@ -2,7 +2,6 @@
 #include "elf.h"
 #include "memory.h"
 #include "page.h"
-#include "gdt.h"
 #include "vfs.h"
 #include "string.h"
 #include "fileutils.h"

@@ -1,5 +1,5 @@
 [BITS 64]
-%include "asmstd.inc"
+%include "arch/x86_64/asmstd.inc"
 section .text
 extern task_switch
 global pit_handler
