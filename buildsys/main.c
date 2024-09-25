@@ -27,6 +27,7 @@
     "-Werror", "-Wno-unused-function",\
     "-Wall", \
     "-fno-stack-protector", \
+    "-fcf-protection=none", \
     /*"-fomit-frame-pointer", "-fno-builtin", */\
     /*"-mno-red-zone",*/\
    "-mno-mmx",\
