@@ -143,21 +143,31 @@ intptr_t fetch_inode(VfsDirEntry* entry, Inode** result, fmode_t mode) {
     debug_assert(entry->superblock);
     intptr_t e;
     Inode** ref = NULL;
+    mutex_lock(&entry->superblock->inodemap_lock);
     if((ref=inodemap_get(&entry->superblock->inodemap, entry->inodeid))) {
         *result = *ref;
         if ((*result)->mode & MODE_WRITE /*&& !((*result)->mode & MODE_STREAM)*/) {
+            mutex_unlock(&entry->superblock->inodemap_lock);
             return -RESOURCE_BUSY;
         }
         if ((*result)->mode & MODE_READ && !((*result)->mode & MODE_WRITE)) {
-            if(mode & MODE_WRITE) return -RESOURCE_BUSY;
+            if(mode & MODE_WRITE) {
+                mutex_unlock(&entry->superblock->inodemap_lock);
+                return -RESOURCE_BUSY;
+            }
             iget(*result);
+            mutex_unlock(&entry->superblock->inodemap_lock);
             return 0;
         }
         return -INVALID_PARAM;
     }
     if((e=_vfs_get_inode_of(entry, result)) < 0) return e;
     (*result)->mode = mode;
-    if(!inodemap_insert(&entry->superblock->inodemap, entry->inodeid, *result)) return -NOT_ENOUGH_MEM;
+    if(!inodemap_insert(&entry->superblock->inodemap, entry->inodeid, *result)) {
+        mutex_unlock(&entry->superblock->inodemap_lock);
+        return -NOT_ENOUGH_MEM;
+    }
+    mutex_unlock(&entry->superblock->inodemap_lock);
     return 0;
 }
 void init_vfs() {
