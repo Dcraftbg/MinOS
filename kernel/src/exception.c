@@ -25,7 +25,6 @@ const char* gpf_table[] = {
      "IDT"
 };
 void exception_handler(IDTEFrame* frame) {
-    unwind_stack(frame);
     if(frame->type == EXCEPTION_PAGE_FAULT) {
         printf("ERROR: Page fault at virtual address %p\n",(void*)frame->cr2);
     }
@@ -42,6 +41,7 @@ void exception_handler(IDTEFrame* frame) {
     printf("r8 =%p    rbp =%p    rdi=%p    rsi=%p    rdx  =%p    rcx=%p    rbx=%p\n", (void*)frame->r8 , (void*)frame->rbp , (void*)frame->rdi, (void*)frame->rsi, (void*)frame->rdx  , (void*)frame->rcx, (void*)frame->rbx);
     printf("rax=%p\n"                                                               , (void*)frame->rax);
     printf("ERROR: Gotten exception (%zu) with code %lu at rip: %p at virtual: %p\n",frame->type, frame->code,(void*)frame->rip,(void*)frame->cr2);
+    unwind_stack(frame);
     kabort();
 }
 
