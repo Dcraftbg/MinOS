@@ -9,7 +9,6 @@ struc ContextFrame
    .rsp resq 1
 endstruc 
 pit_handler:
-   cld
    irq_push_regs
    mov rax, rsp
    sub rsp, ContextFrame_size
