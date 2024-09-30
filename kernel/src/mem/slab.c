@@ -35,8 +35,12 @@ static Slab* cache_select(Cache* cache) {
 }
 void* cache_alloc(Cache* cache) {
     debug_assert(cache);
+    mutex_lock(&cache->mutex);
     Slab* slab = cache_select(cache);
-    if(!slab) return NULL;
+    if(!slab) {
+        mutex_unlock(&cache->mutex);
+        return NULL;
+    }
     size_t index = slab_bufctl(slab)[slab->free];
     void* ptr = slab->memory + cache->objsize * index;
     // The Slab was free before, lets move it to partial since we allocated something
@@ -50,6 +54,7 @@ void* cache_alloc(Cache* cache) {
         list_append(&cache->full, &slab->list);
     }
     cache->inuse++;
+    mutex_unlock(&cache->mutex);
     return ptr;
 }
 static size_t slab_ptr_to_index(Cache* cache, Slab* slab, void* p) {
@@ -80,14 +85,22 @@ static bool cache_dealloc_within(Cache* cache, Slab* slab, void* p) {
 void cache_dealloc(Cache* cache, void* p) {
     debug_assert(cache);
     debug_assert(p);
+    mutex_lock(&cache->mutex);
     Slab *s = (Slab*)list_next(&cache->full);
     if(s) {
-        if(cache_dealloc_within(cache, s, p)) return;
+        if(cache_dealloc_within(cache, s, p)) {
+            mutex_unlock(&cache->mutex);
+            return;
+        }
     }
     s = (Slab*)list_next(&cache->partial);
     if(s) {
-        if(cache_dealloc_within(cache, s, p)) return;
+        if(cache_dealloc_within(cache, s, p)) {
+            mutex_unlock(&cache->mutex);
+            return;
+        }
     }
+    mutex_unlock(&cache->mutex);
 }
 // TODO: Non-gready algorithmn for better optimisations 
 // in memory usage AND that takes in consideration the Slab itself

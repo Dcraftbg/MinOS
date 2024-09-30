@@ -3,6 +3,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include "list.h"
+#include <sync/mutex.h>
 #define MAX_CACHE_NAME 20
 // TODO: Deallocation of caches and cache_destory, cache_shrink etc.
 typedef struct Cache {
@@ -23,6 +24,8 @@ typedef struct Cache {
     // Objects per slab
     size_t objs_per_slab;
     char name[MAX_CACHE_NAME];
+
+    Mutex mutex;
 } Cache;
 typedef struct Slab { 
     struct list list;
@@ -38,6 +41,8 @@ typedef struct Slab {
 // and right after it you'll find an array of bufctl
 // aka the stack of free objects
 #define slab_bufctl(slab) ((uint32_t*)(slab+1))
+
+// NOTE: Unsafe. You must ensure Cache is mutex safe before calling this function
 intptr_t cache_grow(Cache* cache);
 void* cache_alloc(Cache* cache);
 void cache_dealloc(Cache* cache, void* p);
