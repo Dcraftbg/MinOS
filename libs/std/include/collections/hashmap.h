@@ -51,21 +51,23 @@
     bool concat(prefix, _resize) (HashMapT* hashmap, size_t extra) {\
         if(hashmap->len + extra > hashmap->buckets.len) {\
             size_t ncap = hashmap->buckets.len*2 + extra;\
-            concat(Bucket_, HashMapT) *newbucket = hash_alloc(sizeof(*hashmap->buckets.items) * ncap);\
+            concat(Bucket_, HashMapT) *newbucket = hash_alloc(sizeof(concat(Bucket_, HashMapT)) * ncap);\
             if(!newbucket) return false;\
-            memset(newbucket, 0, sizeof(*hashmap->buckets.items) * ncap);\
+            memset(newbucket, 0, sizeof(concat(Bucket_, HashMapT)) * ncap);\
             for(size_t i = 0; i < hashmap->buckets.len; ++i) {\
                 concat(Bucket_, HashMapT) *oldbucket = &hashmap->buckets.items[i]; \
                 while(oldbucket->first) {\
                     size_t hash = hash_key(oldbucket->first->key);\
                     concat(Bucket_, HashMapT) *bucket = &newbucket[hash % ncap];\
-                    concat(Pair_, HashMapT) *next = oldbucket->first->next;\
-                    if(bucket->first) oldbucket->first->next = bucket->first;\
-                    bucket->first = oldbucket->first;\
+                    concat(Pair_, HashMapT) *current = oldbucket->first;\
+                    concat(Pair_, HashMapT) *next = current->next;\
+                    if(bucket->first) current->next = bucket->first;\
+                    else current->next = NULL;\
+                    bucket->first = current;\
                     oldbucket->first = next;\
                 }\
             }\
-            hash_dealloc(hashmap->buckets.items, sizeof(*hashmap->buckets.items) * hashmap->buckets.len);\
+            hash_dealloc(hashmap->buckets.items, sizeof(concat(Bucket_, HashMapT)) * hashmap->buckets.len);\
             hashmap->buckets.items = newbucket;\
             hashmap->buckets.len = ncap;\
         }\
