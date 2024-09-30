@@ -8,8 +8,10 @@
 #include "pit.h"
 struct Logger;
 struct Cache;
+#include <sync/mutex.h>
 typedef struct {
     Bitmap map;
+    Mutex map_lock;
     page_t pml4;
     GDT* gdt; // Allocated in the bitmap
     IDT* idt;
