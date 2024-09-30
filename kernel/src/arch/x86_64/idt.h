@@ -19,9 +19,8 @@ typedef struct {
     uint64_t addr;
 } __attribute__((packed)) IDTDescriptor;
 
-#define IDT_EXCEPTION_TYPE 0x8E
-#define IDT_GATE_TYPE      0x8E
-#define IDT_HARDWARE_TYPE  0x8F
+#define IDT_INTERRUPT_TYPE 0x8E
+#define IDT_TRAP_TYPE  0x8F
 #define IDT_SOFTWARE_TYPE  0xEF
 
 typedef void (*IDTHandler_t);

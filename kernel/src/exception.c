@@ -46,30 +46,30 @@ void exception_handler(IDTEFrame* frame) {
 }
 
 void init_exceptions() {
-    idt_register(0 , idt_exception_division            , IDT_EXCEPTION_TYPE);
-    idt_register(1 , idt_exception_debug               , IDT_EXCEPTION_TYPE);
-    idt_register(3 , idt_exception_breakpoint          , IDT_EXCEPTION_TYPE);
-    idt_register(4 , idt_exception_overflow            , IDT_EXCEPTION_TYPE);
-    idt_register(5 , idt_exception_bound_range_exceeded, IDT_EXCEPTION_TYPE);
-    idt_register(6 , idt_exception_invalid_opcode      , IDT_EXCEPTION_TYPE);
+    idt_register(0 , idt_exception_division            , IDT_INTERRUPT_TYPE);
+    idt_register(1 , idt_exception_debug               , IDT_INTERRUPT_TYPE);
+    idt_register(3 , idt_exception_breakpoint          , IDT_INTERRUPT_TYPE);
+    idt_register(4 , idt_exception_overflow            , IDT_INTERRUPT_TYPE);
+    idt_register(5 , idt_exception_bound_range_exceeded, IDT_INTERRUPT_TYPE);
+    idt_register(6 , idt_exception_invalid_opcode      , IDT_INTERRUPT_TYPE);
 
-    idt_register(7 , idt_exception_dna                 , IDT_EXCEPTION_TYPE);
-    idt_register(8 , idt_exception_double_fault        , IDT_EXCEPTION_TYPE);
-    idt_register(9 , idt_exception_cop_segment_overrun , IDT_EXCEPTION_TYPE);
-    idt_register(10, idt_exception_invalid_tss         , IDT_EXCEPTION_TYPE);
-    idt_register(11, idt_exception_segment_not_present , IDT_EXCEPTION_TYPE);
-    idt_register(12, idt_exception_ssf                 , IDT_EXCEPTION_TYPE);
-    idt_register(13, idt_exception_gpf                 , IDT_EXCEPTION_TYPE);
+    idt_register(7 , idt_exception_dna                 , IDT_INTERRUPT_TYPE);
+    idt_register(8 , idt_exception_double_fault        , IDT_INTERRUPT_TYPE);
+    idt_register(9 , idt_exception_cop_segment_overrun , IDT_INTERRUPT_TYPE);
+    idt_register(10, idt_exception_invalid_tss         , IDT_INTERRUPT_TYPE);
+    idt_register(11, idt_exception_segment_not_present , IDT_INTERRUPT_TYPE);
+    idt_register(12, idt_exception_ssf                 , IDT_INTERRUPT_TYPE);
+    idt_register(13, idt_exception_gpf                 , IDT_INTERRUPT_TYPE);
 
-    idt_register(14, idt_exception_page_fault          , IDT_EXCEPTION_TYPE);
-    idt_register(16, idt_exception_floating_point      , IDT_EXCEPTION_TYPE);
-    idt_register(17, idt_exception_alignment           , IDT_EXCEPTION_TYPE);
-    idt_register(18, idt_exception_machine_check       , IDT_EXCEPTION_TYPE);
-    idt_register(19, idt_exception_simd                , IDT_EXCEPTION_TYPE);
-    idt_register(20, idt_exception_virtualization      , IDT_EXCEPTION_TYPE);
-    idt_register(21, idt_exception_control_protection  , IDT_EXCEPTION_TYPE);
-    idt_register(28, idt_exception_hypervisor_injection, IDT_EXCEPTION_TYPE);
-    idt_register(29, idt_exception_vmm_comm            , IDT_EXCEPTION_TYPE);
-    idt_register(30, idt_exception_security            , IDT_EXCEPTION_TYPE);
-    idt_register(255, idt_spurious_interrupt           , IDT_EXCEPTION_TYPE);
+    idt_register(14, idt_exception_page_fault          , IDT_INTERRUPT_TYPE);
+    idt_register(16, idt_exception_floating_point      , IDT_INTERRUPT_TYPE);
+    idt_register(17, idt_exception_alignment           , IDT_INTERRUPT_TYPE);
+    idt_register(18, idt_exception_machine_check       , IDT_INTERRUPT_TYPE);
+    idt_register(19, idt_exception_simd                , IDT_INTERRUPT_TYPE);
+    idt_register(20, idt_exception_virtualization      , IDT_INTERRUPT_TYPE);
+    idt_register(21, idt_exception_control_protection  , IDT_INTERRUPT_TYPE);
+    idt_register(28, idt_exception_hypervisor_injection, IDT_INTERRUPT_TYPE);
+    idt_register(29, idt_exception_vmm_comm            , IDT_INTERRUPT_TYPE);
+    idt_register(30, idt_exception_security            , IDT_INTERRUPT_TYPE);
+    idt_register(255, idt_spurious_interrupt           , IDT_INTERRUPT_TYPE);
 }

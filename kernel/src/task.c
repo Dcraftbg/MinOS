@@ -30,7 +30,7 @@ void init_kernel_task() {
 }
 
 void init_task_switch() {
-    idt_register(0x20, pit_handler, IDT_EXCEPTION_TYPE);
+    idt_register(0x20, pit_handler, IDT_INTERRUPT_TYPE);
 }
 Task* kernel_task_add() {
     Task* task = (Task*)cache_alloc(kernel.task_cache);
