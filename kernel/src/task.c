@@ -20,12 +20,13 @@ void init_kernel_task() {
     kt->image.cr3 = kernel.pml4;
     kt->image.flags |= TASK_FLAG_PRESENT | TASK_FLAG_RUNNING;
     kernel.current_taskid = kt->id;
-    IRQFrame* frame = (IRQFrame*)(virt_to_phys(kt->image.cr3, KERNEL_STACK_PTR) | KERNEL_MEMORY_MASK);
-    frame->cs     = GDT_KERNELCODE; 
-    frame->rflags = 0x286;
-    frame->ss     = GDT_KERNELDATA;
-    frame->rsp    = KERNEL_STACK_PTR;
-    kt->image.ts_rsp = (void*)(KERNEL_STACK_PTR+sizeof(IRQFrame));
+    // IRQFrame* frame = (IRQFrame*)(virt_to_phys(kt->image.cr3, KERNEL_STACK_PTR) | KERNEL_MEMORY_MASK);
+    // frame->cs     = GDT_KERNELCODE; 
+    // frame->rflags = 0x286;
+    // frame->ss     = GDT_KERNELDATA;
+    // frame->rsp    = KERNEL_STACK_PTR;
+    // kt->image.ts_rsp = (void*)(KERNEL_STACK_PTR+sizeof(IRQFrame));
+    kt->image.ts_rsp = 0;
     kt->image.rip = 0;
 }
 
