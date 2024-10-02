@@ -18,7 +18,7 @@ void init_kernel_task() {
     Task* kt = NULL;
     assert(kt = kernel_task_add());
     kt->image.cr3 = kernel.pml4;
-    kt->image.flags |= TASK_FLAG_PRESENT | TASK_FLAG_RUNNING;
+    kt->image.flags |= TASK_FLAG_RUNNING;
     kernel.current_taskid = kt->id;
     // IRQFrame* frame = (IRQFrame*)(virt_to_phys(kt->image.cr3, KERNEL_STACK_PTR) | KERNEL_MEMORY_MASK);
     // frame->cs     = GDT_KERNELCODE; 
