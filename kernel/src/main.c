@@ -56,6 +56,8 @@ static void dev_test() {
     }
     vfs_close(&file);
 }
+#if 0
+#include "probe.h"
 static void do_probe() {
     wang_seed = limine_boot_time_request.response->boot_time;
     printf("Boot time: %zu\n", (size_t)limine_boot_time_request.response->boot_time);
@@ -63,6 +65,7 @@ static void do_probe() {
     Framebuffer fb = get_framebuffer_by_id(0);
     fmbuf_fill(&fb, 0x00ff00);
 }
+#endif
 
 
 void _start() {
@@ -95,7 +98,6 @@ void _start() {
     assert(kernel.device_cache = create_new_cache(sizeof(Device), "Device"));
     fbt();
     init_tty();
-
     // dev_test();
     intptr_t e = 0;
     const char* epath = NULL;
