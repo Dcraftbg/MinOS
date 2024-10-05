@@ -56,6 +56,13 @@ static void dev_test() {
     }
     vfs_close(&file);
 }
+static void do_probe() {
+    wang_seed = limine_boot_time_request.response->boot_time;
+    printf("Boot time: %zu\n", (size_t)limine_boot_time_request.response->boot_time);
+    probe_slab();
+    Framebuffer fb = get_framebuffer_by_id(0);
+    fmbuf_fill(&fb, 0x00ff00);
+}
 
 
 void _start() {
