@@ -12,3 +12,6 @@ config.h
 *.log
 keycode.py
 kernel/embed.h
+
+user/task_a/
+user/task_b/
