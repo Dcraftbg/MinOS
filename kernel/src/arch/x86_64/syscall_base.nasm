@@ -40,6 +40,7 @@ syscall_base:
    push r13
    push r14
    push r15
+   xor rbp, rbp
    call [syscall_table + rax * PTR_SIZE]
    pop r15
    pop r14
