@@ -18,7 +18,7 @@ intptr_t cache_grow(Cache* cache) {
     slab->memory = ((uint32_t*)(addr+sizeof(*slab)))+cache->objs_per_slab;
     slab->free = 0;
     cache->totalobjs+=cache->objs_per_slab;
-    for(size_t i = 0; i < cache->objs_per_slab-1; ++i) {
+    for(size_t i = 0; i < cache->objs_per_slab; ++i) {
         slab_bufctl(slab)[i] = i;
     }
     list_append((struct list*)slab, &cache->free);
