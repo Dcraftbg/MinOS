@@ -1,4 +1,5 @@
 %include "asmstd.inc"
+YOU_ARE_CHILD equ 22
 section .text
 ; Accepts:
 ;   rdi = task
@@ -25,11 +26,7 @@ fork_trampoline:
     push rcx
     ; Push rip
     push rax
-    ; Cleanup rax which will be "result" from fork.
-    ; And I think its fairly reasonable to set it as 0
-    ; given that if we ever got to iretq back to sys_fork() it means we probably succeeded in forking
-    ; Maybe -YOU_ARE_CHILD and we have no conditional logic in sys_fork()?
-    xor rax, rax
+    mov rax, -YOU_ARE_CHILD
     irq_push_regs
     mov rdx, rsp
     call fork
