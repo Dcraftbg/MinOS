@@ -16,6 +16,7 @@ void tss_load_cpu(size_t cpu) {
     tss->base_high2  = tss_ptr>>32;
     tss->access = 0x89;
     tss->_reserved = 0;
+    tss->limit_flags = 0x20;
     __asm__ volatile(
         "ltr %0"
         :
