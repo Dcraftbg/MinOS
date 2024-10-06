@@ -9,7 +9,7 @@ volatile struct limine_memmap_request limine_memmap_request = {
 };
 
 static void bitmap_free_range(Bitmap* map, void* from, size_t pages_count) {
-    size_t page = PAGE_ALIGN_DOWN((size_t)from)/4096;
+    size_t page = PAGE_ALIGN_DOWN((size_t)from)/PAGE_SIZE;
     assert(page+pages_count < map->page_count && "Out of range");
     for(size_t i = page; i < page+pages_count; ++i) {
         map->addr[i/8] &= ~(1 << (i%8));
@@ -80,7 +80,7 @@ void init_bitmap() {
         }
         printf(" %zu pages\n", entry->length / PAGE_SIZE);
 #endif
-        if(entry->type == LIMINE_MEMMAP_USABLE) {
+        if(entry->type == LIMINE_MEMMAP_USABLE && entry->base < PHYS_RAM_MIRROR_SIZE) {
              if(entry->length > biggest_size) {
                  biggest_avail = i;
                  biggest_size = entry->length;
