@@ -84,7 +84,7 @@ void update_bar(size_t at, const char* msg) {
             .x = x,
             .y = y-texoff,
         };
-        fbwriter_draw_cstr(&writer, msg);
+        fbwriter_draw_cstr_default(&writer, msg);
     }
 }
 size_t step=0;
@@ -98,7 +98,7 @@ void _start() {
         .x = 0,
         .y = 0,
     };
-    fbwriter_draw_cstr(
+    fbwriter_draw_cstr_default(
         &writer,
         "IDT & GDT: " 
 #ifdef GLOBAL_STORAGE_GDT_IDT
