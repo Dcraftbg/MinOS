@@ -234,51 +234,41 @@ uintptr_t virt_to_phys(page_t pml4_addr, uintptr_t addr) {
     return PAGE_ALIGN_DOWN(pml1_addr[pml1]);
 }
 
+extern uint8_t section_text_begin[];
+extern uint8_t section_text_end[];
+
+extern uint8_t section_const_data_begin[];
+extern uint8_t section_const_data_end[];
+
+extern uint8_t section_mut_data_begin[];
+extern uint8_t section_mut_data_end[];
+
 void init_paging() {
     Mempair addr_resp = {0};
     kernel_mempair(&addr_resp);
     kernel.pml4 = kernel_page_alloc();
     if(!kernel.pml4) {
-       printf("ERROR: Could not allocate page map. Ran out of memory");
+       kpanic("ERROR: Could not allocate page map. Ran out of memory");
        kabort();
     }
     kernel.pml4 = (page_t)(((uintptr_t)kernel.pml4) | KERNEL_MEMORY_MASK);
     memset(kernel.pml4, 0, PAGE_SIZE);
     boot_map_phys_memory(); // Bootloader specific
-    void* file_data = NULL;
-    size_t file_size = 0;
-    kernel_file_data(&file_data, &file_size); 
-    assert(file_size > sizeof(Elf64Header));
-    Elf64Header* header = (Elf64Header*)file_data;
-    assert(elf_header_verify(header)); 
-    assert(header->ident[ELF_DATA_ENCODING] == ELF_DATA_LITTLE_ENDIAN);
-    assert(header->ident[ELF_DATA_CLASS] == ELF_CLASS_64BIT);
-    size_t prog_header_size = header->phnum * sizeof(Elf64ProgHeader);
-    assert(header->phoff+prog_header_size < file_size);
-    Elf64ProgHeader* headers = (Elf64ProgHeader*)((uint8_t*)file_data+header->phoff);
-    for(size_t i = 0; i < header->phnum; ++i) {
-        Elf64ProgHeader* h = &headers[i]; // I know it can be done with headers+i. I want to keep things simple for if others read it
-        if(h->p_type == 0 || h->memsize == 0) continue;
-        pageflags_t flags = KERNEL_PFLAG_PRESENT;
-        if(!(h->flags & ELF_PROG_EXEC)) {
-            flags |= KERNEL_PFLAG_EXEC_DISABLE;
-        }
-        if(h->flags & ELF_PROG_WRITE) {
-            flags |= KERNEL_PFLAG_WRITE;
-        }
-        uintptr_t segment_offset = PAGE_ALIGN_DOWN(h->virt_addr) - addr_resp.virt;
-        uintptr_t segment_pages  = (PAGE_ALIGN_UP(h->virt_addr+h->memsize) - PAGE_ALIGN_DOWN(h->virt_addr)) / PAGE_SIZE;
-        uintptr_t phys = PAGE_ALIGN_DOWN(addr_resp.phys + segment_offset);
-        uintptr_t virt = PAGE_ALIGN_DOWN(addr_resp.virt + segment_offset);
-        assert(page_mmap(kernel.pml4, phys, virt, segment_pages, flags));
-#if 0
-        printf("%zu> Mapping Program Header:\n",i);
-        printf(" (Elf)   virtual address  => %p\n",h->virt_addr);
-        printf(" (Elf)   physical address => %p\n",h->phys_addr);
-        printf(" (Real)  virtual address  => %p\n",virt);
-        printf(" (Real)  physical address => %p\n",phys);
-#endif
-    } 
+    uintptr_t phys;
+    size_t len;
+
+    phys = PAGE_ALIGN_DOWN(addr_resp.phys + (((uintptr_t)section_text_begin) - addr_resp.virt));
+    len = PAGE_ALIGN_UP((uintptr_t)section_text_end - (uintptr_t)section_text_begin)/PAGE_SIZE;
+    assert(page_mmap(kernel.pml4, phys, PAGE_ALIGN_DOWN((uintptr_t)section_text_begin), len, KERNEL_PFLAG_PRESENT));
+
+    phys = PAGE_ALIGN_DOWN(addr_resp.phys + (((uintptr_t)section_const_data_begin) - addr_resp.virt));
+    len = PAGE_ALIGN_UP((uintptr_t)section_const_data_end - (uintptr_t)section_const_data_begin)/PAGE_SIZE;
+    assert(page_mmap(kernel.pml4, phys, PAGE_ALIGN_DOWN((uintptr_t)section_const_data_begin), len, KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_EXEC_DISABLE));
+
+    phys = PAGE_ALIGN_DOWN(addr_resp.phys + (((uintptr_t)section_mut_data_begin) - addr_resp.virt));
+    len = PAGE_ALIGN_UP((uintptr_t)section_mut_data_end - (uintptr_t)section_mut_data_begin)/PAGE_SIZE;
+    assert(page_mmap(kernel.pml4, phys, PAGE_ALIGN_DOWN((uintptr_t)section_mut_data_begin), len, KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_WRITE | KERNEL_PFLAG_EXEC_DISABLE));
+
     assert(page_alloc(kernel.pml4, KERNEL_STACK_ADDR, KERNEL_STACK_PAGES, KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_WRITE));
 }
 

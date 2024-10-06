@@ -13,19 +13,21 @@ PHDRS
 SECTIONS
 {
     . = 0xffffffff80000000;
-
+    section_text_begin = .;
     .text : {
         *(.text .text.*)
     } :text
+    section_text_end = .;
 
     . += CONSTANT(MAXPAGESIZE);
-
+    section_const_data_begin = .;
     .rodata : {
         *(.rodata .rodata.*)
     } :rodata
+    section_const_data_end = .;
 
     . += CONSTANT(MAXPAGESIZE);
-
+    section_mut_data_begin = .;
     .data : {
         *(.data .data.*)
     } :data
@@ -38,6 +40,7 @@ SECTIONS
         *(.bss .bss.*)
         *(COMMON)
     } :data
+    section_mut_data_end = .;
     /DISCARD/ : {
         *(.eh_frame)
         *(.note .note.*)
