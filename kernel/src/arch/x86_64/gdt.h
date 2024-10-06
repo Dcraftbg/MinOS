@@ -7,7 +7,7 @@ typedef struct {
     uint64_t kernelData;
     uint64_t userCode;
     uint64_t userData;
-    uint64_t tss;
+    uint64_t tss[2];
 } GDT;
 
 #define GDT_KERNELDATA offsetof(GDT, kernelData)

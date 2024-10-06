@@ -18,7 +18,7 @@ void init_gdt() {
     gdt->kernelData = 0x0020920000000000; 
     gdt->userCode   = 0x0020F80000000000;
     gdt->userData   = 0x0020F20000000000; 
-    gdt->tss = 0; // NOTE: Initialised later
+    memset(gdt->tss, 0, sizeof(gdt->tss)); // NOTE: Initialised later
     GDTDescriptor descriptor = {0};
     descriptor.size = (PAGE_SIZE-1);
     descriptor.addr = gdt;
