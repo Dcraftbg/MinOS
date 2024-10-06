@@ -7,7 +7,10 @@ volatile struct limine_memmap_request limine_memmap_request = {
     .id = LIMINE_MEMMAP_REQUEST,
     .revision = 0,
 };
-
+volatile struct limine_hhdm_request limine_hhdm_request = {
+    .id = LIMINE_HHDM_REQUEST,
+    .revision = 0,
+};
 static void bitmap_free_range(Bitmap* map, void* from, size_t pages_count) {
     size_t page = PAGE_ALIGN_DOWN((size_t)from)/PAGE_SIZE;
     assert(page+pages_count < map->page_count && "Out of range");
@@ -66,6 +69,8 @@ static const char* limine_memmap_str[] = {
 // TODO: Refactor this. Uses a lot of limine specific things
 void init_bitmap() {
     assert(limine_memmap_request.response && "No memmap response???");
+    assert(limine_hhdm_request.response && "No hhdm respo???");
+    assert(limine_hhdm_request.response->offset == KERNEL_MEMORY_MASK && "HHDM does not match");
     size_t last_available = (size_t)-1;
     size_t biggest_size = 0;
     size_t biggest_avail= (size_t)-1;
