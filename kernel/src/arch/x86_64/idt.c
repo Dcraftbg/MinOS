@@ -2,15 +2,20 @@
 #include "string.h"
 #include "kernel.h"
 void init_idt() {
-    kernel.idt = (IDT*)kernel_malloc(PAGE_SIZE);
+#ifdef GLOBAL_STORAGE_GDT_IDT
+    IDT* idt = &kernel.idt;
+#else
+    IDT* idt = (IDT*)kernel_malloc(PAGE_SIZE);
+    kernel.idt = idt;
     if(!kernel.idt) {
         printf("ERROR: Ran out of memory for IDT");
         kabort();
     } 
-    memset(kernel.idt, 0, PAGE_SIZE);
+#endif
+    memset(idt, 0, PAGE_SIZE);
     IDTDescriptor idt_descriptor = {0};
     idt_descriptor.size = PAGE_SIZE-1;
-    idt_descriptor.addr = (uint64_t)kernel.idt;
+    idt_descriptor.addr = (uint64_t)idt;
     __asm__ volatile(
         "lidt (%0)"
         :

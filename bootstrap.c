@@ -175,6 +175,9 @@ bool bootstrap_config(Build* build) {
      fprintf(f, "//// Other options\n");
      fprintf(f, "//// Enable/Disable serial colors for loggers\n");
      fprintf(f, "#define NO_SERIAL_COLOR\n");
+     fprintf(f, "//// Place GDT and IDT in global storage\n");
+     fprintf(f, "//// Instead of allocating them in the bitmap heap\n");
+     fprintf(f, "// #define GLOBAL_STORAGE_GDT_IDT\n");
      fclose(f);
      return true;
 }

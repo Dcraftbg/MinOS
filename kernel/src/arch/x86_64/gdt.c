@@ -2,21 +2,26 @@
 #include "string.h"
 #include "kernel.h"
 void init_gdt() {
-    kernel.gdt = (GDT*)kernel_malloc(PAGE_SIZE);
+#ifdef GLOBAL_STORAGE_GDT_IDT
+    GDT* gdt = &kernel.gdt;
+#else
+    GDT* gdt = (GDT*)kernel_malloc(PAGE_SIZE);
+    kernel.gdt = gdt;
     if(!kernel.gdt) {
         printf("ERROR: Ran out of memory for GDT");
         kabort();
     }
-    memset(kernel.gdt, 0, PAGE_SIZE);
-    kernel.gdt->null = 0;
-    kernel.gdt->kernelCode = 0x0020980000000000; // Magic value for us. I'm too lazy to use macros. Read the docs instead
-    kernel.gdt->kernelData = 0x0020920000000000; 
-    kernel.gdt->userCode   = 0x0020F80000000000;
-    kernel.gdt->userData   = 0x0020F20000000000; 
-    kernel.gdt->tss = 0; // NOTE: Initialised later
+#endif
+    memset(gdt, 0, PAGE_SIZE);
+    gdt->null = 0;
+    gdt->kernelCode = 0x0020980000000000; // Magic value for us. I'm too lazy to use macros. Read the docs instead
+    gdt->kernelData = 0x0020920000000000; 
+    gdt->userCode   = 0x0020F80000000000;
+    gdt->userData   = 0x0020F20000000000; 
+    gdt->tss = 0; // NOTE: Initialised later
     GDTDescriptor descriptor = {0};
     descriptor.size = (PAGE_SIZE-1);
-    descriptor.addr = kernel.gdt;
+    descriptor.addr = gdt;
     __asm__ volatile (
         "lgdt (%0)"
         :

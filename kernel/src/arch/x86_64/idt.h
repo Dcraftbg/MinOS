@@ -1,4 +1,5 @@
 #pragma once
+#include "../../../../config.h"
 #include "gdt.h"
 #include "memory.h"
 #include "utils.h"
@@ -26,7 +27,13 @@ typedef struct {
 typedef void (*IDTHandler_t);
 void idt_pack_entry(IDTEntry* entry, IDTHandler_t handler, uint8_t typ);
 void init_idt();
+
+#ifdef GLOBAL_STORAGE_GDT_IDT
+#define idt_register(what, handler, typ) idt_pack_entry(&kernel.idt.inner[what], handler, typ);
+#else
 #define idt_register(what, handler, typ) idt_pack_entry(&kernel.idt->inner[what], handler, typ);
+#endif
+
 
 #define disable_interrupts() __asm__ volatile("cli")
 #define enable_interrupts() __asm__ volatile("sti")
