@@ -46,6 +46,12 @@ int print_base(void* user, PrintWriteFunc func, const char* fmt, va_list list) {
                 return *fmt;
             }
         } break;
+        case 'c': {
+            fmt++;
+            ibuf[0] = va_arg(list, int);
+            bytes = ibuf;
+            count = 1;
+        } break;
         case 'X': {
             fmt++;
             bytes = ibuf;
