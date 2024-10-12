@@ -49,17 +49,28 @@ static intptr_t serial_log_draw_color(Logger* this, uint32_t color) {
     serial_printstr(get_ansi_color_from_log(color));
     return 0;
 }
-#include "print.h"
+
+#include "print_base.h"
+
+void serial_print_sink(void* _, const char* data, size_t len) { serial_print(data, len); }
 static intptr_t serial_log(Logger* logger, uint32_t level, const char* fmt, va_list args) {
     if(level >= LOG_COUNT) return -UNSUPPORTED;
     #ifndef NO_SERIAL_COLOR
     serial_log_draw_color(logger, logger_color_map[level]);
     #endif
-
-    static char tmp_logger_buffer[1024];
-    size_t n = stbsp_snprintf(tmp_logger_buffer, sizeof(tmp_logger_buffer), "[%s] ", logger_str_map[level]);
-    stbsp_vsnprintf(tmp_logger_buffer+n, sizeof(tmp_logger_buffer)-n, fmt, args);
-    serial_printstr(tmp_logger_buffer);
+    {
+        char buf[10];
+        size_t at=0;
+        buf[at++] = '[';
+        const char* strlevel = logger_str_map[level];
+        size_t len = strlen(strlevel);
+        memcpy(buf+at, strlevel, len);
+        at+=len;
+        buf[at++] = ']';
+        buf[at++] = ' ';
+        serial_print(buf, at);
+    }
+    print_base(NULL, serial_print_sink, fmt, args);
     #ifndef NO_SERIAL_COLOR
     serial_log_draw_color(logger, LOG_COLOR_RESET);
     #endif
