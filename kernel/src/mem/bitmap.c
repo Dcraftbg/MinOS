@@ -101,9 +101,12 @@ void init_bitmap() {
     kernel.map.addr = (uint8_t*)(biggest->base | KERNEL_MEMORY_MASK);
     kernel.map.page_count = PAGE_ALIGN_UP(last->base + last->length) / PAGE_SIZE;
     if((kernel.map.page_count+7)/8 > biggest->length) {
-        printf("Could not fit memory map all in one place. Probably due to fragmentation\n");
-        printf("The biggest chunk we found was %zu bytes and the whole memory map requires %zu bytes\n",biggest->length,kernel.map.page_count*PAGE_SIZE);
-        kabort();
+        kpanic(
+            "Could not fit memory map all in one place. Probably due to fragmentation\n"
+            "The biggest chunk we found was %zu bytes and the whole memory map requires %zu bytes\n",
+            biggest->length,
+            kernel.map.page_count*PAGE_SIZE
+        );
     }
     memset(kernel.map.addr, 0xFF, (kernel.map.page_count+7)/8);
     for(size_t i = 0; i < last_available; ++i) {
