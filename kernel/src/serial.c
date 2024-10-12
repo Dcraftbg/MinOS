@@ -32,6 +32,11 @@ void serial_printstr(const char* str) {
         serial_print_u8(c);
     }
 }
+void serial_print(const char* str, size_t len) {
+    for(size_t i = 0; i < len; ++i) {
+        serial_print_u8(str[i]);
+    }
+}
 
 
 static intptr_t serial_log_write_str(Logger* this, const char* str, size_t len) {
