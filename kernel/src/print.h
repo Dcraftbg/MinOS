@@ -6,5 +6,4 @@
 #define STB_SPRINTF_NOFLOAT 
 #include <stb_sprintf.h>
 
-#define KERNEL_PRINTF_TMP 1024
-void printf(const char* fmt, ...) PRINTFLIKE(1, 2);
+int printf(const char* fmt, ...) PRINTFLIKE(1, 2);
