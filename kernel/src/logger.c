@@ -39,7 +39,7 @@ static intptr_t logger_log_default(Logger* logger, uint32_t level, const char* f
         buf[at++] = '[';
         const char* strlevel = logger_str_map[level];
         size_t len = strlen(strlevel);
-        memcpy(buf, strlevel, len);
+        memcpy(buf+at, strlevel, len);
         at+=len;
         buf[at++] = ']';
         buf[at++] = ' ';
