@@ -3,6 +3,7 @@
 #include "string.h"
 #include "kernel.h"
 #include "bootutils.h"
+#include "log.h"
 volatile struct limine_memmap_request limine_memmap_request = {
     .id = LIMINE_MEMMAP_REQUEST,
     .revision = 0,
@@ -13,7 +14,7 @@ volatile struct limine_hhdm_request limine_hhdm_request = {
 };
 static void bitmap_free_range(Bitmap* map, void* from, size_t pages_count) {
     size_t page = PAGE_ALIGN_DOWN((size_t)from)/PAGE_SIZE;
-    assert(page+pages_count < map->page_count && "Out of range");
+    assert(page+pages_count <= map->page_count && "Out of Range");
     for(size_t i = page; i < page+pages_count; ++i) {
         map->addr[i/8] &= ~(1 << (i%8));
     }
@@ -86,9 +87,13 @@ void init_bitmap() {
         printf(" %zu pages\n", entry->length / PAGE_SIZE);
 #endif
         if(entry->type == LIMINE_MEMMAP_USABLE && entry->base < PHYS_RAM_MIRROR_SIZE) {
+             size_t pages = entry->length/PAGE_SIZE;
+             if(entry->base+(pages*PAGE_SIZE) > PHYS_RAM_MIRROR_SIZE)  {
+                 pages = (PHYS_RAM_MIRROR_SIZE-entry->base)/PAGE_SIZE;
+             }
              if(entry->length > biggest_size) {
                  biggest_avail = i;
-                 biggest_size = entry->length;
+                 biggest_size = pages*PAGE_SIZE;
              }
              last_available = i;
         }
@@ -99,7 +104,7 @@ void init_bitmap() {
     struct limine_memmap_entry* last = limine_memmap_request.response->entries[last_available];
     assert(biggest->base < PHYS_RAM_MIRROR_SIZE && "Biggest data block has to be below 4GB. Sorry");
     kernel.map.addr = (uint8_t*)(biggest->base | KERNEL_MEMORY_MASK);
-    kernel.map.page_count = PAGE_ALIGN_UP(last->base + last->length) / PAGE_SIZE;
+    kernel.map.page_count = (PAGE_ALIGN_UP(last->base) + PAGE_ALIGN_UP(last->length)) / PAGE_SIZE;
     if((kernel.map.page_count+7)/8 > biggest->length) {
         kpanic(
             "Could not fit memory map all in one place. Probably due to fragmentation\n"
@@ -109,10 +114,14 @@ void init_bitmap() {
         );
     }
     memset(kernel.map.addr, 0xFF, (kernel.map.page_count+7)/8);
-    for(size_t i = 0; i < last_available; ++i) {
+    for(size_t i = 0; i <= last_available; ++i) {
         struct limine_memmap_entry* entry = limine_memmap_request.response->entries[i];
+        size_t pages = entry->length/PAGE_SIZE;
+        if(entry->base+(pages*PAGE_SIZE) > PHYS_RAM_MIRROR_SIZE)  {
+            pages = (PHYS_RAM_MIRROR_SIZE-entry->base)/PAGE_SIZE;
+        }
         if(entry->type == LIMINE_MEMMAP_USABLE) {
-            bitmap_free_range(&kernel.map, (void*)entry->base, entry->length/PAGE_SIZE);
+            bitmap_free_range(&kernel.map, (void*)entry->base, pages);
         }
     }
     bitmap_occupy_range(&kernel.map, (void*)biggest->base, PAGE_ALIGN_UP((kernel.map.page_count+7)/8)/PAGE_SIZE);
