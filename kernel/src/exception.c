@@ -1,6 +1,7 @@
 #include "exception.h"
 #include "kernel.h"
 #include "debug.h"
+#include "log.h"
 typedef struct StackFrame {
      struct StackFrame* rbp;
      uintptr_t rip;
@@ -26,25 +27,24 @@ const char* gpf_table[] = {
 };
 void exception_handler(IDTEFrame* frame) {
     if(frame->type == EXCEPTION_PAGE_FAULT) {
-        printf("ERROR: Page fault at virtual address %p\n",(void*)frame->cr2);
+        kerror("Page fault at virtual address %p\n",(void*)frame->cr2);
     }
     if(frame->type == EXCEPTION_GPF) {
-        printf("ERROR: General protection fault\n");
+        kerror("General protection fault\n");
+#if 0
+#error 02X is not ported in printf
         if(frame->code) {
             printf("- External = %s\n", (frame->code >> 0) & 0b1 ? "true" : "false");
             printf("- Table    = %s\n", gpf_table[(frame->code >> 1) & 0b11]);
             printf("- Index    = 0x%02X\n", (uint16_t)frame->code >> 3);
         }
+#endif
     }
-    printf("cr2=%p    type=%p    rip=%p    cs =%p    flags=%p    rsp=%p    ss =%p\n", (void*)frame->cr2, (void*)frame->type, (void*)frame->rip, (void*)frame->cs , (void*)frame->flags, (void*)frame->rsp, (void*)frame->ss );
-    printf("r15=%p    r14 =%p    r13=%p    r12=%p    r11  =%p    r10=%p    r9 =%p\n", (void*)frame->r15, (void*)frame->r14 , (void*)frame->r13, (void*)frame->r12, (void*)frame->r11  , (void*)frame->r10, (void*)frame->r9 );
-    printf("r8 =%p    rbp =%p    rdi=%p    rsi=%p    rdx  =%p    rcx=%p    rbx=%p\n", (void*)frame->r8 , (void*)frame->rbp , (void*)frame->rdi, (void*)frame->rsi, (void*)frame->rdx  , (void*)frame->rcx, (void*)frame->rbx);
-    printf("rax=%p\n"                                                               , (void*)frame->rax);
-    printf("ERROR: Gotten exception (%zu) with code %lu at rip: %p at virtual: %p\n",frame->type, frame->code,(void*)frame->rip,(void*)frame->cr2);
-    Framebuffer fb = get_framebuffer_by_id(0);
-    if(fb.addr) {
-        fmbuf_fill(&fb, 0xff0000);
-    }
+    kinfo ("cr2=%p    type=%p    rip=%p    cs =%p    flags=%p    rsp=%p    ss =%p\n", (void*)frame->cr2, (void*)frame->type, (void*)frame->rip, (void*)frame->cs , (void*)frame->flags, (void*)frame->rsp, (void*)frame->ss );
+    kinfo ("r15=%p    r14 =%p    r13=%p    r12=%p    r11  =%p    r10=%p    r9 =%p\n", (void*)frame->r15, (void*)frame->r14 , (void*)frame->r13, (void*)frame->r12, (void*)frame->r11  , (void*)frame->r10, (void*)frame->r9 );
+    kinfo ("r8 =%p    rbp =%p    rdi=%p    rsi=%p    rdx  =%p    rcx=%p    rbx=%p\n", (void*)frame->r8 , (void*)frame->rbp , (void*)frame->rdi, (void*)frame->rsi, (void*)frame->rdx  , (void*)frame->rcx, (void*)frame->rbx);
+    kinfo ("rax=%p\n"                                                               , (void*)frame->rax);
+    kerror("Gotten exception (%zu) with code %lu at rip: %p at virtual: %p\n",frame->type, frame->code,(void*)frame->rip,(void*)frame->cr2);
     unwind_stack(frame);
     kabort();
 }
