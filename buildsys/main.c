@@ -28,6 +28,7 @@
     "-Wall", \
     "-fno-stack-protector", \
     "-fcf-protection=none", \
+    "-O2",\
     /*"-fomit-frame-pointer", "-fno-builtin", */\
     /*"-mno-red-zone",*/\
    "-mno-mmx",\
