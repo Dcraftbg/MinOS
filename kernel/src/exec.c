@@ -57,10 +57,11 @@ DEFER_ERR:
 intptr_t exec_new(const char* path, Args args) {    
     intptr_t e=0;
     Process* process = kernel_process_add();
+    Task* task = NULL;
     if(!process) return -LIMITS; // Reached max tasks and/or we're out of memory
     process->resources = new_resource_block();
     if(!process->resources) return_defer_err(-NOT_ENOUGH_MEM);
-    Task* task = kernel_task_add();
+    task = kernel_task_add();
     if(!task) return_defer_err(-LIMITS); // Reached max tasks and/or we're out of memory
     process->main_threadid = task->id;
     task->processid = process->id;

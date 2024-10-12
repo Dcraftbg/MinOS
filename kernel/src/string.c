@@ -138,7 +138,7 @@ size_t uptrtoha_full(char* buf, size_t cap, uintptr_t value) {
 }
 
 size_t atosz(const char* buf, const char** end) {
-    size_t value;
+    size_t value=0;
     while(*buf && *buf >= '0' && *buf <= '9') {
         value *= 10;
         value += (*buf)-'0';
