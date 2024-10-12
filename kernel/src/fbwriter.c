@@ -15,7 +15,11 @@ intptr_t fb_draw_codepoint_at(Framebuffer* fm, size_t x, size_t y, int codepoint
     }
     return 0;
 }
-
+void fbwriter_draw_sized_str(FbTextWriter* fbt, const char* msg, size_t len, uint32_t fg, uint32_t bg) {
+    for(size_t i = 0; i < len; ++i) {
+        fbwriter_draw_codepoint(fbt, msg[i], fg, bg);
+    }
+}
 intptr_t fbwriter_draw_codepoint(FbTextWriter* fbt, int codepoint, uint32_t fg, uint32_t bg) {
     if(fbt->y >= fbt->fb.height) return 0;
     switch(codepoint) {
