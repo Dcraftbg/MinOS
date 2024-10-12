@@ -28,6 +28,17 @@ void kernel_mempair(Mempair* mempair) {
      mempair->virt = limine_kernel_address_request.response->virtual_base ;
      mempair->phys = limine_kernel_address_request.response->physical_base;
 }
+
+static const char* limine_memmap_str[] = {
+    "Usable",
+    "Reserved",
+    "Acpi Reclaimable",
+    "Acpi NVS",
+    "Bad Memory",
+    "Bootloader Reclaimable",
+    "Kernel and Modules",
+    "Framebuffer"
+};
 void boot_map_phys_memory() { 
     for(size_t i = 0; i < limine_memmap_request.response->entry_count; ++i) {
         struct limine_memmap_entry* entry = limine_memmap_request.response->entries[i];
@@ -37,7 +48,7 @@ void boot_map_phys_memory() {
         case LIMINE_MEMMAP_BOOTLOADER_RECLAIMABLE:
         case LIMINE_MEMMAP_FRAMEBUFFER:
         case LIMINE_MEMMAP_ACPI_RECLAIMABLE:
-            assert(
+            if(!
                page_mmap(
                  kernel.pml4,
                  PAGE_ALIGN_DOWN(entry->base),
@@ -45,7 +56,9 @@ void boot_map_phys_memory() {
                  entry->length/PAGE_SIZE,
                  KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_WRITE | KERNEL_PFLAG_EXEC_DISABLE
                )
-            );
+            ) {
+                kpanic("Failed to map region %zu of type %s. (%p -> %p) %zu pages. Available memory in bitmap: %zu pages", i, limine_memmap_str[entry->type], (void*)PAGE_ALIGN_DOWN(entry->base), (void*)PAGE_ALIGN_DOWN(entry->base | KERNEL_MEMORY_MASK), entry->length/PAGE_SIZE, kernel.map.page_available);
+            }
             break;
         default:
         }
