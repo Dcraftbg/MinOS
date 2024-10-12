@@ -29,4 +29,5 @@ void kpanic(const char* fmt, ...) {
         print_base(&writer, kpanic_fbwriter_write_sink, fmt, va_display);
     }
     va_end(va_display);
+    kabort();
 }
