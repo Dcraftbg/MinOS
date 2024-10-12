@@ -1,5 +1,5 @@
 #include "logger.h"
-#include "print.h"
+#include "print_base.h"
 
 const char* logger_str_map[LOG_COUNT] = {
     "ALL",
@@ -21,6 +21,10 @@ int logger_color_map[LOG_COUNT] = {
     LOG_COLOR_DARKRED,
     LOG_COLOR_RESET
 };
+static void logger_default_write_func(void* logger_void, const char* str, size_t len) {
+    Logger* logger = (Logger*)logger_void;
+    logger->write_str(logger, str, len);
+}
 // TODO: actual printf implementation in logger_kdefault.
 // Probably would be a good idea to have it as a separate function logger_printf_base
 static intptr_t logger_log_default(Logger* logger, uint32_t level, const char* fmt, va_list args) {
@@ -29,13 +33,19 @@ static intptr_t logger_log_default(Logger* logger, uint32_t level, const char* f
         return -UNSUPPORTED;
     }
     if(logger->draw_color) logger->draw_color(logger, logger_color_map[level]);
-    logger->write_str(logger, "[" , 1);
-    const char* strlevel = logger_str_map[level];
-    logger->write_str(logger, strlevel, strlen(strlevel));
-    logger->write_str(logger, "] ", 2);
-    static char tmp_logger_buffer[1024];
-    size_t n = stbsp_vsnprintf(tmp_logger_buffer, sizeof(tmp_logger_buffer), fmt, args);
-    logger->write_str(logger, tmp_logger_buffer, n);
+    {
+        char buf[10];
+        size_t at=0;
+        buf[at++] = '[';
+        const char* strlevel = logger_str_map[level];
+        size_t len = strlen(strlevel);
+        memcpy(buf, strlevel, len);
+        at+=len;
+        buf[at++] = ']';
+        buf[at++] = ' ';
+        logger->write_str(logger, buf, at);
+    }
+    print_base(logger, logger_default_write_func, fmt, args);
     if(logger->draw_color) logger->draw_color(logger, LOG_COLOR_RESET);
     logger->write_str(logger, "\n", 1);
     return 0;
