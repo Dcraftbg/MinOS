@@ -23,7 +23,7 @@ static void bitmap_free_range(Bitmap* map, void* from, size_t pages_count) {
 
 static void bitmap_occupy_range(Bitmap* map, void* from, size_t pages_count) {
     size_t page = PAGE_ALIGN_DOWN((size_t)from)/PAGE_SIZE;
-    assert(page+pages_count < map->page_count && "Out of range");
+    assert(page+pages_count <= map->page_count && "Out of range");
 
     for(size_t i = page; i < page+pages_count; ++i) {
         map->addr[i/8] |= (1 << (i%8));
