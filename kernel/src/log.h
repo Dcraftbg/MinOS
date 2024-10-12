@@ -9,3 +9,11 @@
 #define kerror(...) klog(LOG_ERROR, __VA_ARGS__)
 #define kfatal(...) klog(LOG_FATAL, __VA_ARGS__)
 
+#define klog_va(level, fmt, va) logger_log_va(kernel.logger, level, fmt, va)
+#define ktrace_va(fmt, va) klog(LOG_TRACE, fmt, va)
+#define kdebug_va(fmt, va) klog(LOG_DEBUG, fmt, va)
+#define kinfo_va(fmt, va)  klog(LOG_INFO , fmt, va)
+#define kwarn_va(fmt, va)  klog(LOG_WARN , fmt, va)
+#define kerror_va(fmt, va) klog(LOG_ERROR, fmt, va)
+#define kfatal_va(fmt, va) klog(LOG_FATAL, fmt, va)
+
