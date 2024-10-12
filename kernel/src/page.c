@@ -175,6 +175,7 @@ void page_join(page_t parent, page_t child) {
 }
 void page_destruct(page_t pml4_addr, uint16_t type) {
     kwarn("page_destruct is not good. Will be removed at some point");
+    return;
     for(size_t pml4 = 0; pml4 < KERNEL_PAGE_ENTRIES; ++pml4) {
          if(pml4_addr[pml4] == 0) continue;
          page_t pml3_addr = (page_t)PAGE_ALIGN_DOWN(pml4_addr[pml4] | KERNEL_MEMORY_MASK);
@@ -254,22 +255,36 @@ void init_paging() {
     kernel.pml4 = (page_t)(((uintptr_t)kernel.pml4) | KERNEL_MEMORY_MASK);
     memset(kernel.pml4, 0, PAGE_SIZE);
     boot_map_phys_memory(); // Bootloader specific
-    uintptr_t phys;
+    uintptr_t phys, virt;
     size_t len;
 
     phys = PAGE_ALIGN_DOWN(addr_resp.phys + (((uintptr_t)section_text_begin) - addr_resp.virt));
-    len = PAGE_ALIGN_UP((uintptr_t)section_text_end - (uintptr_t)section_text_begin)/PAGE_SIZE;
-    assert(page_mmap(kernel.pml4, phys, PAGE_ALIGN_DOWN((uintptr_t)section_text_begin), len, KERNEL_PFLAG_PRESENT));
+    virt = PAGE_ALIGN_DOWN((uintptr_t)section_text_begin);
+    len  = (PAGE_ALIGN_UP((uintptr_t)section_text_end) - PAGE_ALIGN_DOWN((uintptr_t)section_text_begin))/PAGE_SIZE;
+    kinfo("Mapping .text   (%p -> %p) %zu pages", (void*)phys, (void*)virt, len);
+    if(!page_mmap(kernel.pml4, phys, virt, len, KERNEL_PFLAG_PRESENT)) {
+        kpanic("Failed to map .text");
+    }
 
     phys = PAGE_ALIGN_DOWN(addr_resp.phys + (((uintptr_t)section_const_data_begin) - addr_resp.virt));
-    len = PAGE_ALIGN_UP((uintptr_t)section_const_data_end - (uintptr_t)section_const_data_begin)/PAGE_SIZE;
-    assert(page_mmap(kernel.pml4, phys, PAGE_ALIGN_DOWN((uintptr_t)section_const_data_begin), len, KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_EXEC_DISABLE));
+    virt = PAGE_ALIGN_DOWN((uintptr_t)section_const_data_begin);
+    len  = (PAGE_ALIGN_UP((uintptr_t)section_const_data_end) - PAGE_ALIGN_DOWN((uintptr_t)section_const_data_begin))/PAGE_SIZE;
+    kinfo("Mapping .rodata (%p -> %p) %zu pages", (void*)phys, (void*)virt, len);
+    if(!page_mmap(kernel.pml4, phys, virt, len, KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_EXEC_DISABLE)) {
+        kpanic("Failed to map .rodata");
+    }
 
     phys = PAGE_ALIGN_DOWN(addr_resp.phys + (((uintptr_t)section_mut_data_begin) - addr_resp.virt));
-    len = PAGE_ALIGN_UP((uintptr_t)section_mut_data_end - (uintptr_t)section_mut_data_begin)/PAGE_SIZE;
-    assert(page_mmap(kernel.pml4, phys, PAGE_ALIGN_DOWN((uintptr_t)section_mut_data_begin), len, KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_WRITE | KERNEL_PFLAG_EXEC_DISABLE));
-
-    assert(page_alloc(kernel.pml4, KERNEL_STACK_ADDR, KERNEL_STACK_PAGES, KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_WRITE));
+    virt = PAGE_ALIGN_DOWN((uintptr_t)section_mut_data_begin);
+    len = (PAGE_ALIGN_UP((uintptr_t)section_mut_data_end) - PAGE_ALIGN_DOWN((uintptr_t)section_mut_data_begin))/PAGE_SIZE;
+    kinfo("Mapping .data   (%p -> %p) %zu pages", (void*)phys, (void*)virt, len);
+    if(!page_mmap(kernel.pml4, phys, virt, len, KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_WRITE | KERNEL_PFLAG_EXEC_DISABLE)) {
+        kpanic("Failed to map .data");
+    }
+    kinfo("Allocating stack (%p) %zu pages", (void*)KERNEL_STACK_ADDR, KERNEL_STACK_PAGES);
+    if(!page_alloc(kernel.pml4, KERNEL_STACK_ADDR, KERNEL_STACK_PAGES, KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_WRITE)) {
+        kpanic("Failed to map/allocate the stack");
+    }
 }
 
 
