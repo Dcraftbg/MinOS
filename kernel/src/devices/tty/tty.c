@@ -185,7 +185,7 @@ static intptr_t tty_dev_write(VfsFile* file, const void* buf, size_t size, off_t
      for(size_t i = 0; i < size; ++i) {
         tty_draw_codepoint(fb, ((uint8_t*)buf)[i], VGA_FG, VGA_BG);
      }
-     return 0;
+     return size;
 }
 
 // TODO: Unicode support

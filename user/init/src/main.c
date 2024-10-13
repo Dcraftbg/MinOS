@@ -2,36 +2,18 @@
 #include <minos/status.h>
 #include <stdbool.h>
 #include <string.h>
+#include <stdio.h>
 #define HALT() \
     for(;;) 
-
-uintptr_t stdout = 0;
-uintptr_t stdin = 0;
-
-#define STB_SPRINTF_NOFLOAT 
-#define STB_SPRINTF_IMPLEMENTATION
-#include "../vendor/stb_sprintf.h"
 #include <minos/keycodes.h>
 typedef struct {
     uint16_t code    : 12;
     uint8_t  attribs : 4;
 } Key;
 
-
-#define PRINTF_TMP 1024
-static char tmp_printf[PRINTF_TMP]={0};
-
-void printf(const char* fmt, ...) __attribute__((format(printf,1, 2)));
-void printf(const char* fmt, ...) {
-    va_list va;
-    va_start(va, fmt);
-    size_t n = stbsp_vsnprintf(tmp_printf, PRINTF_TMP, fmt, va);
-    va_end(va);
-    write(stdout, tmp_printf, n);
-}
 intptr_t readline(char* buf, size_t bufmax) {
     intptr_t e;
-    if((e = read(stdin, buf, bufmax)) < 0) {
+    if((e = read(STDIN_FILENO, buf, bufmax)) < 0) {
         return e;
     }
     if(e > bufmax || buf[e-1] != '\n') return -BUFFER_OVEWFLOW;
@@ -93,14 +75,12 @@ void _start(int argc, const char** argv) {
     if((e = open("/devices/tty0", MODE_WRITE | MODE_READ)) < 0) {
         HALT();
     }
-    stdout = e;
-    stdin = e;
     printf("Args dump:\n");
     for(size_t i = 0; i < argc; ++i) {
         printf("%zu> ",i+1); printf("%p",argv[i]); printf(" %s\n",argv[i]);
     }
     int code = main();
-    close(stdout);
-    if(stdin != stdout) close(stdin);
+    close(STDOUT_FILENO);
+    if(STDIN_FILENO != STDOUT_FILENO) close(STDIN_FILENO);
     exit(code);
 }

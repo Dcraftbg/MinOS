@@ -1,34 +1,15 @@
 #include <minos/sysstd.h>
 #include <minos/status.h>
 #include <stdbool.h>
+#include <stdio.h>
 #define HALT() \
     for(;;) 
 
-const uintptr_t stdout = 0;
-const uintptr_t stdin = 0;
-
-#define STB_SPRINTF_NOFLOAT 
-#define STB_SPRINTF_IMPLEMENTATION
-#include "../vendor/stb_sprintf.h"
-#include <minos/keycodes.h>
-
-#define PRINTF_TMP 1024
-static char tmp_printf[PRINTF_TMP]={0};
-
 #include <string.h>
-
-void printf(const char* fmt, ...) __attribute__((format(printf,1, 2)));
-void printf(const char* fmt, ...) {
-    va_list va;
-    va_start(va, fmt);
-    size_t n = stbsp_vsnprintf(tmp_printf, PRINTF_TMP, fmt, va);
-    va_end(va);
-    write(stdout, tmp_printf, n);
-}
 
 intptr_t readline(char* buf, size_t bufmax) {
     intptr_t e;
-    if((e = read(stdin, buf, bufmax)) < 0) {
+    if((e = read(STDIN_FILENO, buf, bufmax)) < 0) {
         return e;
     }
     if(e > bufmax || buf[e-1] != '\n') return -BUFFER_OVEWFLOW;
