@@ -1,5 +1,4 @@
 %include "asmstd.inc"
-YOU_ARE_CHILD equ 22
 section .text
 ; Accepts:
 ;   rdi = task
@@ -26,7 +25,7 @@ fork_trampoline:
     push rcx
     ; Push rip
     push rax
-    mov rax, -YOU_ARE_CHILD
+    xor rax, rax 
     irq_push_regs
     mov rdx, rsp
     call fork

@@ -84,13 +84,16 @@ intptr_t sys_fork() {
     process->main_threadid = task->id;
     task->processid = process->id;
 
-    e = fork_trampoline(current, task);
-    if(e < 0 && e != -YOU_ARE_CHILD){
+    if((e=fork_trampoline(current, task)) < 0) {
         process_drop(process);
         drop_task(task);
         return e;
     }
-    return e;
+    Task* now = current_task();
+    if(now->id == task->id) {
+        return -YOU_ARE_CHILD;
+    }
+    return process->id;
 }
 intptr_t sys_exec(const char* path, const char** argv, size_t argc) {
 #ifdef CONFIG_LOG_SYSCALLS
