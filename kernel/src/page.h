@@ -39,7 +39,6 @@ bool page_alloc(page_t pml4_addr, uintptr_t virt, size_t pages_count, pageflags_
 void page_join(page_t parent, page_t child);
 void page_destruct(page_t pml4, uint16_t type);
 uintptr_t virt_to_phys(page_t pml4_addr, uintptr_t addr);
-
 void init_paging(); // Called to initialse
 
 #define KERNEL_SWITCH_VTABLE() \
@@ -56,3 +55,5 @@ void init_paging(); // Called to initialse
 void page_flags_serialise(pageflags_t flags, char* buf, size_t cap);
 const char* page_type_str(pageflags_t flags);
 
+// Invalidating stuff
+extern void invalidate_full_page_table();
