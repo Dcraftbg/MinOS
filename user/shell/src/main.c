@@ -83,6 +83,3 @@ int main() {
     }
     return 0;
 }
-void _start(int argc, const char** argv) {
-    exit(main());
-}

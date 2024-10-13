@@ -89,13 +89,16 @@ bool nob_mkdir_if_not_exists_silent(const char *path) {
     if(nob_file_exists(path)) return true;
     return nob_mkdir_if_not_exists(path);
 }
+#define LIBC_TARGET_DIR     "./bin/user/libc"
+#define LIBC_CRT_TARGET_DIR "./bin/user/crt"
 bool make_build_dirs() {
     if(!nob_mkdir_if_not_exists_silent("./bin"             )) return false;
     if(!nob_mkdir_if_not_exists_silent("./bin/kernel"      )) return false;
     if(!nob_mkdir_if_not_exists_silent("./bin/std"         )) return false;
     if(!nob_mkdir_if_not_exists_silent("./bin/iso"         )) return false;
     if(!nob_mkdir_if_not_exists_silent("./bin/user"        )) return false;
-    if(!nob_mkdir_if_not_exists_silent("./bin/user/libc"   )) return false;
+    if(!nob_mkdir_if_not_exists_silent(LIBC_TARGET_DIR     )) return false;
+    if(!nob_mkdir_if_not_exists_silent(LIBC_CRT_TARGET_DIR )) return false;
     if(!nob_mkdir_if_not_exists_silent("./bin/user/nothing")) return false;
     if(!nob_mkdir_if_not_exists_silent("./bin/user/init"   )) return false;
     if(!nob_mkdir_if_not_exists_silent("./bin/user/shell"  )) return false;
@@ -595,8 +598,18 @@ bool simple_link(const char* obj, const char* result, const char* link_script) {
     nob_log(NOB_INFO, "Linked %s",result);
     return true;
 }
-
-#define LIBCDIR "./bin/user/libc/"
+bool find_libc_core(Nob_File_Paths* paths) {
+    return find_objs(LIBC_TARGET_DIR, paths);
+}
+bool find_libc_crt(Nob_File_Paths* paths) {
+    return find_objs(LIBC_CRT_TARGET_DIR, paths);
+}
+bool find_libc(Nob_File_Paths* paths, bool with_crt) {
+    if(!find_libc_core(paths)) return false;
+    if(with_crt) 
+        if (!find_libc_crt(paths)) return false;
+    return true;
+}
 bool build_nothing() {
     #define BINDIR "./bin/user/nothing/"
     #define SRCDIR "./user/nothing/"
@@ -617,7 +630,7 @@ bool build_init() {
         nob_da_free(paths);
         return false;
     }
-    if(!find_objs(LIBCDIR, &paths)) {
+    if(!find_libc(&paths, false)) {
         nob_da_free(paths);
         return false;
     }
@@ -642,7 +655,7 @@ bool build_hello() {
         nob_da_free(paths);
         return false;
     }
-    if(!find_objs(LIBCDIR, &paths)) {
+    if(!find_libc(&paths, true)) {
         nob_da_free(paths);
         return false;
     }
@@ -668,7 +681,7 @@ bool build_shell() {
         nob_da_free(paths);
         return false;
     }
-    if(!find_objs(LIBCDIR, &paths)) {
+    if(!find_libc(&paths, true)) {
         nob_da_free(paths);
         return false;
     }
@@ -684,8 +697,19 @@ bool build_shell() {
 }
 
 bool build_libc() {
-    #define BINDIR "./bin/user/libc/"
+    #define BINDIR LIBC_TARGET_DIR 
     #define SRCDIR "./user/libc/src/"
+    #define LIBDIR "./bin/std/"
+    if(!build_user_dir(SRCDIR, BINDIR, true)) return false; 
+    #undef BINDIR
+    #undef SRCDIR
+    #undef LIBDIR
+    return true;
+}
+
+bool build_crt0() {
+    #define BINDIR LIBC_CRT_TARGET_DIR 
+    #define SRCDIR "./user/libc/crt/"
     #define LIBDIR "./bin/std/"
     if(!build_user_dir(SRCDIR, BINDIR, true)) return false; 
     #undef BINDIR
@@ -695,6 +719,7 @@ bool build_libc() {
 }
 bool build_user() {
     if(!build_libc()) return false;
+    if(!build_crt0()) return false;
     if(!build_nothing()) return false;
     if(!build_init()) return false;
     if(!build_shell()) return false;
