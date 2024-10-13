@@ -37,6 +37,8 @@ typedef struct {
     struct Cache* memregion_cache;
     struct Cache* memlist_cache;
     struct Cache* process_cache;
+    struct Cache* allocation_cache;
+    struct Cache* heap_cache;
     struct list cache_list;
     struct Logger* logger;
     PitInfo pit_info;

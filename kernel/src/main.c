@@ -32,6 +32,8 @@
 #include <minos/key.h>
 #include <sync.h>
 #include "prog_bar.h"
+#include "heap.h"
+
 // TODO: create a symlink "/devices/keyboard" which will be a link to the currently selected keyboard
 // Like for example PS1 or USB or anything like that
 static void fbt() {
@@ -142,6 +144,9 @@ void _start() {
 
     update_bar(step++, "init_tasks");
     init_tasks();
+
+    update_bar(step++, "init_heap");
+    init_heap();
 
     update_bar(step++, "init_kernel_task");
     init_kernel_task();
