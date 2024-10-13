@@ -35,3 +35,37 @@ MemoryRegion* memregion_clone(MemoryRegion* region, page_t src, page_t dst) {
     return region;
 }
 
+void memlist_add(struct list *list, MemoryList *new) {
+    assert(new && new->region);
+    MemoryList* head = (MemoryList*)list->next;
+    while(&head->list != list) {
+        uintptr_t next_addr = 0xffffffffffffffff;
+        if(head->list.next != list) {
+            next_addr = ((MemoryList*)head->list.next)->region->address;
+        }
+        if(head->region->address < new->region->address && new->region->address < next_addr) {
+            list_append(&new->list, &head->list);
+            return;
+        }
+        head = (MemoryList*)head->list.next;
+    }
+    list_append(&new->list, head->list.prev);
+}
+bool memlist_find_available(struct list *list, MemoryRegion* result, size_t minsize_pages) {
+    MemoryList* head = (MemoryList*)list->next;
+    // TODO: Allow allocation before the first chunk of memory
+    while(&head->list != list) {
+        uintptr_t next_addr = 0xffffffffffffffff;
+        if(head->list.next != list) {
+            next_addr = ((MemoryList*)head->list.next)->region->address;
+        }
+        size_t size_bytes = PAGE_SIZE*head->region->pages;
+        if(head->region->address + size_bytes < next_addr) {
+            result->address = head->region->address + size_bytes;
+            result->pages   = (next_addr-result->address)/PAGE_SIZE;
+            if(result->pages >= minsize_pages) return true;
+        }
+        head = (MemoryList*)head->list.next;
+    }
+    return false;
+}

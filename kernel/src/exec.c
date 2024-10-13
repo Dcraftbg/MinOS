@@ -36,7 +36,7 @@ intptr_t fork(Task* task, Task* result, void* frame) {
             memregion_drop(region, result->image.cr3);
             return_defer_err(-NOT_ENOUGH_MEM);
         }
-        list_append(&nlist->list, &result->image.memlist);
+        memlist_add(&result->image.memlist, nlist);
         list = list->next;
     }
     page_join(kernel.pml4, result->image.cr3);
@@ -180,7 +180,7 @@ intptr_t exec(Task* task, const char* path, Args args) {
            kernel_dealloc(memory, segment_pages * PAGE_SIZE);
            return_defer_err(-NOT_ENOUGH_MEM);
         }
-        list_append(&region->list, &task->image.memlist);
+        memlist_add(&task->image.memlist, region);
     }
     if (header.entry == 0)
         return_defer_err(-NO_ENTRYPOINT);
@@ -193,13 +193,12 @@ intptr_t exec(Task* task, const char* path, Args args) {
 
     if (!page_alloc(task->image.cr3, USER_STACK_ADDR, stack_pages, KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_USER | KERNEL_PFLAG_EXEC_DISABLE | KERNEL_PTYPE_USER))  
         return_defer_err(-NOT_ENOUGH_MEM);
-
-    list_append(&ustack_region->list, &task->image.memlist);
+    memlist_add(&task->image.memlist, ustack_region);
     
     if(!(kstack_region=memlist_new(memregion_new(MEMREG_WRITE, KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_EXEC_DISABLE | KERNEL_PTYPE_USER, KERNEL_STACK_ADDR, KERNEL_STACK_PAGES))))
         return_defer_err(-NOT_ENOUGH_MEM);
     
-    list_append(&kstack_region->list, &task->image.memlist);
+    memlist_add(&task->image.memlist, kstack_region);
     // NOTE: If you're wondering why KERNEL_PTYPE_USER is applied here. The USER program OWNS that memory
     if (!page_alloc(task->image.cr3, KERNEL_STACK_ADDR, KERNEL_STACK_PAGES, KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_EXEC_DISABLE | KERNEL_PTYPE_USER))
         return_defer_err(-NOT_ENOUGH_MEM);
