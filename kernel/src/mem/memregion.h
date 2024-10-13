@@ -53,5 +53,5 @@ static void memlist_dealloc(MemoryList* list, page_t pml4) {
     cache_dealloc(kernel.memlist_cache, list);
 }
 void memlist_add(struct list *list, MemoryList *new);
-bool memlist_find_available(struct list *list, MemoryRegion* result, size_t minsize_pages);
+MemoryList* memlist_find_available(struct list *list, MemoryRegion* result, size_t minsize_pages);
 
