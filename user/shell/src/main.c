@@ -6,11 +6,14 @@
 
 intptr_t readline(char* buf, size_t bufmax) {
     intptr_t e;
-    if((e = read(STDIN_FILENO, buf, bufmax)) < 0) {
-        return e;
+    size_t i = 0;
+    while(i < bufmax) {
+        if((e = read(STDIN_FILENO, buf+i, 1)) < 0) {
+            return e;
+        }
+        if(buf[i++] == '\n') return i;
     }
-    if(e > bufmax || buf[e-1] != '\n') return -BUFFER_OVEWFLOW;
-    return e;
+    return -BUFFER_OVEWFLOW;
 }
 static bool isspace(char c) {
     return c == ' ' || c == '\n' || c == '\t';

@@ -1,9 +1,9 @@
 #pragma once
 // TODO: Better usage of the key fields and bits
 enum {
+   MINOS_KEY_BACKSPACE='\b',
+   MINOS_KEY_TAB='\t',
    MINOS_KEY_ENTER=256, // <256 are mostly ASCII keycodes
-   MINOS_KEY_BACKSPACE,
-   MINOS_KEY_TAB,
    MINOS_KEY_ESCAPE,
    MINOS_KEY_LEFT_CTRL,
    MINOS_KEY_LEFT_SHIFT,

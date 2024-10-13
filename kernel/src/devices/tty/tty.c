@@ -9,14 +9,14 @@
 static FsOps ttyOps = {0};
 #define KEY_BYTES ((MINOS_KEY_COUNT+7)/8)
 typedef struct {
-   // Is key down?
-   uint8_t state[KEY_BYTES];
+    // Is key down?
+    uint8_t state[KEY_BYTES];
 } Keyboard;
 static void key_set(Keyboard* kb, uint16_t code, uint8_t released) {
-   uint8_t down = released == 0;
-   //debug_assert(code < ARRAY_LEN(kb->state));
-   kb->state[code/8] &= ~(1 << (code % 8));
-   kb->state[code/8] |= down << (code%8);
+    uint8_t down = released == 0;
+    //debug_assert(code < ARRAY_LEN(kb->state));
+    kb->state[code/8] &= ~(1 << (code % 8));
+    kb->state[code/8] |= down << (code%8);
 }
 static bool key_get(Keyboard* kb, uint16_t code) {
     //debug_assert(code < ARRAY_LEN(kb->state));
@@ -72,33 +72,82 @@ static int key_unicode(Keyboard* keyboard, uint16_t code) {
     }
 }
 enum {
-     TTY_INPUT_KEYBOARD,
-     TTY_INPUT_COUNT,
+    TTY_INPUT_KEYBOARD,
+    TTY_INPUT_COUNT,
 };
 
 enum {
-     TTY_OUTPUT_DISPLAY,
-     TTY_OUTPUT_COUNT
+    TTY_OUTPUT_DISPLAY,
+    TTY_OUTPUT_COUNT
 };
 typedef struct {
-     Framebuffer fb;
-     size_t x, y;
-     bool blink;
-     size_t blink_time;
+    Framebuffer fb;
+    size_t x, y;
+    bool blink;
+    size_t blink_time;
 } TtyFb;
 typedef struct {
-     uint8_t input_kind;
-     union {
-         struct { 
-             VfsFile keyboard;
-             Keyboard keystate;
-         } as_kb;
-     } input;
+    char* data;
+    size_t len, cap;
+    char small_inline[128];
+} TtyScratch;
+bool ttyscratch_reserve(TtyScratch* scratch, size_t extra) {
+    if(scratch->len + extra > scratch->cap) {
+        size_t ncap = scratch->cap*2 + extra;
+        char* data = kernel_malloc(ncap);
+        if(!data) return false;
+        memcpy(data, scratch->data, scratch->len);
+        if(scratch->data != scratch->small_inline) kernel_dealloc(scratch->data, scratch->cap);
+        scratch->data = data;
+        scratch->cap = ncap;
+    }
+    return true;
+}
+static inline void ttyscratch_init(TtyScratch* scratch) {
+    scratch->data = scratch->small_inline;
+    scratch->len = 0;
+    scratch->cap = sizeof(scratch->small_inline);
+}
+static inline bool ttyscratch_push(TtyScratch* scratch, char c) {
+    if(!ttyscratch_reserve(scratch, 1)) return false;
+    scratch->data[scratch->len++] = c;
+    return true;
+}
+static inline char ttyscratch_pop(TtyScratch* scratch) {
+    if(scratch->len == 0) return 0;
+    return scratch->data[scratch->len--];
+}
+static inline void ttyscratch_shrink(TtyScratch* scratch) {
+    if(scratch->len <= sizeof(scratch->small_inline)) {
+        memcpy(scratch->small_inline, scratch->data, scratch->len);
+        if(scratch->data != scratch->small_inline) kernel_dealloc(scratch->data, scratch->cap);
+        scratch->cap = sizeof(scratch->small_inline);
+        scratch->data = scratch->small_inline;
+        return;
+    } 
+    // TODO: Could technically do PAGE_ALIGN_UP so then it would have a little extra
+    // capacity, but idrk
+    char* data = kernel_malloc(scratch->len);
+    if(!data) return;
+    memcpy(data, scratch->data, scratch->len);
+    kernel_dealloc(scratch->data, scratch->cap);
+    scratch->data = data;
+    scratch->cap = scratch->len;
+}
+typedef struct {
+    uint8_t input_kind;
+    union {
+        struct { 
+            VfsFile keyboard;
+            Keyboard keystate;
+        } as_kb;
+    } input;
+    uint8_t output_kind;
+    union {
+        TtyFb as_framebuffer;
+    } output;
 
-     uint8_t output_kind;
-     union {
-         TtyFb as_framebuffer;
-     } output;
+    TtyScratch scratch;
 } TtyDevice;
 intptr_t tty_draw_codepoint_at(Framebuffer* fm, size_t x, size_t y, int codepoint, uint32_t fg, uint32_t bg) {
     if(codepoint > 127) return -UNSUPPORTED; // Unsupported
@@ -132,6 +181,12 @@ static intptr_t tty_draw_codepoint(TtyFb* fb, int codepoint, uint32_t fg, uint32
          }
          fb->x += w;
        } break;
+       case '\b': {
+         if(fb->x >= 8) {
+             fb->x -= 8;
+             fmbuf_draw_rect(&fb->fb, fb->x, fb->y, fb->x+8, fb->y+16, bg);
+         }
+       } break;
        case '\r':
          fb->x = 0;
          break;
@@ -157,8 +212,8 @@ static intptr_t tty_draw_codepoint(TtyFb* fb, int codepoint, uint32_t fg, uint32
 }
 static Cache* tty_cache = NULL;
 static intptr_t tty_open(struct Device* this, VfsFile* file, fmode_t mode) {
-     file->private = this->private;
-     return 0;
+    file->private = this->private;
+    return 0;
 }
 
 static void tty_close(VfsFile* file) {
@@ -169,82 +224,87 @@ static void tty_close(VfsFile* file) {
 #define TTY_BLINK_WIDTH 8
 #define TTY_BLINK_HEIGHT 16
 static void ttyfb_fill_blink(TtyFb* fb, uint32_t color) {
-     fmbuf_draw_rect(&fb->fb, fb->x, fb->y, fb->x+TTY_BLINK_WIDTH, fb->y+TTY_BLINK_HEIGHT, color);
+    fmbuf_draw_rect(&fb->fb, fb->x, fb->y, fb->x+TTY_BLINK_WIDTH, fb->y+TTY_BLINK_HEIGHT, color);
 }
 
 static const uint32_t blink_color[2] = {
-     VGA_BG,
-     VGA_FG
+    VGA_BG,
+    VGA_FG
 };
 static intptr_t tty_dev_write(VfsFile* file, const void* buf, size_t size, off_t offset) {
-     (void)offset;
-     TtyDevice* tty = (TtyDevice*)file->private;
-     assert(tty->output_kind == TTY_OUTPUT_DISPLAY);
-     TtyFb* fb = &tty->output.as_framebuffer;
-     if(fb->blink) ttyfb_fill_blink(fb, VGA_BG);
-     for(size_t i = 0; i < size; ++i) {
-        tty_draw_codepoint(fb, ((uint8_t*)buf)[i], VGA_FG, VGA_BG);
-     }
-     return size;
+    (void)offset;
+    TtyDevice* tty = (TtyDevice*)file->private;
+    assert(tty->output_kind == TTY_OUTPUT_DISPLAY);
+    TtyFb* fb = &tty->output.as_framebuffer;
+    if(fb->blink) ttyfb_fill_blink(fb, VGA_BG);
+    for(size_t i = 0; i < size; ++i) {
+       tty_draw_codepoint(fb, ((uint8_t*)buf)[i], VGA_FG, VGA_BG);
+    }
+    return size;
 }
-
+static void ttyfb_putch(TtyFb* fb, int code) {
+    if(fb->blink) ttyfb_fill_blink(fb, VGA_BG);
+    tty_draw_codepoint(fb, code, VGA_FG, VGA_BG);
+    ttyfb_fill_blink(fb, blink_color[fb->blink]);
+}
 // TODO: Unicode support
 static intptr_t tty_dev_read(VfsFile* file, void* buf, size_t size, off_t offset) {
-     (void)offset;
-     TtyDevice* tty = (TtyDevice*)file->private;
-     intptr_t e;
-     Key key;
-     size_t left=size;
-
-     assert(tty->input_kind == TTY_OUTPUT_DISPLAY);
-     TtyFb* fb = &tty->output.as_framebuffer;
-
-     while(left) {
-        assert(tty->input_kind == TTY_INPUT_KEYBOARD);
-        for(;;) {
-            if((e=vfs_read(&tty->input.as_kb.keyboard, &key, sizeof(key))) < 0) {
-                if(fb->blink) ttyfb_fill_blink(fb, VGA_BG);
-                return e;
-            } else if (e > 0) break;
-            size_t now = kernel.pit_info.ticks;
-            if(now-fb->blink_time >= TTY_MILISECOND_BLINK) {
-                fb->blink = !fb->blink;
-                fb->blink_time = now;
-                ttyfb_fill_blink(fb, blink_color[fb->blink]);
-            }
-        }
-        key_set(&tty->input.as_kb.keystate, key.code, key.attribs);
-        switch(key.code) {
-        case MINOS_KEY_BACKSPACE: {
-            if(!(key.attribs & KEY_ATTRIB_RELEASE)) {
-                if(left != size) {
-                    if(fb->blink) ttyfb_fill_blink(fb, VGA_BG);
-                    fb->x -= 8;
-                    ttyfb_fill_blink(fb, blink_color[fb->blink]);
-                    left++;
-                    buf--;
-                }
-            }
-        } break;
-        default: {
-            int code = key_unicode(&tty->input.as_kb.keystate, key.code);
-            if(code) {
-                // NOTE: Non unicode keys are not yet supported cuz of reasons
-                if(code >= 256) return -UNSUPPORTED;
-                // NOTE: its fine to not clean it up but I do it just in case
-                if(fb->blink) ttyfb_fill_blink(fb, VGA_BG);
-                tty_draw_codepoint(fb, code, VGA_FG, VGA_BG);
-                *((char*)buf) = code;
-                if(left) ttyfb_fill_blink(fb, blink_color[fb->blink]);
-                left--;
-                buf++;
-            }
-            if(key.code == MINOS_KEY_ENTER && !(key.attribs & KEY_ATTRIB_RELEASE)) return size-left;
-        } break;
-        }
-     }
-
-     return size;
+    (void)offset;
+    TtyDevice* tty = (TtyDevice*)file->private;
+    if(tty->scratch.len) goto END;
+    intptr_t e;
+    Key key;
+    assert(tty->input_kind == TTY_OUTPUT_DISPLAY);
+    TtyFb* fb = &tty->output.as_framebuffer;
+    for(;;) {
+       assert(tty->input_kind == TTY_INPUT_KEYBOARD);
+       for(;;) {
+           if((e=vfs_read(&tty->input.as_kb.keyboard, &key, sizeof(key))) < 0) {
+               if(fb->blink) ttyfb_fill_blink(fb, VGA_BG);
+               return e;
+           } else if (e > 0) break;
+           size_t now = kernel.pit_info.ticks;
+           if(now-fb->blink_time >= TTY_MILISECOND_BLINK) {
+               fb->blink = !fb->blink;
+               fb->blink_time = now;
+               ttyfb_fill_blink(fb, blink_color[fb->blink]);
+           }
+       }
+       key_set(&tty->input.as_kb.keystate, key.code, key.attribs);
+       switch(key.code) {
+       case MINOS_KEY_BACKSPACE:
+           if(!(key.attribs & KEY_ATTRIB_RELEASE)) {
+               if(tty->scratch.len) {
+                   ttyfb_putch(fb, '\b');
+                   tty->scratch.len--;
+               }
+           } 
+           break;
+       case MINOS_KEY_ENTER:
+           if(!(key.attribs & KEY_ATTRIB_RELEASE)) {
+               if(!ttyscratch_push(&tty->scratch, '\n')) return -NOT_ENOUGH_MEM;
+               ttyfb_putch(fb, '\n');
+               goto END;
+           }
+           break;
+       default: {
+           int code = key_unicode(&tty->input.as_kb.keystate, key.code);
+           if(code) {
+               // NOTE: Non unicode keys are not yet supported cuz of reasons
+               if(code >= 256) return -UNSUPPORTED;
+               if(!ttyscratch_push(&tty->scratch, code)) return -NOT_ENOUGH_MEM;
+               ttyfb_putch(fb, code);
+           }
+       } break;
+       }
+    }
+END:
+    size_t to_copy = tty->scratch.len < size ? tty->scratch.len : size;
+    memcpy(buf, tty->scratch.data, to_copy);
+    memmove(tty->scratch.data, tty->scratch.data+to_copy, tty->scratch.len-to_copy);
+    tty->scratch.len-=to_copy;
+    ttyscratch_shrink(&tty->scratch);
+    return to_copy;
 }
 
 
@@ -257,6 +317,7 @@ static intptr_t new_tty_private_display(void** private, size_t display, const ch
     intptr_t e;
     if(tty == NULL) return -NOT_ENOUGH_MEM;
     memset(tty, 0, sizeof(*tty));
+    ttyscratch_init(&tty->scratch);
     *private = tty;
     tty->output_kind = TTY_OUTPUT_DISPLAY;
     tty->output.as_framebuffer.fb = get_framebuffer_by_id(display);
