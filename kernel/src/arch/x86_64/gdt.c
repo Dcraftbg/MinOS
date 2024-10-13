@@ -19,7 +19,7 @@ void init_gdt() {
     gdt->userCode   = 0x0020F80000000000;
     gdt->userData   = 0x0020F20000000000; 
     memset(gdt->tss, 0, sizeof(gdt->tss)); // NOTE: Initialised later
-    GDTDescriptor descriptor = {0};
+    volatile GDTDescriptor descriptor;
     descriptor.size = (PAGE_SIZE-1);
     descriptor.addr = gdt;
     __asm__ volatile (

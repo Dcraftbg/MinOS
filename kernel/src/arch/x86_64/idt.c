@@ -13,7 +13,7 @@ void init_idt() {
     } 
 #endif
     memset(idt, 0, PAGE_SIZE);
-    IDTDescriptor idt_descriptor = {0};
+    volatile IDTDescriptor idt_descriptor;
     idt_descriptor.size = PAGE_SIZE-1;
     idt_descriptor.addr = (uint64_t)idt;
     __asm__ volatile(
