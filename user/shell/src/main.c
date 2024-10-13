@@ -2,9 +2,6 @@
 #include <minos/status.h>
 #include <stdbool.h>
 #include <stdio.h>
-#define HALT() \
-    for(;;) 
-
 #include <string.h>
 
 intptr_t readline(char* buf, size_t bufmax) {
@@ -46,15 +43,20 @@ int main() {
             intptr_t e = fork();
             if(e == (-YOU_ARE_CHILD)) {
                 if((e=exec(path, argv, sizeof(argv)/sizeof(*argv))) < 0) {
-                    printf("ERROR: Failed to do exec: %s\n", status_str(e));
-                    exit(1);
+                    exit(-e);
                 }
                 // Unreachable
                 exit(0);
             } else if (e >= 0) {
                 size_t pid = e;
                 e=wait_pid(pid);
-                if(e != 0) printf("%s exited with: %lu\n", path, e);
+                if(e != 0) {
+                   if(e == NOT_FOUND) {
+                       printf("Could not find command `%s`\n", path);
+                   } else {
+                       printf("%s exited with: %lu\n", path, e);
+                   }
+                }
             } else {
                 printf("ERROR: fork %s\n",status_str(e));
                 exit(1);
