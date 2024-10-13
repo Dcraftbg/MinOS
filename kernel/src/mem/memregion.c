@@ -51,11 +51,11 @@ void memlist_add(struct list *list, MemoryList *new) {
     }
     list_append(&new->list, head->list.prev);
 }
-MemoryList* memlist_find_available(struct list *list, MemoryRegion* result, size_t minsize_pages) {
+MemoryList* memlist_find_available(struct list *list, MemoryRegion* result, size_t minsize_pages, size_t maxsize_pages) {
     MemoryList* head = (MemoryList*)list->next;
     // TODO: Allow allocation before the first chunk of memory
     while(&head->list != list) {
-        uintptr_t next_addr = 0xffffffffffffffff;
+        uintptr_t next_addr = 0xffffffffffffffffLL;
         if(head->list.next != list) {
             next_addr = ((MemoryList*)head->list.next)->region->address;
         }
@@ -63,6 +63,7 @@ MemoryList* memlist_find_available(struct list *list, MemoryRegion* result, size
         if(head->region->address + size_bytes < next_addr) {
             result->address = head->region->address + size_bytes;
             result->pages   = (next_addr-result->address)/PAGE_SIZE;
+            result->pages   = result->pages > maxsize_pages ? maxsize_pages : result->pages;
             if(result->pages >= minsize_pages) return head;
         }
         head = (MemoryList*)head->list.next;
