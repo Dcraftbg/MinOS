@@ -16,17 +16,18 @@ static Allocation* allocation_new(bool free, size_t size, size_t offset) {
     return allocation;
 }
 
-Heap* heap_new_empty(uintptr_t address, size_t pages) {
+Heap* heap_new_empty(size_t id, uintptr_t address, size_t pages) {
     Heap* heap = (Heap*)cache_alloc(kernel.heap_cache);
     if(!heap) return NULL;
     list_init(&heap->list);
     list_init(&heap->allocation_list);
+    heap->id = id;
     heap->address = address;
     heap->pages = pages;
     return heap;
 }
-Heap* heap_new(uintptr_t address, size_t pages) {
-    Heap* heap = heap_new_empty(address, pages);
+Heap* heap_new(size_t id, uintptr_t address, size_t pages) {
+    Heap* heap = heap_new_empty(id, address, pages);
     if(!heap) return NULL;
     Allocation* allocation = allocation_new(true, heap->pages*PAGE_SIZE, heap->address);
     if(!allocation) {
@@ -54,7 +55,7 @@ void heap_destroy(Heap* heap) {
     cache_dealloc(kernel.heap_cache, heap);
 }
 Heap* heap_clone(Heap* heap) {
-    Heap* new = heap_new_empty(heap->address, heap->pages);
+    Heap* new = heap_new_empty(heap->id, heap->address, heap->pages);
     if(!new) return NULL;
     Allocation* alloc = (Allocation*)heap->allocation_list.next;
     while(&alloc->list != &heap->allocation_list) {
