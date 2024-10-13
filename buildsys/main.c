@@ -508,6 +508,7 @@ typedef struct {
     // Qemu
     bool gdb;
     bool cpumax;
+    bool telmonitor;
 } Build;
 void eat_arg(Build* b, size_t arg) {
     assert(b->argc);
@@ -527,6 +528,7 @@ bool bruh(Build* build);
 bool run_bochs(Build* build);
 bool bruh_bochs(Build* build);
 bool gdb(Build* build);
+bool telnet(Build* build);
 bool disasm(Build* build);
 
 Cmd commands[] = {
@@ -537,6 +539,7 @@ Cmd commands[] = {
    { .name = "run_bochs"  , .run=run_bochs  , .desc="(EXPERIMENTAL) Run iso using bochs"       },
    { .name = "bruh_bochs" , .run=bruh_bochs , .desc="(EXPERIMENTAL) Build+Run iso using bochs" },
    { .name = "gdb"        , .run=gdb        , .desc="Run gdb"                                  },
+   { .name = "telnet"     , .run=telnet     , .desc="Run telnet"                               },
    { .name = "disasm"     , .run=disasm     , .desc="Disassemble kernel source code"           },
 };
 
@@ -670,6 +673,9 @@ bool build(Build* build) {
     if(!make_iso()) return false;
     return true;
 }
+#define TELNET_PORT 1235
+#define _STRINGIFY(x) # x
+#define STRINGIFY(x) _STRINGIFY(x)
 bool run(Build* build) {
     Nob_Cmd cmd = {0};
     nob_cmd_append(
@@ -697,6 +703,12 @@ bool run(Build* build) {
             "-S", "-s"
         );
     }
+    if(build->telmonitor) {
+        nob_cmd_append(
+            &cmd,
+            "-monitor","telnet:127.0.0.1:" STRINGIFY(TELNET_PORT) ",server,nowait",
+        );
+    }
 
     if (!nob_cmd_run_sync(cmd)) {
         nob_cmd_free(cmd);
@@ -714,6 +726,22 @@ bool gdb(Build* build) {
         "-ex", "symbol-file ./bin/iso/kernel",
         "-ex", "target remote :1234",
         "-ex", "set disassembly-flavor intel"
+    );
+    if (!nob_cmd_run_sync(cmd)) {
+        nob_cmd_free(cmd);
+        return false;
+    }
+    nob_cmd_free(cmd);
+    return true;
+}
+
+bool telnet(Build* build) {
+    Nob_Cmd cmd = {0};
+    nob_cmd_append(
+        &cmd,
+        "telnet",
+        "127.0.0.1",
+        STRINGIFY(TELNET_PORT),
     );
     if (!nob_cmd_run_sync(cmd)) {
         nob_cmd_free(cmd);
@@ -785,6 +813,12 @@ int main(int argc, char** argv) {
             build.cpumax = true;
         } else if (strcmp(arg, "-f") == 0) {
             build.forced = true;
+        } else if (
+            strcmp(arg, "-tm") == 0 ||
+            strcmp(arg, "-telnet") == 0 ||
+            strcmp(arg, "-telmonitor") == 0
+        ) {
+            build.telmonitor = true;
         } else {
             nob_log(NOB_ERROR, "Unknown argument: %s", arg);
             return 1;
