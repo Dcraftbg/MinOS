@@ -18,6 +18,7 @@ Process* kernel_process_add() {
          memset(process, 0, sizeof(*process));
          process->main_threadid = INVALID_TASK_ID;
          process->id = kernel.processid++;
+         list_init(&process->heap_list);
          list_init(&process->list);
          list_append(&process->list, &kernel.processes);
     }
@@ -25,6 +26,12 @@ Process* kernel_process_add() {
 } 
 void process_drop(Process* process) {
     if(process->resources) resourceblock_dealloc(process->resources);
+    Heap* heap = (Heap*)process->heap_list.next;
+    while(&heap->list != &process->heap_list) {
+        Heap* next_heap = (Heap*)heap->list.next;
+        heap_destroy(heap);
+        heap = next_heap;
+    }
     cache_dealloc(kernel.process_cache, process);
 }
 

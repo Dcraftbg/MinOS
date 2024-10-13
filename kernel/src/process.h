@@ -4,6 +4,7 @@
 #include "page.h"
 #include "resource.h"
 #include <stddef.h>
+#include "heap.h"
 
 typedef struct {
     size_t bytelen; // Calculated using argv[0..argc].sum(arg.len());
@@ -27,6 +28,8 @@ typedef struct {
     ResourceBlock* resources;
     uint64_t flags;
     int64_t exit_code;
+    size_t heapid; // Current heapid count
+    struct list heap_list;
 } Process;
 
 void init_processes();

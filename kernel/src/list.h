@@ -1,5 +1,6 @@
 #pragma once
 #include <stddef.h>
+#include <stdbool.h>
 // NOTE: This implementation is a slightly modified version of that of the linux kernel itself.
 // https://github.com/torvalds/linux/blob/b1bc554e009e3aeed7e4cfd2e717c7a34a98c683/tools/firewire/list.h
 //
@@ -41,6 +42,9 @@ static void list_move(struct list *to, struct list *what) {
     to->next->prev = to;
     what->next = what;
     what->prev = what;
+}
+static bool list_empty(struct list *list) {
+    return list->next == list;
 }
 static size_t list_len(struct list *list) {
     size_t n = 0;

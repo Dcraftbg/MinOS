@@ -67,6 +67,8 @@ intptr_t sys_fork() {
 #endif
     intptr_t e;
     Process* current_proc = current_process();
+    // TODO: Maybe put in a separate function like:
+    // process_clone_image()
     Process* process = kernel_process_add();
     if(!process) return -LIMITS; // Reached max tasks and/or we're out of memory
     process->resources = resourceblock_clone(current_proc->resources);
@@ -74,6 +76,17 @@ intptr_t sys_fork() {
         process_drop(process);
         return -NOT_ENOUGH_MEM;
     }
+    Heap* heap = (Heap*)current_proc->heap_list.next;
+    while(&heap->list != &current_proc->heap_list) {
+        Heap* nh = heap_clone(heap);
+        if(!nh) {
+            process_drop(process);
+            return -NOT_ENOUGH_MEM;
+        }
+        list_append(&nh->list, &process->heap_list);
+    }
+    process->heapid = current_proc->heapid;
+
 
     Task* current = current_task();
     Task* task = kernel_task_add();
