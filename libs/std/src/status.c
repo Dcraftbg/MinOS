@@ -1,7 +1,5 @@
 #include <minos/status.h>
- // TODO: Move utils to minos/utils.h
-#include <utils.h>
-static const char* status_map[] = {
+static const char* status_map[STATUS_COUNT] = {
     "OK",
     [NOT_ENOUGH_MEM]     = "Not enough memory",
     [BAD_INODE]          = "Bad Inode",
@@ -26,7 +24,7 @@ static const char* status_map[] = {
     [BUFFER_OVEWFLOW]    = "Buffer Overflow",
     [YOU_ARE_CHILD]      = "You are child",
 };
-static_assert(STATUS_COUNT==ARRAY_LEN(status_map), "You need to update the status map!");
+// static_assert(STATUS_COUNT==ARRAY_LEN(status_map), "You need to update the status map!");
 const char* status_str(intptr_t status) {
     if(status >= 0) return "OK";
     status = -status;

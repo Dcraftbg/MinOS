@@ -3,6 +3,7 @@
 #include <stddef.h>
 #include <minos/status.h>
 #include "list.h"
+#include "utils.h"
 typedef intptr_t off_t;
 typedef enum {
     INODE_DIR,

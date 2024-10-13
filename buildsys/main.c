@@ -51,8 +51,7 @@
     "-mno-sse", "-mno-sse2",\
     "-mno-3dnow",\
     "-fPIC",\
-    "-I", "libs/std/include",\
-    "-I", "kernel/src"
+    "-I", "libs/std/include",
 #define LDFLAGS "-g"
 
 const char* get_ext(const char* path) {
@@ -82,13 +81,13 @@ char* shift_args(int *argc, char ***argv) {
     return arg;
 }
 const char* strip_prefix(const char* str, const char* prefix) {
-     size_t len = strlen(prefix);
-     if(strncmp(str, prefix, strlen(prefix))==0) return str+len;
-     return NULL;
+    size_t len = strlen(prefix);
+    if(strncmp(str, prefix, strlen(prefix))==0) return str+len;
+    return NULL;
 }
 bool nob_mkdir_if_not_exists_silent(const char *path) {
-     if(nob_file_exists(path)) return true;
-     return nob_mkdir_if_not_exists(path);
+    if(nob_file_exists(path)) return true;
+    return nob_mkdir_if_not_exists(path);
 }
 bool make_build_dirs() {
     if(!nob_mkdir_if_not_exists_silent("./bin"             )) return false;
@@ -96,6 +95,7 @@ bool make_build_dirs() {
     if(!nob_mkdir_if_not_exists_silent("./bin/std"         )) return false;
     if(!nob_mkdir_if_not_exists_silent("./bin/iso"         )) return false;
     if(!nob_mkdir_if_not_exists_silent("./bin/user"        )) return false;
+    if(!nob_mkdir_if_not_exists_silent("./bin/user/libc"   )) return false;
     if(!nob_mkdir_if_not_exists_silent("./bin/user/nothing")) return false;
     if(!nob_mkdir_if_not_exists_silent("./bin/user/init"   )) return false;
     if(!nob_mkdir_if_not_exists_silent("./bin/user/shell"  )) return false;
@@ -103,39 +103,39 @@ bool make_build_dirs() {
     return true;
 }
 bool remove_objs(const char* dirpath) {
-   DIR *dir = opendir(dirpath);
-   if (dir == NULL) {
-       nob_log(NOB_ERROR, "Could not open directory %s: %s",dirpath,strerror(errno));
-       return false;
-   }
-   errno = 0;
-   struct dirent *ent = readdir(dir);
-   while(ent != NULL) {
-        const char* fext = get_ext(ent->d_name);
-        const char* path = nob_temp_sprintf("%s/%s",dirpath,ent->d_name); 
-        Nob_File_Type type = nob_get_file_type(path);
-        if(strcmp(fext, "o")==0) {
-            if(type == NOB_FILE_REGULAR) {
-               if(!nob_delete_file(path)) {
-                  closedir(dir);
-                  return false;
-               }
-            }
-        }
-        if (type == NOB_FILE_DIRECTORY) {
-            Nob_String_Builder sb = {0};
-            nob_sb_append_cstr(&sb, path);
-            nob_sb_append_null(&sb);
-            if(!remove_objs(sb.items)) {
-                nob_sb_free(sb);
-                return false;
-            }
-            nob_sb_free(sb);
-        }
-        ent = readdir(dir);
-   }
-   if (dir) closedir(dir);
-   return true;
+    DIR *dir = opendir(dirpath);
+    if (dir == NULL) {
+        nob_log(NOB_ERROR, "Could not open directory %s: %s",dirpath,strerror(errno));
+        return false;
+    }
+    errno = 0;
+    struct dirent *ent = readdir(dir);
+    while(ent != NULL) {
+         const char* fext = get_ext(ent->d_name);
+         const char* path = nob_temp_sprintf("%s/%s",dirpath,ent->d_name); 
+         Nob_File_Type type = nob_get_file_type(path);
+         if(strcmp(fext, "o")==0) {
+             if(type == NOB_FILE_REGULAR) {
+                if(!nob_delete_file(path)) {
+                   closedir(dir);
+                   return false;
+                }
+             }
+         }
+         if (type == NOB_FILE_DIRECTORY) {
+             Nob_String_Builder sb = {0};
+             nob_sb_append_cstr(&sb, path);
+             nob_sb_append_null(&sb);
+             if(!remove_objs(sb.items)) {
+                 nob_sb_free(sb);
+                 return false;
+             }
+             nob_sb_free(sb);
+         }
+         ent = readdir(dir);
+    }
+    if (dir) closedir(dir);
+    return true;
 }
 bool clean() {
     if(nob_file_exists("./bin/kernel")) {
@@ -260,8 +260,8 @@ bool cc_user(const char* ipath, const char* opath) {
     Nob_Cmd cmd = {0};
     nob_cmd_append(&cmd, GCC);
     nob_cmd_append(&cmd, USER_CFLAGS);
-    nob_cmd_append(&cmd, "-I", "./kernel/vendor/limine");
     nob_cmd_append(&cmd, "-I", "./kernel/vendor/stb");
+    nob_cmd_append(&cmd, "-I", "./user/libc/include");
     nob_cmd_append(&cmd, "-c", ipath, "-o", opath);
     if(!nob_cmd_run_sync(cmd)) {
        nob_cmd_free(cmd);
@@ -289,73 +289,89 @@ bool nasm(const char* ipath, const char* opath) {
     nob_cmd_free(cmd);
     return true;
 }
-bool _build_kernel_dir(const char* rootdir, const char* build_dir, const char* srcdir, bool forced) {
-   bool result = true;
-   Nob_String_Builder opath = {0};
-   DIR *dir = opendir(srcdir);
-   if (dir == NULL) {
-       nob_log(NOB_ERROR, "Could not open directory %s: %s",srcdir,strerror(errno));
-       return false;
-   }
-   errno = 0;
-   struct dirent *ent = readdir(dir);
-   while(ent != NULL) {
-        const char* fext = get_ext(ent->d_name);
-        const char* path = nob_temp_sprintf("%s/%s",srcdir,ent->d_name); 
-        Nob_File_Type type = nob_get_file_type(path);
+typedef struct {
+    // Build .c -> .o
+    bool (*cc  )(const char* ipath, const char* opath);
+    bool (*nasm)(const char* ipath, const char* opath);
+} BuildFuncs;
+BuildFuncs kernel_funcs = {
+    .cc=cc,
+    .nasm=nasm
+};
+BuildFuncs user_funcs = {
+    .cc=cc_user,
+    .nasm=NULL,
+};
+bool _build_dir(BuildFuncs* funcs, const char* rootdir, const char* build_dir, const char* srcdir, bool forced) {
+    bool result = true;
+    Nob_String_Builder opath = {0};
+    DIR *dir = opendir(srcdir);
+    if (dir == NULL) {
+        nob_log(NOB_ERROR, "Could not open directory %s: %s",srcdir,strerror(errno));
+        return false;
+    }
+    errno = 0;
+    struct dirent *ent = readdir(dir);
+    while(ent != NULL) {
+         const char* fext = get_ext(ent->d_name);
+         const char* path = nob_temp_sprintf("%s/%s",srcdir,ent->d_name); 
+         Nob_File_Type type = nob_get_file_type(path);
 
-        if(type == NOB_FILE_REGULAR) {
-           if(strcmp(fext, "c")==0) {
-               opath.count = 0;
-               nob_sb_append_cstr(&opath, build_dir);
-               nob_sb_append_cstr(&opath, "/");
-               const char* file = strip_prefix(path, rootdir)+1;
-               Nob_String_View sv = nob_sv_from_cstr(file);
-               sv.count-=2; // Remove .c
-               nob_sb_append_buf(&opath,sv.data,sv.count);
-               nob_sb_append_cstr(&opath, ".o");
-               nob_sb_append_null(&opath);
-               if((!nob_file_exists(opath.items)) || nob_needs_rebuild1(opath.items,path) || forced) {
-                   if(!cc(path,opath.items)) nob_return_defer(false);
-               }
-           } else if(strcmp(fext, "nasm") == 0) {
-               opath.count = 0;
-               nob_sb_append_cstr(&opath, build_dir);
-               nob_sb_append_cstr(&opath, "/");
-               const char* file = strip_prefix(path, rootdir)+1;
-               Nob_String_View sv = nob_sv_from_cstr(file);
-               sv.count-=5; // Remove .nasm
-               nob_sb_append_buf(&opath,sv.data,sv.count);
-               nob_sb_append_cstr(&opath, ".o");
-               nob_sb_append_null(&opath);
-               if((!nob_file_exists(opath.items)) || nob_needs_rebuild1(opath.items,path) || forced) {
-                   if(!nasm(path,opath.items)) nob_return_defer(false);
-               }
-           }
-        }
-        if (type == NOB_FILE_DIRECTORY && strcmp(ent->d_name, ".") != 0 && strcmp(ent->d_name, "..") != 0) {
-         
-           opath.count = 0;
-           nob_sb_append_cstr(&opath, build_dir);
-           nob_sb_append_cstr(&opath, "/");
-           nob_sb_append_cstr(&opath, strip_prefix(path, rootdir)+1);
-           nob_sb_append_null(&opath);
-           if(!nob_mkdir_if_not_exists_silent(opath.items)) nob_return_defer(false);
-           opath.count = 0;
-           nob_sb_append_cstr(&opath, path);
-           nob_sb_append_null(&opath);
-           if(!_build_kernel_dir(rootdir, build_dir, opath.items, forced)) nob_return_defer(false);
-        }
-        ent = readdir(dir);
-   }
+         if(type == NOB_FILE_REGULAR) {
+            if(strcmp(fext, "c")==0) {
+                opath.count = 0;
+                nob_sb_append_cstr(&opath, build_dir);
+                nob_sb_append_cstr(&opath, "/");
+                const char* file = strip_prefix(path, rootdir)+1;
+                Nob_String_View sv = nob_sv_from_cstr(file);
+                sv.count-=2; // Remove .c
+                nob_sb_append_buf(&opath,sv.data,sv.count);
+                nob_sb_append_cstr(&opath, ".o");
+                nob_sb_append_null(&opath);
+                if((!nob_file_exists(opath.items)) || nob_needs_rebuild1(opath.items,path) || forced) {
+                    if(!funcs->cc(path,opath.items)) nob_return_defer(false);
+                }
+            } else if(strcmp(fext, "nasm") == 0) {
+                opath.count = 0;
+                nob_sb_append_cstr(&opath, build_dir);
+                nob_sb_append_cstr(&opath, "/");
+                const char* file = strip_prefix(path, rootdir)+1;
+                Nob_String_View sv = nob_sv_from_cstr(file);
+                sv.count-=5; // Remove .nasm
+                nob_sb_append_buf(&opath,sv.data,sv.count);
+                nob_sb_append_cstr(&opath, ".o");
+                nob_sb_append_null(&opath);
+                if((!nob_file_exists(opath.items)) || nob_needs_rebuild1(opath.items,path) || forced) {
+                    if(!funcs->nasm(path,opath.items)) nob_return_defer(false);
+                }
+            }
+         }
+         if (type == NOB_FILE_DIRECTORY && strcmp(ent->d_name, ".") != 0 && strcmp(ent->d_name, "..") != 0) {
+          
+            opath.count = 0;
+            nob_sb_append_cstr(&opath, build_dir);
+            nob_sb_append_cstr(&opath, "/");
+            nob_sb_append_cstr(&opath, strip_prefix(path, rootdir)+1);
+            nob_sb_append_null(&opath);
+            if(!nob_mkdir_if_not_exists_silent(opath.items)) nob_return_defer(false);
+            opath.count = 0;
+            nob_sb_append_cstr(&opath, path);
+            nob_sb_append_null(&opath);
+            if(!_build_dir(funcs, rootdir, build_dir, opath.items, forced)) nob_return_defer(false);
+         }
+         ent = readdir(dir);
+    }
 defer:
-   if (dir) closedir(dir);
-   if (opath.items) nob_sb_free(opath);
-   return result;
+    if (dir) closedir(dir);
+    if (opath.items) nob_sb_free(opath);
+    return result;
 }
 
 static bool build_kernel_dir(const char* rootdir, const char* build_dir, bool forced) {
-   return _build_kernel_dir(rootdir, build_dir, rootdir, forced);
+    return _build_dir(&kernel_funcs, rootdir, build_dir, rootdir, forced);
+}
+static bool build_user_dir(const char* rootdir, const char* build_dir, bool forced) {
+    return _build_dir(&user_funcs, rootdir, build_dir, rootdir, forced); 
 }
 bool build_std(bool forced) {
     if(!build_kernel_dir("./libs/std/src", "./bin/std"   , forced)) return false;
@@ -579,8 +595,8 @@ bool simple_link(const char* obj, const char* result, const char* link_script) {
     nob_log(NOB_INFO, "Linked %s",result);
     return true;
 }
-// TODO: Usermode CC
 
+#define LIBCDIR "./bin/user/libc/"
 bool build_nothing() {
     #define BINDIR "./bin/user/nothing/"
     #define SRCDIR "./user/nothing/"
@@ -598,6 +614,10 @@ bool build_init() {
     Nob_File_Paths paths = {0};
     nob_da_append(&paths, BINDIR "init.o");
     if(!find_objs(LIBDIR, &paths)) {
+        nob_da_free(paths);
+        return false;
+    }
+    if(!find_objs(LIBCDIR, &paths)) {
         nob_da_free(paths);
         return false;
     }
@@ -619,6 +639,10 @@ bool build_hello() {
     Nob_File_Paths paths = {0};
     nob_da_append(&paths, BINDIR "hello.o");
     if(!find_objs(LIBDIR, &paths)) {
+        nob_da_free(paths);
+        return false;
+    }
+    if(!find_objs(LIBCDIR, &paths)) {
         nob_da_free(paths);
         return false;
     }
@@ -644,6 +668,10 @@ bool build_shell() {
         nob_da_free(paths);
         return false;
     }
+    if(!find_objs(LIBCDIR, &paths)) {
+        nob_da_free(paths);
+        return false;
+    }
     if(!ld(&paths, BINDIR "shell"  , "./user/shell/link.ld")) {
         nob_da_free(paths);
         return false;
@@ -654,7 +682,19 @@ bool build_shell() {
     #undef LIBDIR
     return true;
 }
+
+bool build_libc() {
+    #define BINDIR "./bin/user/libc/"
+    #define SRCDIR "./user/libc/src/"
+    #define LIBDIR "./bin/std/"
+    if(!build_user_dir(SRCDIR, BINDIR, true)) return false; 
+    #undef BINDIR
+    #undef SRCDIR
+    #undef LIBDIR
+    return true;
+}
 bool build_user() {
+    if(!build_libc()) return false;
     if(!build_nothing()) return false;
     if(!build_init()) return false;
     if(!build_shell()) return false;

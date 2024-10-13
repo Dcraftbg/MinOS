@@ -15,11 +15,8 @@ const uintptr_t stdin = 0;
 #define PRINTF_TMP 1024
 static char tmp_printf[PRINTF_TMP]={0};
 
-size_t strlen(const char* cstr) {
-    const char* head = cstr;
-    while(*head) head++;
-    return head-cstr;
-}
+#include <string.h>
+
 void printf(const char* fmt, ...) __attribute__((format(printf,1, 2)));
 void printf(const char* fmt, ...) {
     va_list va;

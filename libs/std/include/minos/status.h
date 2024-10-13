@@ -1,7 +1,6 @@
 #pragma once
 #include <stdint.h>
 #include <stddef.h> // NULL
-#include "utils.h"
 enum {
    NOT_ENOUGH_MEM=1,
    BAD_INODE,
