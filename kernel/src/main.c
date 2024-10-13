@@ -68,8 +68,9 @@ static void do_probe() {
 #endif
 
 #include "fbwriter.h"
+#ifdef PROGRESS_BAR
 #define TOTAL_STEPS 23 
-void update_bar(size_t at, const char* msg) {
+static void update_bar(size_t at, const char* msg) {
     Framebuffer fb = get_framebuffer_by_id(0);
     if(fb.addr) {
         size_t height = 10;
@@ -88,25 +89,14 @@ void update_bar(size_t at, const char* msg) {
     }
 }
 size_t step=0;
+#else
+#define update_bar(at, msg)
+#endif
 void _start() {
 
     disable_interrupts();
     BREAKPOINT();
 
-    FbTextWriter writer = {
-        .fb = get_framebuffer_by_id(0),
-        .x = 0,
-        .y = 0,
-    };
-    fbwriter_draw_cstr_default(
-        &writer,
-        "IDT & GDT: " 
-#ifdef GLOBAL_STORAGE_GDT_IDT
-        "Global Storage"
-#else 
-        "Heap"
-#endif
-    );
     update_bar(step++, "serial_init");
     serial_init();
 
