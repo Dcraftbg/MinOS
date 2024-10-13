@@ -132,3 +132,34 @@ ssize_t vfprintf(FILE* f, const char* fmt, va_list va) {
 static ssize_t _fwrite_base_func(void* user, const char* data, size_t len) {
     return write((uintptr_t)user, data, len);
 }
+
+// TODO: Set error
+size_t fread(void* buffer, size_t size, size_t count, FILE* f) {
+    if(size == 0 || count == 0) return 0;
+    ssize_t e = read((uintptr_t)f, buffer, size*count);
+    if(e < 0) return 0;
+    return e/size;
+}
+
+// TODO: Set error
+size_t fwrite(const void* restrict buffer, size_t size, size_t count, FILE* restrict f) {
+    if(size == 0 || count == 0) return 0;
+    ssize_t e = write((uintptr_t)f, buffer, size*count);
+    if(e < 0) return 0;
+    return e/size;
+}
+
+// TODO: Error check
+int fgetc(FILE* f) {
+    char c;
+    fread(&c, sizeof(c), 1, f);
+    return c;
+}
+
+#include <string.h>
+// TODO: Error check
+int fputs(const char* restrict str, FILE* restrict stream) {
+    fwrite(str, strlen(str), 1, stream);
+    return 0;
+}
+
