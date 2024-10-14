@@ -27,7 +27,7 @@ static inline void list_insert(struct list *new, struct list *link) {
     new->next->prev = new;
 }
 static void list_append(struct list *new, struct list *into) {
-    list_insert(new, into);
+    list_insert(new, into->next);
 }
 static void list_remove(struct list *list) {
     list->prev->next = list->next;
