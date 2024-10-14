@@ -45,3 +45,11 @@ Process* get_process_by_id(size_t id) {
     }
     return NULL;
 }
+
+Heap* get_heap_by_id(Process* process, size_t heapid) {
+    for(struct list* head = process->heap_list.next; head != &process->heap_list; head = head->next) {
+        Heap* heap = (Heap*)head;
+        if(heap->id == heapid) return heap;
+    }
+    return NULL;
+}

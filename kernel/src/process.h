@@ -36,6 +36,7 @@ void init_processes();
 Process* kernel_process_add(); 
 void process_drop(Process* process);
 Process* get_process_by_id(size_t id);
+Heap* get_heap_by_id(Process* process, size_t heapid);
 
 static Process* current_process() {
     return get_process_by_id(kernel.current_processid);
