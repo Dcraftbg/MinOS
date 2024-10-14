@@ -45,6 +45,7 @@ Task* kernel_task_add() {
 }
 void drop_task(Task* task) {
     if(task) {
+        list_remove(&task->list);
         cache_dealloc(kernel.task_cache, task);
     }
 }

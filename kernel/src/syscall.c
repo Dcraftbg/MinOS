@@ -87,12 +87,13 @@ intptr_t sys_fork() {
         heap = (Heap*)heap->list.next;
     }
     process->heapid = current_proc->heapid;
-
-
     Task* current = current_task();
+
+    disable_interrupts();
     Task* task = kernel_task_add();
     if(!task) {
         process_drop(process);
+        enable_interrupts();
         return -LIMITS;
     } 
     process->main_threadid = task->id;
@@ -101,8 +102,10 @@ intptr_t sys_fork() {
     if((e=fork_trampoline(current, task)) < 0) {
         process_drop(process);
         drop_task(task);
+        enable_interrupts();
         return e;
     }
+    enable_interrupts();
     Task* now = current_task();
     if(now->id == task->id) {
         return -YOU_ARE_CHILD;
@@ -118,14 +121,18 @@ intptr_t sys_exec(const char* path, const char** argv, size_t argc) {
     Task* cur_task = current_task();
     assert(cur_task->processid     == cur_proc->id);
     assert(cur_proc->main_threadid == cur_task->id && "Exec on multiple threads is not supported yet");
+    disable_interrupts();
     Task* task = kernel_task_add();
-    if(!task) return -LIMITS;
+    if(!task) {
+        enable_interrupts();
+        return -LIMITS;
+    }
     task->processid = cur_proc->id;
     if((e=exec(task, path, create_args(argc, argv))) < 0) {
         drop_task(task);
+        enable_interrupts();
         return e;
     }
-    disable_interrupts();
     cur_task->image.flags &= ~(TASK_FLAG_PRESENT);
     cur_task->image.flags |= TASK_FLAG_DYING;
     cur_proc->main_threadid = cur_task->id;
