@@ -49,11 +49,17 @@ int main() {
     }
     printf("Allocated %p %zu bytes\n", addr, size);
     memcpy(addr, "Foo", 3);
+    printf("Deallocating %p\n", addr);
+    heap_deallocate(heap, addr);
+
     if((e=heap_allocate(heap, size, &addr)) < 0) {
         printf("ERROR: Could not allocate: %s\n", status_str(e));
     }
     printf("Allocated %p %zu bytes\n", addr, size);
     memcpy(addr, "Foo", 3);
+    printf("Deallocating %p\n", addr);
+    heap_deallocate(heap, addr);
+
     printf("> ");
     for(;;) {
         if((e=readline(linebuf, sizeof(linebuf)-1)) < 0) {
