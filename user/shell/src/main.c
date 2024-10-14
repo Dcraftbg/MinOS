@@ -31,6 +31,12 @@ char* trim_r(char* buf) {
 #define LINEBUF_MAX 1024
 int main() {
     printf("Started MinOS shell\n");
+    intptr_t heap = heap_create();
+    if(heap < 0) {
+        printf("ERROR: Failed to create heap: %s\n", status_str(heap));
+        return 1;
+    }
+    (void)heap;
     static char linebuf[LINEBUF_MAX];
     intptr_t e = 0;
     printf("> ");
