@@ -8,4 +8,5 @@ enum {
     SYS_EXEC,
     SYS_EXIT,
     SYS_WAITPID,
+    SYS_HEAP_CREATE,
 };

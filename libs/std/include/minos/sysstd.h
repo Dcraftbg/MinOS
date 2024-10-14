@@ -39,3 +39,7 @@ static void exit(int64_t code) {
 static intptr_t wait_pid(size_t pid) {
     return syscall1(SYS_WAITPID, pid);
 }
+
+static intptr_t heap_create() {
+    return syscall0(SYS_HEAP_CREATE);
+}

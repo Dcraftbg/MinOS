@@ -49,7 +49,7 @@ void memlist_add(struct list *list, MemoryList *new) {
         }
         head = (MemoryList*)head->list.next;
     }
-    list_append(&new->list, head->list.prev);
+    list_append(&new->list, &head->list);
 }
 MemoryList* memlist_find_available(struct list *list, MemoryRegion* result, size_t minsize_pages, size_t maxsize_pages) {
     MemoryList* head = (MemoryList*)list->next;

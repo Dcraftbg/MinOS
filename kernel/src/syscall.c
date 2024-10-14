@@ -84,6 +84,7 @@ intptr_t sys_fork() {
             return -NOT_ENOUGH_MEM;
         }
         list_append(&nh->list, &process->heap_list);
+        heap = (Heap*)heap->list.next;
     }
     process->heapid = current_proc->heapid;
 
@@ -156,4 +157,43 @@ intptr_t sys_waitpid(size_t pid) {
         // TODO: thread yield
         asm volatile("hlt");
     }
+}
+#define MIN_HEAP_PAGES 16
+#define MAX_HEAP_PAGES 64
+// FIXME: Possible problem with multiple tasks
+intptr_t sys_heap_create() {
+    Process* cur_proc = current_process();
+    Task* cur_task = current_task();
+    MemoryRegion* region = memregion_new(
+        MEMREG_WRITE,
+        KERNEL_PFLAG_USER | KERNEL_PTYPE_USER | KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_EXEC_DISABLE,
+        0,
+        0
+    );
+    if(!region) return -NOT_ENOUGH_MEM;
+    MemoryList* list = memlist_new(region);
+    if(!list) {
+        memregion_drop(region, NULL);
+        return -NOT_ENOUGH_MEM;
+    }
+    // FIXME: Region must be shared between all tasks and must be available in all tasks
+    MemoryList* insert_into = memlist_find_available(&cur_task->image.memlist, region, MIN_HEAP_PAGES, MAX_HEAP_PAGES);
+    if(!insert_into) {
+        memlist_dealloc(list, NULL);
+        return -NOT_ENOUGH_MEM;
+    }
+    Heap* heap = heap_new(cur_proc->heapid++, region->address, region->pages);
+    if(!heap) {
+        memlist_dealloc(list, NULL);
+        return -NOT_ENOUGH_MEM;
+    }
+    if(!page_alloc(cur_task->image.cr3, heap->address, heap->pages, region->pageflags)) {
+        heap_destroy(heap);
+        memlist_dealloc(list, NULL);
+        return -NOT_ENOUGH_MEM;
+    }
+    invalidate_full_page_table();
+    list_append(&heap->list, cur_proc->heap_list.prev);
+    list_append(&list->list, &insert_into->list);
+    return heap->id;
 }
