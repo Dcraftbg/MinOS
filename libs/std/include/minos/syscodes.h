@@ -9,4 +9,5 @@ enum {
     SYS_EXIT,
     SYS_WAITPID,
     SYS_HEAP_CREATE,
+    SYS_HEAP_ALLOCATE,
 };

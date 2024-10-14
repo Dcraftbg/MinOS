@@ -197,3 +197,15 @@ intptr_t sys_heap_create() {
     list_append(&list->list, &insert_into->list);
     return heap->id;
 }
+
+intptr_t sys_heap_allocate(size_t id, size_t size, void** result) {
+    Process* cur_proc = current_process();
+    Heap* heap = get_heap_by_id(cur_proc, id);
+    if(!heap) return -INVALID_HANDLE;
+    void* alloc = heap_allocate(heap, size);
+    if(alloc) {
+        *result = alloc;
+        return 0;
+    }
+    return -NOT_ENOUGH_MEM;
+}

@@ -43,3 +43,7 @@ static intptr_t wait_pid(size_t pid) {
 static intptr_t heap_create() {
     return syscall0(SYS_HEAP_CREATE);
 }
+static intptr_t heap_allocate(size_t id, size_t size, void** result) {
+    return syscall3(SYS_HEAP_ALLOCATE, id, size, result);
+}
+
