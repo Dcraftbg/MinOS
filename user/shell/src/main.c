@@ -156,7 +156,7 @@ void run_cmd(const char** argv, size_t argc) {
            if(e == NOT_FOUND) {
                printf("Could not find command `%s`\n", argv[0]);
            } else {
-               printf("%s exited with: %lu\n", argv[0], e);
+               printf("%s exited with: %d\n", argv[0], (int)e);
            }
         }
     } else {
@@ -164,16 +164,21 @@ void run_cmd(const char** argv, size_t argc) {
         exit(1);
     }
 }
+// Defined in MinOS libc.
+// Otherwise, include it in the current directory (TODO:)
+#include "strinternal.h"
 int main() {
     printf("Started MinOS shell\n");
     Arena arena={0};
     char* linebuf = malloc(LINEBUF_MAX);
     intptr_t e = 0;
-    printf("> ");
     assert(MAX_ARGS > 0);
     const char** args = malloc(MAX_ARGS*sizeof(*args));
     size_t arg_count=0;
-    for(;;) {
+    bool running = true;
+    int exit_code = 0;
+    while(running) {
+        printf("> ");
         arena_reset(&arena);
         arg_count=0;
         if((e=readline(linebuf, LINEBUF_MAX-1)) < 0) {
@@ -194,8 +199,26 @@ int main() {
             const char* arg = strip_arg(&arena, &line);
             args[arg_count++] = arg;
         }
-        run_cmd(args, arg_count);
-        printf("> ");
+        if(strcmp(cmd, "exit") == 0) {
+            running = false;
+            if (arg_count == 1) exit_code=0;
+            else if (arg_count == 2) {
+                const char* end;
+                exit_code = atoi_internal(args[1], &end);
+                if(end[0] != '\0') {
+                    fprintf(stderr, "Invalid exit code `%s`\n", args[1]);
+                    exit_code = 1;
+                    continue;
+                }
+            } else {
+                fprintf(stderr, "Too many arguments provided to `exit`\n");
+                continue;
+            }
+        } else {
+            run_cmd(args, arg_count);
+        }
     }
-    return 0;
+    arena_drop(&arena);
+    free(args);
+    return exit_code;
 }
