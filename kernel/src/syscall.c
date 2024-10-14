@@ -209,3 +209,11 @@ intptr_t sys_heap_allocate(size_t id, size_t size, void** result) {
     }
     return -NOT_ENOUGH_MEM;
 }
+
+intptr_t sys_heap_deallocate(size_t id, void* addr) {
+    Process* cur_proc = current_process();
+    Heap* heap = get_heap_by_id(cur_proc, id);
+    if(!heap) return -INVALID_HANDLE;
+    heap_deallocate(heap, addr);
+    return 0;
+}

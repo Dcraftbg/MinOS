@@ -10,6 +10,7 @@ extern sys_exit
 extern sys_waitpid
 extern sys_heap_create
 extern sys_heap_allocate
+extern sys_heap_deallocate
 %define KERNEL_UNSUPPORTED 7
 section .text
 global syscall_base
@@ -25,6 +26,7 @@ syscall_table:
    dq sys_waitpid
    dq sys_heap_create
    dq sys_heap_allocate
+   dq sys_heap_deallocate
 syscall_table_end:
 section .text
 syscall_base:

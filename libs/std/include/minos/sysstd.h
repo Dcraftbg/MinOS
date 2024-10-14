@@ -46,4 +46,6 @@ static intptr_t heap_create() {
 static intptr_t heap_allocate(size_t id, size_t size, void** result) {
     return syscall3(SYS_HEAP_ALLOCATE, id, size, result);
 }
-
+static intptr_t heap_deallocate(size_t id, void* addr) {
+    return syscall2(SYS_HEAP_DEALLOCATE, id, addr);
+}
