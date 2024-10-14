@@ -29,7 +29,7 @@ Heap* heap_new_empty(size_t id, uintptr_t address, size_t pages) {
 Heap* heap_new(size_t id, uintptr_t address, size_t pages) {
     Heap* heap = heap_new_empty(id, address, pages);
     if(!heap) return NULL;
-    Allocation* allocation = allocation_new(true, heap->pages*PAGE_SIZE, heap->address);
+    Allocation* allocation = allocation_new(true, heap->pages*PAGE_SIZE, 0);
     if(!allocation) {
         heap_destroy(heap);
         return NULL;
@@ -89,6 +89,7 @@ void* heap_allocate(Heap* heap, size_t size) {
                 return (void*)(heap->address+alloc->offset);
             }
         }
+        alloc = (Allocation*)alloc->list.next;
     }
     return NULL;
 }
@@ -109,5 +110,6 @@ void heap_deallocate(Heap* heap, void* addr) {
             }
             return;
         }
+        allocation = (Allocation*)allocation->list.next;
     }
 }
