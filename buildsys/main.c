@@ -18,9 +18,10 @@
 #include "../config.h"
 #include <stdint.h>
 #include "flags.h"
-#include "utils.c"
-#include "embed.c"
-#include "compile.c"
+#include "utils.h"
+#include "compile.h"
+#include "libc.h"
+#include "embed.h"
 
 #define LIBC_TARGET_DIR     "./bin/user/libc"
 #define LIBC_CRT_TARGET_DIR "./bin/user/crt"
@@ -265,18 +266,6 @@ bool simple_link(const char* obj, const char* result, const char* link_script) {
     }
     nob_cmd_free(cmd);
     nob_log(NOB_INFO, "Linked %s",result);
-    return true;
-}
-bool find_libc_core(Nob_File_Paths* paths) {
-    return find_objs(LIBC_TARGET_DIR, paths);
-}
-bool find_libc_crt(Nob_File_Paths* paths) {
-    return find_objs(LIBC_CRT_TARGET_DIR, paths);
-}
-bool find_libc(Nob_File_Paths* paths, bool with_crt) {
-    if(!find_libc_core(paths)) return false;
-    if(with_crt) 
-        if (!find_libc_crt(paths)) return false;
     return true;
 }
 bool build_nothing() {
@@ -567,3 +556,8 @@ int main(int argc, char** argv) {
     nob_log(NOB_ERROR, "Unknown subcommand %s", cmd);
     return 1;
 }
+
+#include "utils.c"
+#include "embed.c"
+#include "compile.c"
+#include "libc.c"
