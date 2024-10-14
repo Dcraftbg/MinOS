@@ -34,17 +34,6 @@ int main() {
     printf("Started MinOS shell\n");
     static char linebuf[LINEBUF_MAX];
     intptr_t e = 0;
-    size_t size=69;
-    void* buf=NULL;
-    buf = malloc(size);
-    printf("[malloc] Allocated %p\n", buf);
-    free(buf);
-    printf("[free] Deallocating %p\n", buf);
-    buf = malloc(size);
-    printf("[malloc] Allocated %p\n", buf);
-    printf("[free] Deallocating %p\n", buf);
-    free(buf);
-
     printf("> ");
     for(;;) {
         if((e=readline(linebuf, sizeof(linebuf)-1)) < 0) {
