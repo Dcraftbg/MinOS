@@ -186,7 +186,7 @@ int main() {
         if(line[0] == '\0') continue;
         const char* cmd = strip_cmd(&arena, &line);
         args[arg_count++] = cmd;
-        while(line[0]) {
+        while((line=trim_l(line))[0]) {
             if(arg_count == MAX_ARGS) {
                 printf("Forbidden: Maximum argument count reached\n");
                 continue;
