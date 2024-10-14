@@ -36,9 +36,24 @@ int main() {
         printf("ERROR: Failed to create heap: %s\n", status_str(heap));
         return 1;
     }
+    void* addr;
+    size_t size;
+    size=69;
+
     (void)heap;
     static char linebuf[LINEBUF_MAX];
     intptr_t e = 0;
+
+    if((e=heap_allocate(heap, size, &addr)) < 0) {
+        printf("ERROR: Could not allocate: %s\n", status_str(e));
+    }
+    printf("Allocated %p %zu bytes\n", addr, size);
+    memcpy(addr, "Foo", 3);
+    if((e=heap_allocate(heap, size, &addr)) < 0) {
+        printf("ERROR: Could not allocate: %s\n", status_str(e));
+    }
+    printf("Allocated %p %zu bytes\n", addr, size);
+    memcpy(addr, "Foo", 3);
     printf("> ");
     for(;;) {
         if((e=readline(linebuf, sizeof(linebuf)-1)) < 0) {
