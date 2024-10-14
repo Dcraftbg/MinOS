@@ -1,3 +1,4 @@
+#include "flags.h"
 // TODO: cc but async
 bool cc(const char* ipath, const char* opath) {
     Nob_Cmd cmd = {0};
@@ -14,6 +15,45 @@ bool cc(const char* ipath, const char* opath) {
     return true;
 }
 
+bool simple_link(const char* obj, const char* result, const char* link_script) {
+    nob_log(NOB_INFO, "Linking %s",obj);
+    Nob_Cmd cmd = {0};
+    nob_cmd_append(&cmd, LD);
+#ifdef LDFLAGS
+    nob_cmd_append(&cmd, LDFLAGS);
+#endif
+    nob_cmd_append(&cmd, "-T", link_script, "-o", result);
+    nob_cmd_append(&cmd, obj);
+    if(!nob_cmd_run_sync(cmd)) {
+        nob_cmd_free(cmd);
+        return false;
+    }
+    nob_cmd_free(cmd);
+    nob_log(NOB_INFO, "Linked %s",result);
+    return true;
+}
+bool ld(Nob_File_Paths* paths, const char* opath, const char* ldscript) {
+    nob_log(NOB_INFO, "Linking %s",opath);
+    Nob_Cmd cmd = {0};
+    nob_cmd_append(&cmd, LD);
+#ifdef LDFLAGS
+    nob_cmd_append(&cmd, LDFLAGS);
+#endif
+    if(ldscript) {
+        nob_cmd_append(&cmd, "-T", ldscript);
+    }
+    nob_cmd_append(&cmd, "-o", opath);
+    for(size_t i = 0; i < paths->count; ++i) {
+        nob_cmd_append(&cmd, paths->items[i]);
+    }
+    if(!nob_cmd_run_sync(cmd)) {
+        nob_cmd_free(cmd);
+        return false;
+    }
+    nob_cmd_free(cmd);
+    nob_log(NOB_INFO, "Linked %s successfully", opath);
+    return true;
+}
 // TODO: cc but async
 bool cc_user(const char* ipath, const char* opath) {
     Nob_Cmd cmd = {0};

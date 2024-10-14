@@ -17,28 +17,34 @@
 #include "../nob.h"
 #include "../config.h"
 #include <stdint.h>
+typedef struct {
+    char* exe;
+    int argc;
+    char** argv;
+    // Building
+    bool forced;
+    // Qemu
+    bool gdb;
+    bool cpumax;
+    bool telmonitor;
+} Build;
 #include "flags.h"
 #include "utils.h"
 #include "compile.h"
 #include "libc.h"
 #include "embed.h"
+#include "build/make_dirs.h"
+#include "build/crt.h"
+#include "build/libc.h"
+#include "build/hello.h"
+#include "build/shell.h"
+#include "build/nothing.h"
+#include "build/std.h"
+#include "build/kernel.h"
+#include "build/init.h"
+#include "user.h"
+#include "link_kernel.h"
 
-#define LIBC_TARGET_DIR     "./bin/user/libc"
-#define LIBC_CRT_TARGET_DIR "./bin/user/crt"
-bool make_build_dirs() {
-    if(!nob_mkdir_if_not_exists_silent("./bin"             )) return false;
-    if(!nob_mkdir_if_not_exists_silent("./bin/kernel"      )) return false;
-    if(!nob_mkdir_if_not_exists_silent("./bin/std"         )) return false;
-    if(!nob_mkdir_if_not_exists_silent("./bin/iso"         )) return false;
-    if(!nob_mkdir_if_not_exists_silent("./bin/user"        )) return false;
-    if(!nob_mkdir_if_not_exists_silent(LIBC_TARGET_DIR     )) return false;
-    if(!nob_mkdir_if_not_exists_silent(LIBC_CRT_TARGET_DIR )) return false;
-    if(!nob_mkdir_if_not_exists_silent("./bin/user/nothing")) return false;
-    if(!nob_mkdir_if_not_exists_silent("./bin/user/init"   )) return false;
-    if(!nob_mkdir_if_not_exists_silent("./bin/user/shell"  )) return false;
-    if(!nob_mkdir_if_not_exists_silent("./bin/user/hello"  )) return false;
-    return true;
-}
 bool clean() {
     if(nob_file_exists("./bin/kernel")) {
         if (!remove_objs("./bin/kernel")) return false;
@@ -46,16 +52,6 @@ bool clean() {
     return true;
 }
 
-bool build_std(bool forced) {
-    if(!build_kernel_dir("./libs/std/src", "./bin/std"   , forced)) return false;
-    nob_log(NOB_INFO, "Built std successfully");
-    return true;
-}
-bool build_kernel(bool forced) {
-    if(!build_kernel_dir("./kernel/src"  , "./bin/kernel", forced)) return false;
-    nob_log(NOB_INFO, "Built kernel successfully");
-    return true;
-}
 bool make_iso() {
     Nob_Cmd cmd = {0};
     nob_cmd_append(
@@ -80,104 +76,6 @@ bool make_iso() {
     nob_cmd_free(cmd);
     return true;
 }
-bool find_objs(const char* dirpath, Nob_File_Paths *paths) {
-    Nob_String_Builder sb={0};
-    bool result = true;
-    DIR *dir = NULL;
-
-    dir = opendir(dirpath);
-    if (dir == NULL) {
-        nob_log(NOB_ERROR, "Could not open directory %s: %s", dirpath, strerror(errno));
-        nob_return_defer(false);
-    }
-
-    errno = 0;
-    struct dirent *ent = readdir(dir);
-    while (ent != NULL) {
-        const char* ent_d_name = nob_temp_strdup(ent->d_name);
-        const char* fext = get_ext(ent_d_name);
-        const char* path = nob_temp_sprintf("%s/%s",dirpath,ent_d_name);
-        Nob_File_Type type = nob_get_file_type(path);
-        
-        if(fext && strcmp(fext, "o") == 0) {
-            if(type == NOB_FILE_REGULAR) {
-                nob_da_append(paths,path);
-            }
-        }
-        if (type == NOB_FILE_DIRECTORY) {
-            if(strcmp(ent_d_name, ".") != 0 && strcmp(ent_d_name, "..") != 0) {
-                sb.count = 0;
-                nob_sb_append_cstr(&sb,nob_temp_sprintf("%s/%s",dirpath,ent_d_name));
-                nob_sb_append_null(&sb);
-                if(!find_objs(sb.items, paths)) nob_return_defer(false);
-            }
-        }
-        ent = readdir(dir);
-    }
-
-    if (errno != 0) {
-        nob_log(NOB_ERROR, "Could not read directory %s: %s", dirpath, strerror(errno));
-        nob_return_defer(false);
-    }
-
-defer:
-    if (dir) closedir(dir);
-    nob_sb_free(sb);
-    return result;
-}
-bool ld(Nob_File_Paths* paths, const char* opath, const char* ldscript) {
-    nob_log(NOB_INFO, "Linking %s",opath);
-    Nob_Cmd cmd = {0};
-    nob_cmd_append(&cmd, LD);
-#ifdef LDFLAGS
-    nob_cmd_append(&cmd, LDFLAGS);
-#endif
-    if(ldscript) {
-        nob_cmd_append(&cmd, "-T", ldscript);
-    }
-    nob_cmd_append(&cmd, "-o", opath);
-    for(size_t i = 0; i < paths->count; ++i) {
-        nob_cmd_append(&cmd, paths->items[i]);
-    }
-    if(!nob_cmd_run_sync(cmd)) {
-        nob_cmd_free(cmd);
-        return false;
-    }
-    nob_cmd_free(cmd);
-    nob_log(NOB_INFO, "Linked %s successfully", opath);
-    return true;
-}
-bool link_kernel() {
-    Nob_File_Paths paths = {0};
-    if(!find_objs("./bin/kernel",&paths)) {
-        nob_da_free(paths);
-        return false;
-    }
-
-    if(!find_objs("./bin/std",&paths)) {
-        nob_da_free(paths);
-        return false;
-    }
-    if(!ld(&paths, "./bin/iso/kernel", "./linker/link.ld")) {
-        nob_da_free(paths);
-        return false;
-    }
-    nob_da_free(paths);
-    return true;
-}
-bool _copy_all_to(const char* to, const char** paths, size_t paths_count) {
-    for(size_t i = 0; i < paths_count; ++i) {
-        const char* path = nob_temp_sprintf("%s/%s",to,get_base(paths[i]));
-        if(!nob_file_exists(path) || nob_needs_rebuild1(path,paths[i])) {
-            if(!nob_copy_file(paths[i],path)) return false;
-        }
-    }
-    return true;
-}
-#define copy_all_to(to, ...) \
-    _copy_all_to((to), \
-                 ((const char*[]){__VA_ARGS__}), \
-                 (sizeof((const char*[]){__VA_ARGS__})/sizeof(const char*)))
 bool make_limine() {
     if(!copy_all_to(
         "./bin/iso",
@@ -187,23 +85,6 @@ bool make_limine() {
     )) return false;
     nob_log(NOB_INFO, "Copied limine");
     return true;
-}
-typedef struct {
-    char* exe;
-    int argc;
-    char** argv;
-    // Building
-    bool forced;
-    // Qemu
-    bool gdb;
-    bool cpumax;
-    bool telmonitor;
-} Build;
-void eat_arg(Build* b, size_t arg) {
-    assert(b->argc);
-    assert(arg < b->argc);
-    size_t total = b->argc--;
-    memmove(b->argv+arg, b->argv+arg+1, total-arg-1);
 }
 typedef struct {
    const char* name;
@@ -251,139 +132,7 @@ bool help(Build* build) {
     }
     return true;
 }
-bool simple_link(const char* obj, const char* result, const char* link_script) {
-    nob_log(NOB_INFO, "Linking %s",obj);
-    Nob_Cmd cmd = {0};
-    nob_cmd_append(&cmd, LD);
-#ifdef LDFLAGS
-    nob_cmd_append(&cmd, LDFLAGS);
-#endif
-    nob_cmd_append(&cmd, "-T", link_script, "-o", result);
-    nob_cmd_append(&cmd, obj);
-    if(!nob_cmd_run_sync(cmd)) {
-        nob_cmd_free(cmd);
-        return false;
-    }
-    nob_cmd_free(cmd);
-    nob_log(NOB_INFO, "Linked %s",result);
-    return true;
-}
-bool build_nothing() {
-    #define BINDIR "./bin/user/nothing/"
-    #define SRCDIR "./user/nothing/"
-    if(!nasm(SRCDIR "nothing.nasm", BINDIR "nothing.o")) return false;
-    if(!simple_link(BINDIR "nothing.o"     , BINDIR "nothing"       , SRCDIR "link.ld")) return false;
-    #undef BINDIR
-    #undef SRCDIR
-    return true;
-}
-bool build_init() {
-    #define BINDIR "./bin/user/init/"
-    #define SRCDIR "./user/init/src/"
-    #define LIBDIR "./bin/std/"
-    if(!cc_user    (SRCDIR "main.c"        , BINDIR "init.o")) return false;
-    Nob_File_Paths paths = {0};
-    nob_da_append(&paths, BINDIR "init.o");
-    if(!find_objs(LIBDIR, &paths)) {
-        nob_da_free(paths);
-        return false;
-    }
-    if(!find_libc(&paths, false)) {
-        nob_da_free(paths);
-        return false;
-    }
-    if(!ld(&paths, BINDIR "init"  , "./user/init/link.ld")) {
-        nob_da_free(paths);
-        return false;
-    }
-    nob_da_free(paths);
-    #undef BINDIR
-    #undef SRCDIR
-    #undef LIBDIR
-    return true;
-}
-bool build_hello() {
-    #define BINDIR "./bin/user/hello/"
-    #define SRCDIR "./user/hello/src/"
-    #define LIBDIR "./bin/std/"
-    if(!cc_user    (SRCDIR "main.c"        , BINDIR "hello.o")) return false;
-    Nob_File_Paths paths = {0};
-    nob_da_append(&paths, BINDIR "hello.o");
-    if(!find_objs(LIBDIR, &paths)) {
-        nob_da_free(paths);
-        return false;
-    }
-    if(!find_libc(&paths, true)) {
-        nob_da_free(paths);
-        return false;
-    }
-    if(!ld(&paths, BINDIR "hello"  , "./user/hello/link.ld")) {
-        nob_da_free(paths);
-        return false;
-    }
-    nob_da_free(paths);
-    #undef BINDIR
-    #undef SRCDIR
-    #undef LIBDIR
-    return true;
-}
 
-bool build_shell() {
-    #define BINDIR "./bin/user/shell/"
-    #define SRCDIR "./user/shell/src/"
-    #define LIBDIR "./bin/std/"
-    if(!cc_user    (SRCDIR "main.c"        , BINDIR "shell.o")) return false;
-    Nob_File_Paths paths = {0};
-    nob_da_append(&paths, BINDIR "shell.o");
-    if(!find_objs(LIBDIR, &paths)) {
-        nob_da_free(paths);
-        return false;
-    }
-    if(!find_libc(&paths, true)) {
-        nob_da_free(paths);
-        return false;
-    }
-    if(!ld(&paths, BINDIR "shell"  , "./user/shell/link.ld")) {
-        nob_da_free(paths);
-        return false;
-    }
-    nob_da_free(paths);
-    #undef BINDIR
-    #undef SRCDIR
-    #undef LIBDIR
-    return true;
-}
-
-bool build_libc() {
-    #define BINDIR LIBC_TARGET_DIR 
-    #define SRCDIR "./user/libc/src/"
-    #define LIBDIR "./bin/std/"
-    if(!build_user_dir(SRCDIR, BINDIR, true)) return false; 
-    #undef BINDIR
-    #undef SRCDIR
-    #undef LIBDIR
-    return true;
-}
-
-bool build_crt0() {
-    #define BINDIR LIBC_CRT_TARGET_DIR 
-    #define SRCDIR "./user/libc/crt/"
-    #define LIBDIR "./bin/std/"
-    if(!build_user_dir(SRCDIR, BINDIR, true)) return false; 
-    #undef BINDIR
-    #undef SRCDIR
-    #undef LIBDIR
-    return true;
-}
-bool build_user() {
-    if(!build_libc()) return false;
-    if(!build_crt0()) return false;
-    if(!build_nothing()) return false;
-    if(!build_init()) return false;
-    if(!build_shell()) return false;
-    if(!build_hello()) return false;
-    return true; 
-}
 // TODO Separate these out maybe? Idk
 bool build(Build* build) {
     if(!make_build_dirs()) return false;
@@ -561,3 +310,14 @@ int main(int argc, char** argv) {
 #include "embed.c"
 #include "compile.c"
 #include "libc.c"
+#include "build/make_dirs.c"
+#include "build/crt.c"
+#include "build/libc.c"
+#include "build/hello.c"
+#include "build/shell.c"
+#include "build/nothing.c"
+#include "build/std.c"
+#include "build/kernel.c"
+#include "build/init.c"
+#include "user.c"
+#include "link_kernel.c"
