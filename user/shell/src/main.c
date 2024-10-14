@@ -3,6 +3,7 @@
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 
 intptr_t readline(char* buf, size_t bufmax) {
     intptr_t e;
@@ -31,34 +32,18 @@ char* trim_r(char* buf) {
 #define LINEBUF_MAX 1024
 int main() {
     printf("Started MinOS shell\n");
-    intptr_t heap = heap_create();
-    if(heap < 0) {
-        printf("ERROR: Failed to create heap: %s\n", status_str(heap));
-        return 1;
-    }
-    void* addr;
-    size_t size;
-    size=69;
-
-    (void)heap;
     static char linebuf[LINEBUF_MAX];
     intptr_t e = 0;
-
-    if((e=heap_allocate(heap, size, &addr)) < 0) {
-        printf("ERROR: Could not allocate: %s\n", status_str(e));
-    }
-    printf("Allocated %p %zu bytes\n", addr, size);
-    memcpy(addr, "Foo", 3);
-    printf("Deallocating %p\n", addr);
-    heap_deallocate(heap, addr);
-
-    if((e=heap_allocate(heap, size, &addr)) < 0) {
-        printf("ERROR: Could not allocate: %s\n", status_str(e));
-    }
-    printf("Allocated %p %zu bytes\n", addr, size);
-    memcpy(addr, "Foo", 3);
-    printf("Deallocating %p\n", addr);
-    heap_deallocate(heap, addr);
+    size_t size=69;
+    void* buf=NULL;
+    buf = malloc(size);
+    printf("[malloc] Allocated %p\n", buf);
+    free(buf);
+    printf("[free] Deallocating %p\n", buf);
+    buf = malloc(size);
+    printf("[malloc] Allocated %p\n", buf);
+    printf("[free] Deallocating %p\n", buf);
+    free(buf);
 
     printf("> ");
     for(;;) {
