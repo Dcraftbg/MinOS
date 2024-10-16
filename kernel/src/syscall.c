@@ -137,6 +137,12 @@ intptr_t sys_exec(const char* path, const char** argv, size_t argc) {
     cur_task->image.flags |= TASK_FLAG_DYING;
     cur_proc->main_threadid = cur_task->id;
     task->image.flags |= TASK_FLAG_PRESENT;
+    Heap* heap = (Heap*)cur_proc->heap_list.next;
+    while(&heap->list != &cur_proc->heap_list) {
+        Heap* next = (Heap*)heap->list.next;
+        heap_destroy(heap);
+        heap = next;
+    }
     enable_interrupts();
     // TODO: thread yield
     for(;;) asm volatile("hlt");
