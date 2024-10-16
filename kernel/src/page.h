@@ -40,6 +40,7 @@ bool page_alloc(page_t pml4_addr, uintptr_t virt, size_t pages_count, pageflags_
 // TODO: Migrate page_join to page_share on the full range
 void page_join(page_t parent, page_t child);
 void page_unmap(page_t pml4_addr, uintptr_t virt, size_t pages_count);
+void page_unalloc(page_t pml4_addr, uintptr_t virt, size_t pages_count);
 void page_destruct(page_t pml4, uint16_t type);
 uintptr_t virt_to_phys(page_t pml4_addr, uintptr_t addr);
 void init_paging(); // Called to initialse
