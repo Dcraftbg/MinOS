@@ -214,6 +214,56 @@ void page_destruct(page_t pml4_addr, uint16_t type) {
          }
     }
 }
+
+void page_unmap(page_t pml4_addr, uintptr_t virt, size_t pages_count) {
+    if(pages_count==0) return;
+    virt &= ~PAGE_MASK;
+    uint16_t pml1 = (virt >> (12   )) & 0x1ff;
+    uint16_t pml2 = (virt >> (12+9 )) & 0x1ff;
+    uint16_t pml3 = (virt >> (12+18)) & 0x1ff;
+    uint16_t pml4 = (virt >> (12+27)) & 0x1ff;
+    for(; pml4 < KERNEL_PAGE_ENTRIES; pml4++) {
+        page_t pml3_addr;
+        paddr_t pml3_phys; 
+        if(pml4_addr[pml4] == 0) continue;
+        pml3_phys = pml4_addr[pml4];
+        pml3_addr = (page_t)PAGE_ALIGN_DOWN(pml3_phys | KERNEL_MEMORY_MASK);
+        for(; pml3 < KERNEL_PAGE_ENTRIES; pml3++) {
+            page_t pml2_addr;
+            paddr_t pml2_phys; 
+            if(pml3_addr[pml3] == 0) continue;
+            pml2_phys = pml3_addr[pml3];
+            pml2_addr = (page_t)PAGE_ALIGN_DOWN(pml2_phys | KERNEL_MEMORY_MASK);
+
+            for(; pml2 < KERNEL_PAGE_ENTRIES; pml2++) {
+                page_t pml1_addr;
+                paddr_t pml1_phys; 
+                if(pml2_addr[pml2] == 0) continue;
+                pml1_phys = pml2_addr[pml2];
+                pml1_addr = (page_t)PAGE_ALIGN_DOWN(pml1_phys | KERNEL_MEMORY_MASK);
+                for(; pml1 < KERNEL_PAGE_ENTRIES; pml1++) {
+                    paddr_t pml0_phys; 
+                    if(pml1_addr[pml1] == 0) continue; 
+                    pml0_phys = pml1_addr[pml1];
+                    pml1_addr[pml1] = 0;
+                    kernel_page_dealloc((page_t)(pml0_phys));
+                    pages_count--;
+                    if(pages_count==0) return; // We filled up everything
+                }
+                pml2_addr[pml2] = 0;
+                kernel_page_dealloc((page_t)(pml1_phys));
+                pml1 = 0;
+            }
+            pml3_addr[pml3] = 0;
+            kernel_page_dealloc((page_t)(pml2_phys));
+            pml2 = 0;
+        }
+        pml4_addr[pml4] = 0;
+        kernel_page_dealloc((page_t)(pml3_phys));
+        pml3 = 0;
+    }
+    // We did not unmap everything
+}
 uintptr_t virt_to_phys(page_t pml4_addr, uintptr_t addr) {
     uint16_t pml1 = (addr >> (12   )) & 0x1ff;
     uint16_t pml2 = (addr >> (12+9 )) & 0x1ff;
