@@ -178,43 +178,6 @@ void page_share(page_t parent, page_t child, uintptr_t virt, size_t pages_count)
          }
     }
 }
-void page_join(page_t parent, page_t child) {
-    for(size_t pml4 = 0; pml4 < KERNEL_PAGE_ENTRIES; ++pml4) {
-         if(parent[pml4] == 0) continue;
-         if(child[pml4] == 0) {
-             child[pml4] = parent[pml4];
-             continue;
-         }
-         page_t pml3_parent = (page_t)PAGE_ALIGN_DOWN(parent[pml4] | KERNEL_MEMORY_MASK);
-         page_t pml3_child  = (page_t)PAGE_ALIGN_DOWN(child [pml4] | KERNEL_MEMORY_MASK);
-
-         for(size_t pml3 = 0; pml3 < KERNEL_PAGE_ENTRIES; ++pml3) {
-              if(pml3_parent[pml3] == 0) continue;
-              if(pml3_child[pml3] == 0) {
-                  pml3_child[pml3] = pml3_parent[pml3];
-                  continue;
-              }
-              page_t pml2_parent = (page_t)PAGE_ALIGN_DOWN(pml3_parent[pml3] | KERNEL_MEMORY_MASK);
-              page_t pml2_child  = (page_t)PAGE_ALIGN_DOWN(pml3_child [pml3] | KERNEL_MEMORY_MASK);
-
-              for(size_t pml2 = 0; pml2 < KERNEL_PAGE_ENTRIES; ++pml2) {
-                   if(pml2_parent[pml2] == 0) continue;
-                   if(pml2_child[pml2] == 0) {
-                       pml2_child[pml2] = pml2_parent[pml2];
-                       continue;
-                   }
-                   page_t pml1_parent = (page_t)PAGE_ALIGN_DOWN(pml2_parent[pml2] | KERNEL_MEMORY_MASK);
-                   page_t pml1_child  = (page_t)PAGE_ALIGN_DOWN(pml2_child [pml2] | KERNEL_MEMORY_MASK);
-
-                   for(size_t pml1 = 0; pml1 < KERNEL_PAGE_ENTRIES; ++pml1) {
-                        if(pml1_parent[pml1] == 0) continue;
-                        if(pml1_child[pml1] != 0) continue;
-                        pml1_child[pml1] = pml1_parent[pml1];
-                   }
-              }
-         }
-    }
-}
 void page_destruct(page_t pml4_addr, uint16_t type) {
     kwarn("page_destruct is not good. Will be removed at some point");
     return;

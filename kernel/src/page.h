@@ -37,9 +37,10 @@ typedef uint64_t pageflags_t;
 typedef uintptr_t paddr_t;
 bool page_mmap(page_t pml4_addr, uintptr_t phys, uintptr_t virt, size_t pages_count, pageflags_t flags);
 bool page_alloc(page_t pml4_addr, uintptr_t virt, size_t pages_count, pageflags_t flags);
-// TODO: Migrate page_join to page_share on the full range
-void page_join(page_t parent, page_t child);
 void page_share(page_t parent, page_t child, uintptr_t virt, size_t pages_count);
+static void page_join(page_t parent, page_t child) {
+    page_share(parent, child, 0, 0xFFFFFFFFFFFFFFFFLL);
+}
 void page_unmap(page_t pml4_addr, uintptr_t virt, size_t pages_count);
 void page_unalloc(page_t pml4_addr, uintptr_t virt, size_t pages_count);
 void page_destruct(page_t pml4, uint16_t type);
