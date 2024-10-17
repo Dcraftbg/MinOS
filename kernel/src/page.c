@@ -136,7 +136,10 @@ bool page_alloc(page_t pml4_addr, uintptr_t virt, size_t pages_count, pageflags_
     }
     return pages_count == 0;
 }
-void page_share(page_t parent, page_t child, uintptr_t virt, size_t pages_count) {
+// FIXME: Consider cleaning up after yourself in case kernel_page_alloc fails? Not that its very recoverable but ykwim
+// Or maybe leave it up to the user who can do page_unalloc and clean it up?
+bool page_share(page_t parent, page_t child, uintptr_t virt, size_t pages_count) {
+    if(pages_count==0) return true;
     virt &= ~PAGE_MASK;
     uint16_t pml1 = (virt >> (12   )) & 0x1ff;
     uint16_t pml2 = (virt >> (12+9 )) & 0x1ff;
@@ -144,14 +147,64 @@ void page_share(page_t parent, page_t child, uintptr_t virt, size_t pages_count)
     uint16_t pml4 = (virt >> (12+27)) & 0x1ff;
     for(; pml4 < KERNEL_PAGE_ENTRIES; ++pml4) {
          if(parent[pml4] == 0) continue;
+         page_t pml3_child;
+         if(child[pml4] == 0) {
+             child[pml4] = (uintptr_t)kernel_page_alloc();
+             if(!child[pml4]) return false; // Out of memory
+             pml3_child = (page_t)PAGE_ALIGN_DOWN(child[pml4] | KERNEL_MEMORY_MASK);
+             memset(pml3_child, 0, PAGE_SIZE);
+             child[pml4] |= parent[pml4] & KERNEL_PFLAGS_MASK; 
+         } else {
+             pml3_child = (page_t)PAGE_ALIGN_DOWN(child[pml4] | KERNEL_MEMORY_MASK);
+         }
+         page_t pml3_parent = (page_t)PAGE_ALIGN_DOWN(parent[pml4] | KERNEL_MEMORY_MASK);
+         for(; pml3 < KERNEL_PAGE_ENTRIES; ++pml3) {
+              if(pml3_parent[pml3] == 0) continue;
+              page_t pml2_child;
+              if(pml3_child[pml3] == 0) {
+                  pml3_child[pml3] = (uintptr_t)kernel_page_alloc();
+                  if(!pml3_child[pml3]) return false; // Out of memory
+                  pml2_child = (page_t)PAGE_ALIGN_DOWN(pml3_child[pml3] | KERNEL_MEMORY_MASK);
+                  memset(pml2_child, 0, PAGE_SIZE);
+                  pml3_child[pml3] |= pml3_parent[pml3] & KERNEL_PFLAGS_MASK; 
+              } else {
+                  pml2_child = (page_t)PAGE_ALIGN_DOWN(pml3_child[pml3] | KERNEL_MEMORY_MASK);
+              }
+              page_t pml2_parent = (page_t)PAGE_ALIGN_DOWN(pml3_parent[pml3] | KERNEL_MEMORY_MASK);
+              for(; pml2 < KERNEL_PAGE_ENTRIES; ++pml2) {
+                   if(pml2_parent[pml2] == 0) continue;
+                   page_t pml1_child;
+                   if(pml2_child[pml2] == 0) {
+                       pml2_child[pml2] = (uintptr_t)kernel_page_alloc();
+                       if(!pml2_child[pml2]) return false; // Out of memory
+                       pml1_child = (page_t)PAGE_ALIGN_DOWN(pml2_child[pml2] | KERNEL_MEMORY_MASK);
+                       memset(pml1_child, 0, PAGE_SIZE);
+                       pml2_child[pml2] |= pml2_parent[pml2] & KERNEL_PFLAGS_MASK; 
+                   } else {
+                       pml1_child = (page_t)PAGE_ALIGN_DOWN(pml2_child[pml2] | KERNEL_MEMORY_MASK);
+                   }
+                   page_t pml1_parent = (page_t)PAGE_ALIGN_DOWN(pml2_parent[pml2] | KERNEL_MEMORY_MASK);
+                   for(; pml1 < KERNEL_PAGE_ENTRIES; ++pml1) {
+                        if(pml1_parent[pml1] == 0) continue;
+                        pml1_child[pml1] = pml1_parent[pml1];
+                        pages_count--;
+                        if(pages_count==0) return true;
+                   }
+              }
+         }
+    }
+    return pages_count==0;
+}
+void page_join(page_t parent, page_t child) {
+    for(size_t pml4 = 0; pml4 < KERNEL_PAGE_ENTRIES; ++pml4) {
+         if(parent[pml4] == 0) continue;
          if(child[pml4] == 0) {
              child[pml4] = parent[pml4];
              continue;
          }
          page_t pml3_parent = (page_t)PAGE_ALIGN_DOWN(parent[pml4] | KERNEL_MEMORY_MASK);
          page_t pml3_child  = (page_t)PAGE_ALIGN_DOWN(child [pml4] | KERNEL_MEMORY_MASK);
-
-         for(; pml3 < KERNEL_PAGE_ENTRIES; ++pml3) {
+         for(size_t pml3 = 0; pml3 < KERNEL_PAGE_ENTRIES; ++pml3) {
               if(pml3_parent[pml3] == 0) continue;
               if(pml3_child[pml3] == 0) {
                   pml3_child[pml3] = pml3_parent[pml3];
@@ -159,8 +212,7 @@ void page_share(page_t parent, page_t child, uintptr_t virt, size_t pages_count)
               }
               page_t pml2_parent = (page_t)PAGE_ALIGN_DOWN(pml3_parent[pml3] | KERNEL_MEMORY_MASK);
               page_t pml2_child  = (page_t)PAGE_ALIGN_DOWN(pml3_child [pml3] | KERNEL_MEMORY_MASK);
-
-              for(; pml2 < KERNEL_PAGE_ENTRIES; ++pml2) {
+              for(size_t pml2 = 0; pml2 < KERNEL_PAGE_ENTRIES; ++pml2) {
                    if(pml2_parent[pml2] == 0) continue;
                    if(pml2_child[pml2] == 0) {
                        pml2_child[pml2] = pml2_parent[pml2];
@@ -168,8 +220,7 @@ void page_share(page_t parent, page_t child, uintptr_t virt, size_t pages_count)
                    }
                    page_t pml1_parent = (page_t)PAGE_ALIGN_DOWN(pml2_parent[pml2] | KERNEL_MEMORY_MASK);
                    page_t pml1_child  = (page_t)PAGE_ALIGN_DOWN(pml2_child [pml2] | KERNEL_MEMORY_MASK);
-
-                   for(; pml1 < KERNEL_PAGE_ENTRIES; ++pml1) {
+                   for(size_t pml1 = 0; pml1 < KERNEL_PAGE_ENTRIES; ++pml1) {
                         if(pml1_parent[pml1] == 0) continue;
                         if(pml1_child[pml1] != 0) continue;
                         pml1_child[pml1] = pml1_parent[pml1];

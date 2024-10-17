@@ -32,15 +32,17 @@
 #define KERNEL_PTYPE_KERNEL  (0b0   << KERNEL_PTYPE_SHIFT)
 #define KERNEL_PTYPE_USER    (0b111 << KERNEL_PTYPE_SHIFT)
 
+#define KERNEL_PFLAGS_MASK 0b1000000000000000000000000000000000000000000000000000111111111111LL
+// Technically incorrect but idrk
+#define KERNEL_PADDR_MASK  0b0111111111111111111111111111111111111111111111111111000000000000LL 
+
 typedef uint64_t *page_t;
 typedef uint64_t pageflags_t;
 typedef uintptr_t paddr_t;
 bool page_mmap(page_t pml4_addr, uintptr_t phys, uintptr_t virt, size_t pages_count, pageflags_t flags);
 bool page_alloc(page_t pml4_addr, uintptr_t virt, size_t pages_count, pageflags_t flags);
-void page_share(page_t parent, page_t child, uintptr_t virt, size_t pages_count);
-static void page_join(page_t parent, page_t child) {
-    page_share(parent, child, 0, 0xFFFFFFFFFFFFFFFFLL);
-}
+bool page_share(page_t parent, page_t child, uintptr_t virt, size_t pages_count);
+void page_join(page_t parent, page_t child);
 void page_unmap(page_t pml4_addr, uintptr_t virt, size_t pages_count);
 void page_unalloc(page_t pml4_addr, uintptr_t virt, size_t pages_count);
 void page_destruct(page_t pml4, uint16_t type);
