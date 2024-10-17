@@ -22,15 +22,7 @@ MemoryRegion* memregion_clone(MemoryRegion* region, page_t src, page_t dst) {
         region->shared++;
         return region;
     }
-    // Read only
-    uintptr_t at = region->address;
-    for(size_t i = 0; i < region->pages; ++i) {
-        uintptr_t sphys = virt_to_phys(src, at);
-        assert(sphys);
-        // TODO: page_copy_map ?
-        if(!page_mmap(dst, sphys, at, 1, region->pageflags)) return NULL;
-        at+=PAGE_SIZE;
-    }
+    if(!page_share(src, dst, region->address, region->pages)) return NULL;
     region->shared++;
     return region;
 }
