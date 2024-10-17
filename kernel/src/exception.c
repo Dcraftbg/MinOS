@@ -44,7 +44,7 @@ void exception_handler(IDTEFrame* frame) {
     kinfo ("r15=%p    r14 =%p    r13=%p    r12=%p    r11  =%p    r10=%p    r9 =%p", (void*)frame->r15, (void*)frame->r14 , (void*)frame->r13, (void*)frame->r12, (void*)frame->r11  , (void*)frame->r10, (void*)frame->r9 );
     kinfo ("r8 =%p    rbp =%p    rdi=%p    rsi=%p    rdx  =%p    rcx=%p    rbx=%p", (void*)frame->r8 , (void*)frame->rbp , (void*)frame->rdi, (void*)frame->rsi, (void*)frame->rdx  , (void*)frame->rcx, (void*)frame->rbx);
     kinfo ("rax=%p\n"                                                               , (void*)frame->rax);
-    kerror("Gotten exception (%zu) with code %lu at rip: %p at virtual: %p",frame->type, frame->code,(void*)frame->rip,(void*)frame->cr2);
+    kerror("Gotten exception (%zu) with code %zu at rip: %p at virtual: %p",frame->type, (size_t)frame->code,(void*)frame->rip,(void*)frame->cr2);
     unwind_stack(frame);
     kabort();
 }
