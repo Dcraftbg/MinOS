@@ -20,9 +20,10 @@ intptr_t fork(Task* task, Task* result, void* frame) {
     struct list* list = &task->image.memlist;
     struct list* first = list;
     list = list->next;
-    if(!(result->image.cr3 = kernel_page_alloc()))
+    paddr_t cr3_phys;
+    if(!(cr3_phys = kernel_page_alloc()))
         return_defer_err(-NOT_ENOUGH_MEM);
-    result->image.cr3 = (page_t)((uint64_t)result->image.cr3 | KERNEL_MEMORY_MASK);
+    result->image.cr3 = (page_t)(cr3_phys | KERNEL_MEMORY_MASK);
     memset(result->image.cr3, 0, PAGE_SIZE);
     result->image.flags = 0;
     while(first != list) {
@@ -89,10 +90,11 @@ intptr_t exec(Task* task, const char* path, Args args) {
     // TODO: Maybe remove this?
     // I don't really see a purpose in calling page_destruct anymore now that we have the 
     // memory regions
-    if(!(task->image.cr3 = kernel_page_alloc())) {
+    paddr_t cr3_phys; 
+    if(!(cr3_phys = kernel_page_alloc())) {
         return_defer_err(-NOT_ENOUGH_MEM);
     }
-    task->image.cr3 = (page_t)((uint64_t)task->image.cr3 | KERNEL_MEMORY_MASK);
+    task->image.cr3 = (page_t)(cr3_phys | KERNEL_MEMORY_MASK);
     memset(task->image.cr3, 0, PAGE_SIZE);
 
     task->image.ts_rsp = 0;

@@ -231,136 +231,119 @@ void page_join(page_t parent, page_t child) {
 }
 void page_destruct(page_t pml4_addr, uint16_t type) {
     kwarn("page_destruct is not good. Will be removed at some point");
-    return;
-    for(size_t pml4 = 0; pml4 < KERNEL_PAGE_ENTRIES; ++pml4) {
-         if(pml4_addr[pml4] == 0) continue;
-         page_t pml3_addr = (page_t)PAGE_ALIGN_DOWN(pml4_addr[pml4] | KERNEL_MEMORY_MASK);
-
-         for(size_t pml3 = 0; pml3 < KERNEL_PAGE_ENTRIES; ++pml3) {
-              if(pml3_addr[pml3] == 0) continue;
-              page_t pml2_addr = (page_t)PAGE_ALIGN_DOWN(pml3_addr[pml3] | KERNEL_MEMORY_MASK);
-
-              for(size_t pml2 = 0; pml2 < KERNEL_PAGE_ENTRIES; ++pml2) {
-                   if(pml2_addr[pml2] == 0) continue;
-                   page_t pml1_addr = (page_t)PAGE_ALIGN_DOWN(pml2_addr[pml2] | KERNEL_MEMORY_MASK);
-
-                   for(size_t pml1 = 0; pml1 < KERNEL_PAGE_ENTRIES; ++pml1) {
-                        if(pml1_addr[pml1] == 0) continue;
-                        if((pml1_addr[pml1] & KENREL_PTYPE_MASK) == type) {
-                            kernel_page_dealloc((page_t)PAGE_ALIGN_DOWN(pml1_addr[pml1]));
-                            pml1_addr[pml1] = 0;
-                        }
-                   }
-
-                   if((pml2_addr[pml2] & KENREL_PTYPE_MASK) == type) {
-                       kernel_page_dealloc((page_t)PAGE_ALIGN_DOWN((uintptr_t)pml2_addr[pml2]));
-                       pml2_addr[pml2] = 0;
-                   }
-              }
-
-              if((pml3_addr[pml3] & KENREL_PTYPE_MASK) == type) {
-                  kernel_page_dealloc((page_t)PAGE_ALIGN_DOWN((uintptr_t)pml3_addr[pml3]));
-                  pml3_addr[pml3] = 0;
-              }
-         }
-
-         if((pml4_addr[pml4] & KENREL_PTYPE_MASK) == type) {
-             kernel_page_dealloc((page_t)PAGE_ALIGN_DOWN((uintptr_t)pml4_addr[pml4]));
-             pml4_addr[pml4] = 0;
-         }
-    }
 }
 
+static bool page_empty(page_t page, uint16_t until) {
+    if(until==0) return true;
+    for(uint16_t i=0; i < until; ++i) {
+        if(page[i] != 0) return false;
+    }
+    return true;
+}
 void page_unalloc(page_t pml4_addr, uintptr_t virt, size_t pages_count) {
     if(pages_count==0) return;
     virt &= ~PAGE_MASK;
-    uint16_t pml1 = (virt >> (12   )) & 0x1ff;
-    uint16_t pml2 = (virt >> (12+9 )) & 0x1ff;
-    uint16_t pml3 = (virt >> (12+18)) & 0x1ff;
-    uint16_t pml4 = (virt >> (12+27)) & 0x1ff;
-    for(; pml4 < KERNEL_PAGE_ENTRIES; pml4++) {
+    uint16_t pml1_start = (virt >> (12   )) & 0x1ff;
+    uint16_t pml2_start = (virt >> (12+9 )) & 0x1ff;
+    uint16_t pml3_start = (virt >> (12+18)) & 0x1ff;
+    uint16_t pml4_start = (virt >> (12+27)) & 0x1ff;
+    for(uint16_t pml4=pml4_start; pml4 < KERNEL_PAGE_ENTRIES; pml4++) {
         page_t pml3_addr;
         paddr_t pml3_phys; 
         if(pml4_addr[pml4] == 0) continue;
         pml3_phys = pml4_addr[pml4];
         pml3_addr = (page_t)PAGE_ALIGN_DOWN(pml3_phys | KERNEL_MEMORY_MASK);
-        for(; pml3 < KERNEL_PAGE_ENTRIES; pml3++) {
+        for(uint16_t pml3=pml3_start; pml3 < KERNEL_PAGE_ENTRIES; pml3++) {
             page_t pml2_addr;
             paddr_t pml2_phys; 
             if(pml3_addr[pml3] == 0) continue;
             pml2_phys = pml3_addr[pml3];
             pml2_addr = (page_t)PAGE_ALIGN_DOWN(pml2_phys | KERNEL_MEMORY_MASK);
 
-            for(; pml2 < KERNEL_PAGE_ENTRIES; pml2++) {
+            for(uint16_t pml2=pml2_start; pml2 < KERNEL_PAGE_ENTRIES; pml2++) {
                 page_t pml1_addr;
                 paddr_t pml1_phys; 
                 if(pml2_addr[pml2] == 0) continue;
                 pml1_phys = pml2_addr[pml2];
                 pml1_addr = (page_t)PAGE_ALIGN_DOWN(pml1_phys | KERNEL_MEMORY_MASK);
-                for(; pml1 < KERNEL_PAGE_ENTRIES; pml1++) {
+                for(uint16_t pml1=pml1_start; pml1 < KERNEL_PAGE_ENTRIES; pml1++) {
                     paddr_t pml0_phys; 
                     if(pml1_addr[pml1] == 0) continue; 
                     pml0_phys = pml1_addr[pml1];
                     pml1_addr[pml1] = 0;
-                    kernel_page_dealloc((page_t)(pml0_phys));
+                    kernel_page_dealloc(pml0_phys);
                     pages_count--;
                     if(pages_count==0) return; // We filled up everything
                 }
-                pml2_addr[pml2] = 0;
-                kernel_page_dealloc((page_t)(pml1_phys));
-                pml1 = 0;
+                if(page_empty(pml1_addr, pml1_start)) {
+                    pml2_addr[pml2] = 0;
+                    kernel_page_dealloc(pml1_phys);
+                }
+                pml1_start = 0;
             }
-            pml3_addr[pml3] = 0;
-            kernel_page_dealloc((page_t)(pml2_phys));
-            pml2 = 0;
+            if(page_empty(pml2_addr, pml2_start)) {
+                pml3_addr[pml3] = 0;
+                kernel_page_dealloc(pml2_phys);
+            }
+            pml2_start = 0;
         }
-        pml4_addr[pml4] = 0;
-        kernel_page_dealloc((page_t)(pml3_phys));
-        pml3 = 0;
+        if(page_empty(pml3_addr, pml3_start)) {
+            pml4_addr[pml4] = 0;
+            kernel_page_dealloc(pml3_phys);
+        }
+        pml3_start = 0;
     }
     // We did not unmap everything
 }
-
 void page_unmap(page_t pml4_addr, uintptr_t virt, size_t pages_count) {
     if(pages_count==0) return;
     virt &= ~PAGE_MASK;
-    uint16_t pml1 = (virt >> (12   )) & 0x1ff;
-    uint16_t pml2 = (virt >> (12+9 )) & 0x1ff;
-    uint16_t pml3 = (virt >> (12+18)) & 0x1ff;
-    uint16_t pml4 = (virt >> (12+27)) & 0x1ff;
-    for(; pml4 < KERNEL_PAGE_ENTRIES; pml4++) {
+    uint16_t pml1_start = (virt >> (12   )) & 0x1ff;
+    uint16_t pml2_start = (virt >> (12+9 )) & 0x1ff;
+    uint16_t pml3_start = (virt >> (12+18)) & 0x1ff;
+    uint16_t pml4_start = (virt >> (12+27)) & 0x1ff;
+    for(uint16_t pml4=pml4_start; pml4 < KERNEL_PAGE_ENTRIES; pml4++) {
         page_t pml3_addr;
         paddr_t pml3_phys; 
         if(pml4_addr[pml4] == 0) continue;
         pml3_phys = pml4_addr[pml4];
         pml3_addr = (page_t)PAGE_ALIGN_DOWN(pml3_phys | KERNEL_MEMORY_MASK);
-        for(; pml3 < KERNEL_PAGE_ENTRIES; pml3++) {
+        for(uint16_t pml3=pml3_start; pml3 < KERNEL_PAGE_ENTRIES; pml3++) {
             page_t pml2_addr;
             paddr_t pml2_phys; 
             if(pml3_addr[pml3] == 0) continue;
             pml2_phys = pml3_addr[pml3];
             pml2_addr = (page_t)PAGE_ALIGN_DOWN(pml2_phys | KERNEL_MEMORY_MASK);
 
-            for(; pml2 < KERNEL_PAGE_ENTRIES; pml2++) {
+            for(uint16_t pml2=pml2_start; pml2 < KERNEL_PAGE_ENTRIES; pml2++) {
                 page_t pml1_addr;
                 paddr_t pml1_phys; 
                 if(pml2_addr[pml2] == 0) continue;
                 pml1_phys = pml2_addr[pml2];
                 pml1_addr = (page_t)PAGE_ALIGN_DOWN(pml1_phys | KERNEL_MEMORY_MASK);
-                for(; pml1 < KERNEL_PAGE_ENTRIES; pml1++) {
+                for(uint16_t pml1=pml1_start; pml1 < KERNEL_PAGE_ENTRIES; pml1++) {
                     if(pml1_addr[pml1] == 0) continue; 
                     pml1_addr[pml1] = 0;
                     pages_count--;
                     if(pages_count==0) return; // We filled up everything
                 }
-                pml2_addr[pml2] = 0;
-                pml1 = 0;
+                if(page_empty(pml1_addr, pml1_start)) {
+                    pml2_addr[pml2] = 0;
+                    kernel_page_dealloc(pml1_phys);
+                }
+                pml1_start = 0;
             }
-            pml3_addr[pml3] = 0;
-            pml2 = 0;
+            if(page_empty(pml2_addr, pml2_start)) {
+                pml3_addr[pml3] = 0;
+                kernel_page_dealloc(pml2_phys);
+            }
+            pml2_start = 0;
         }
-        pml4_addr[pml4] = 0;
-        pml3 = 0;
+        if(page_empty(pml3_addr, pml3_start)) {
+            pml4_addr[pml4] = 0;
+            kernel_page_dealloc(pml3_phys);
+        }
+        pml3_start = 0;
     }
     // We did not unmap everything
 }
@@ -397,12 +380,12 @@ extern uint8_t section_mut_data_end[];
 void init_paging() {
     Mempair addr_resp = {0};
     kernel_mempair(&addr_resp);
-    kernel.pml4 = kernel_page_alloc();
-    if(!kernel.pml4) {
+    paddr_t pml4_phys = kernel_page_alloc(); 
+    if(!pml4_phys) {
        kpanic("ERROR: Could not allocate page map. Ran out of memory");
        kabort();
     }
-    kernel.pml4 = (page_t)(((uintptr_t)kernel.pml4) | KERNEL_MEMORY_MASK);
+    kernel.pml4 = (page_t)(pml4_phys | KERNEL_MEMORY_MASK);
     memset(kernel.pml4, 0, PAGE_SIZE);
     boot_map_phys_memory(); // Bootloader specific
     uintptr_t phys, virt;

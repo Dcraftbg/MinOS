@@ -1,14 +1,14 @@
 #include "memory.h"
 #include "mem/bitmap.h"
 #include "kernel.h"
-page_t kernel_page_alloc() {
+paddr_t kernel_page_alloc() {
    mutex_lock(&kernel.map_lock);
    void* addr = bitmap_alloc(&kernel.map, 1);
-   page_t res = (page_t)(((uintptr_t)addr) & (~KERNEL_MEMORY_MASK));
+   paddr_t res = (paddr_t)(((uintptr_t)addr) & (~KERNEL_MEMORY_MASK));
    mutex_unlock(&kernel.map_lock);
    return res;
 }
-void kernel_page_dealloc(page_t page) {
+void kernel_page_dealloc(paddr_t page) {
    mutex_lock(&kernel.map_lock);
    bitmap_dealloc(&kernel.map, (void*)page, 1);
    mutex_unlock(&kernel.map_lock);
