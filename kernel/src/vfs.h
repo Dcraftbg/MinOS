@@ -269,7 +269,7 @@ intptr_t vfs_stat(VfsDirEntry* this, VfsStats* stats);
 // Return value:
 // >= 0 Success (Implementation defined value)
 // <  0 Error
-intptr_t vfs_ioctl(VfsDirEntry* this, VfsStats* stats);
+intptr_t vfs_ioctl(VfsFile* file, Iop op, void* arg);
 
 
 intptr_t vfs_register_device(const char* name, Device* device);
