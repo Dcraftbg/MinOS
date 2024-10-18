@@ -7,8 +7,6 @@ typedef struct {
 enum {
     FB_IOCTL_GET_STATS=1,
 };
-#if 0
-static intptr_t fbget_stats(intptr_t file, FbStats* stats) {
-    return ioctl(file, FB_IOCTL_GET_STATS, stats);
+static intptr_t fbget_stats(uintptr_t handle, FbStats* stats) {
+    return ioctl(handle, FB_IOCTL_GET_STATS, stats);
 }
-#endif

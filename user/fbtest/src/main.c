@@ -11,6 +11,13 @@ int main() {
         return 1;
     }
     fb=e;
+    FbStats stats={0};
+    if(fbget_stats(fb, &stats) < 0) {
+        fprintf(stderr, "ERROR: Failed to get stats on fb: %s\n", status_str(e));
+        close(fb);
+        return 1;
+    }
+    printf("Framebuffer is %zux%zu pixels (%zu bits per pixel)\n", (size_t)stats.width, (size_t)stats.height, (size_t)stats.bpp);
     close(fb);
     return 0;
 }
