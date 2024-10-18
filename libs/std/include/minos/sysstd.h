@@ -16,6 +16,9 @@ static intptr_t read(uintptr_t handle, void* buf, size_t size) {
 static intptr_t ioctl(uintptr_t handle, uint32_t op, void* arg) {
     return syscall3(SYS_IOCTL, handle, op, arg);
 }
+static intptr_t mmap(uintptr_t handle, void** addr, size_t size) {
+    return syscall3(SYS_MMAP, handle, addr, size);
+}
 
 static intptr_t close(uintptr_t handle) {
     return syscall1(SYS_CLOSE, handle);

@@ -59,6 +59,23 @@ intptr_t sys_ioctl(uintptr_t handle, Iop op, void* arg) {
     if(res->kind != RESOURCE_FILE) return -INVALID_TYPE;
     return vfs_ioctl(&res->data.file, op, arg);
 }
+
+intptr_t sys_mmap(uintptr_t handle, void** addr, size_t size) {
+    Process* current = current_process();
+    Task* task = current_task();
+    Resource* res = resource_find_by_id(current->resources, handle);
+    if(!res) return -INVALID_HANDLE;
+    if(res->kind != RESOURCE_FILE) return -INVALID_TYPE;
+    MmapContext context = {
+        .page_table = task->image.cr3,
+        .memlist = &task->image.memlist
+    };
+    intptr_t e = vfs_mmap(&res->data.file, &context, addr, size);
+    if(e < 0) return e;
+    // TODO: invlp the pages instead of this
+    invalidate_full_page_table();
+    return e;
+}
 // TODO: More generic close for everything including directories, networking sockets, etc. etc.
 intptr_t sys_close(uintptr_t handle) {
 #ifdef CONFIG_LOG_SYSCALLS
