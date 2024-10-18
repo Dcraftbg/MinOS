@@ -1,13 +1,7 @@
 #pragma once
 #include "syscall.h"
 #include "syscodes.h"
-
-enum {
-    MODE_READ=1,
-    MODE_WRITE=2,
-    /*append?*/
-};
-typedef uint32_t fmode_t;
+#include "fsdefs.h"
 
 static intptr_t open(const char* path, fmode_t mode) {
     return syscall2(SYS_OPEN, path, mode);

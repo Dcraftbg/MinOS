@@ -2,6 +2,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <minos/status.h>
+#include <minos/fsdefs.h>
 #include "list.h"
 #include "utils.h"
 typedef intptr_t off_t;
@@ -13,12 +14,6 @@ typedef enum {
 } InodeKind;
 typedef size_t inodeid_t;
 typedef int inodekind_t;
-enum {
-    MODE_READ=BIT(1),
-    MODE_WRITE=BIT(2),
-    /*append?*/
-};
-typedef uint32_t fmode_t;
 struct FsOps;
 struct InodeOps;
 struct Inode;
