@@ -3,6 +3,7 @@ enum {
     SYS_OPEN,
     SYS_WRITE,
     SYS_READ,
+    SYS_IOCTL,
     SYS_CLOSE,
     SYS_FORK,
     SYS_EXEC,

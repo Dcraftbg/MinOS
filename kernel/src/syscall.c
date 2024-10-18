@@ -48,6 +48,17 @@ intptr_t sys_read(uintptr_t handle, void* buf, size_t size) {
     if(res->kind != RESOURCE_FILE) return -INVALID_TYPE;
     return vfs_read(&res->data.file, buf, size);
 }
+
+intptr_t sys_ioctl(uintptr_t handle, Iop op, void* arg) {
+#ifdef CONFIG_LOG_SYSCALLS
+    printf("sys_ioctl(%lu, %zu, %p)\n", handle, op, arg);
+#endif
+    Process* current = current_process();
+    Resource* res = resource_find_by_id(current->resources, handle);
+    if(!res) return -INVALID_HANDLE;
+    if(res->kind != RESOURCE_FILE) return -INVALID_TYPE;
+    return vfs_ioctl(&res->data.file, op, arg);
+}
 // TODO: More generic close for everything including directories, networking sockets, etc. etc.
 intptr_t sys_close(uintptr_t handle) {
 #ifdef CONFIG_LOG_SYSCALLS

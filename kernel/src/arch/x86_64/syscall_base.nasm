@@ -3,6 +3,7 @@
 extern sys_open
 extern sys_write
 extern sys_read
+extern sys_ioctl
 extern sys_close
 extern sys_fork
 extern sys_exec
@@ -19,6 +20,7 @@ syscall_table:
    dq sys_open
    dq sys_write
    dq sys_read
+   dq sys_ioctl
    dq sys_close
    dq sys_fork
    dq sys_exec
