@@ -15,8 +15,34 @@ void destroy_fb_device(Device* device) {
     cache_dealloc(fbd_cache, fbd);
 }
 
+static intptr_t fb_get_stats(FbDevice* device, FbStats* stats) {
+    stats->width = device->fb.width;
+    stats->height = device->fb.height;
+    stats->bpp = device->fb.bpp;
+    return 0;
+}
+// TODO: Maybe do an ioctl function map. IDRK
+static intptr_t fb_ioctl(VfsFile* file, Iop op, void* arg) {
+    if(!file || !file->private) return -INVALID_PARAM;
+    FbDevice* device = (FbDevice*)file->private;
+    switch(op) {
+    case FB_IOCTL_GET_STATS: return fb_get_stats(device, (FbStats*)arg);
+    }
+    return -INVALID_PARAM;
+}
+
+static intptr_t fb_open(struct Device* this, VfsFile* file, fmode_t mode) {
+    file->private = this->private;
+    return 0;
+}
+static void fb_close(VfsFile* file) {
+    file->private = NULL;
+}
+
 static intptr_t fb_init() {
     memset(&fbOps, 0, sizeof(fbOps));
+    fbOps.ioctl = fb_ioctl;
+    fbOps.close = fb_close;
     fbd_cache = create_new_cache(sizeof(FbDevice), "FbDevice");
     if(!fbd_cache) return -NOT_ENOUGH_MEM;
     return 0;
@@ -39,7 +65,8 @@ intptr_t init_fb_devices() {
         fbd->fb = get_framebuffer_by_id(i);
         if(!fbd->fb.addr) goto err_invalid_framebuffer;
         device->private = fbd;
-        
+        device->ops = &fbOps;
+        device->open = fb_open;
         stbsp_snprintf(namebuf, sizeof(namebuf), "fb%zu", i);
         if((e=vfs_register_device(namebuf, device))) goto err_register_device;
         continue;
