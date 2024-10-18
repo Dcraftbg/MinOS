@@ -36,6 +36,7 @@ bool embed_fs() {
     if(!embed(&fs, "./bin/user/init/init", "/user/init")) nob_return_defer(false);
     if(!embed(&fs, "./bin/user/shell/shell", "/user/shell")) nob_return_defer(false);
     if(!embed(&fs, "./bin/user/hello/hello", "/user/hello")) nob_return_defer(false);
+    if(!embed(&fs, "./bin/user/fbtest/fbtest", "/user/fbtest")) nob_return_defer(false);
     const char* opath = "./kernel/embed.h";
     FILE* f = fopen(opath, "wb");
     if(!f) {

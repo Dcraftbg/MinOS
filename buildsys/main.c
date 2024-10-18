@@ -42,6 +42,7 @@ typedef struct {
 #include "build/std.h"
 #include "build/kernel.h"
 #include "build/init.h"
+#include "build/fbtest.h"
 #include "user.h"
 #include "link_kernel.h"
 #include "subcmd.h"
@@ -131,6 +132,7 @@ int main(int argc, char** argv) {
 #include "build/std.c"
 #include "build/kernel.c"
 #include "build/init.c"
+#include "build/fbtest.c"
 #include "user.c"
 #include "link_kernel.c"
 // Subcommands

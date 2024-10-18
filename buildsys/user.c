@@ -5,5 +5,6 @@ bool build_user() {
     if(!build_init()) return false;
     if(!build_shell()) return false;
     if(!build_hello()) return false;
+    if(!build_fbtest()) return false;
     return true; 
 }
