@@ -350,6 +350,7 @@ void destroy_tty_device(Device* device) {
     if(!device || !device->private) return;
     TtyDevice* tty = device->private;
     vfs_close(&tty->input.as_kb.keyboard);
+    // FIXME: Maybe cache_dealloc?
 }
 
 static intptr_t tty_init() {
