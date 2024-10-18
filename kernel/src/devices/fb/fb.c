@@ -19,6 +19,7 @@ static intptr_t fb_get_stats(FbDevice* device, FbStats* stats) {
     stats->width = device->fb.width;
     stats->height = device->fb.height;
     stats->bpp = device->fb.bpp;
+    stats->pitch_bytes = device->fb.pitch_bytes;
     return 0;
 }
 // TODO: Maybe do an ioctl function map. IDRK
