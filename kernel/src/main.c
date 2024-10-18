@@ -133,6 +133,9 @@ void _start() {
     update_bar(step++, "init_rootfs");
     init_rootfs();
 
+    update_bar(step++, "device cache");
+    assert(kernel.device_cache = create_new_cache(sizeof(Device), "Device"));
+
     update_bar(step++, "init_devices");
     init_devices();
 
@@ -163,8 +166,6 @@ void _start() {
     update_bar(step++, "pit_set_count");
     pit_set_count(1000);
 
-    update_bar(step++, "device cache");
-    assert(kernel.device_cache = create_new_cache(sizeof(Device), "Device"));
 
     update_bar(step++, "fbt test");
     fbt();
