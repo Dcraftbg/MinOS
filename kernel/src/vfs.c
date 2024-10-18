@@ -134,8 +134,16 @@ static intptr_t _vfs_stat(VfsDirEntry* this, VfsStats* stats) {
     return this->ops->stat(this, stats);
 }
 
+static intptr_t _vfs_ioctl(VfsFile* file, Iop op, void* arg) {
+    if(!file->ops->ioctl) return -UNSUPPORTED;
+    return file->ops->ioctl(file, op, arg);
+}
+
 intptr_t vfs_stat(VfsDirEntry* this, VfsStats* stats) {
     return _vfs_stat(this, stats);
+}
+intptr_t vfs_ioctl(VfsFile* file, Iop op, void* arg) {
+    return _vfs_ioctl(file, op, arg);
 }
 
 intptr_t fetch_inode(VfsDirEntry* entry, Inode** result, fmode_t mode) {

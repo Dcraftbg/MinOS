@@ -87,6 +87,7 @@ enum {
     SEEK_END,
 };
 typedef uintptr_t seekfrom_t;
+typedef uint32_t Iop;
 typedef struct FsOps {
     // Ops for directories
     intptr_t (*create)(VfsDir* parent, VfsDirEntry* result);         // @check ops
@@ -104,11 +105,11 @@ typedef struct FsOps {
     intptr_t (*get_inode_of)(VfsDirEntry* this, Inode** result);
     intptr_t (*rename)(VfsDirEntry* this, const char* name, size_t namelen);
 
-
     // Ops for files
     intptr_t (*read)(VfsFile* file, void* buf, size_t size, off_t offset);
     intptr_t (*write)(VfsFile* file, const void* buf, size_t size, off_t offset);
     intptr_t (*seek)(VfsFile* file, off_t offset, seekfrom_t from); 
+    intptr_t (*ioctl)(VfsFile* file, Iop op, void* arg);
 
     // Close
     void (*close)(VfsFile* file);
@@ -264,6 +265,12 @@ intptr_t vfs_seek(VfsFile* file, off_t offset, seekfrom_t from);
 // >= 0 Success
 // <  0 Error
 intptr_t vfs_stat(VfsDirEntry* this, VfsStats* stats);
+
+// Return value:
+// >= 0 Success (Implementation defined value)
+// <  0 Error
+intptr_t vfs_ioctl(VfsDirEntry* this, VfsStats* stats);
+
 
 intptr_t vfs_register_device(const char* name, Device* device);
 #define MAX_INODE_NAME 128
