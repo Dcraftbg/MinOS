@@ -139,11 +139,20 @@ static intptr_t _vfs_ioctl(VfsFile* file, Iop op, void* arg) {
     return file->ops->ioctl(file, op, arg);
 }
 
+intptr_t _vfs_mmap(VfsFile* file, MmapContext* context, void** addr, size_t size_pages) {
+    if(!file->ops->mmap) return -UNSUPPORTED;
+    return file->ops->mmap(file, context, addr, size_pages);
+}
+
+
 intptr_t vfs_stat(VfsDirEntry* this, VfsStats* stats) {
     return _vfs_stat(this, stats);
 }
 intptr_t vfs_ioctl(VfsFile* file, Iop op, void* arg) {
     return _vfs_ioctl(file, op, arg);
+}
+intptr_t vfs_mmap(VfsFile* file, MmapContext* context, void** addr, size_t size_pages) {
+    return _vfs_mmap(file, context, addr, size_pages);
 }
 
 intptr_t fetch_inode(VfsDirEntry* entry, Inode** result, fmode_t mode) {

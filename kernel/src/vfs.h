@@ -5,6 +5,7 @@
 #include <minos/fsdefs.h>
 #include "list.h"
 #include "utils.h"
+#include "page.h"
 typedef intptr_t off_t;
 typedef enum {
     INODE_DIR,
@@ -12,6 +13,10 @@ typedef enum {
     INODE_DEVICE,
     INODE_COUNT,
 } InodeKind;
+typedef struct {
+    page_t page_table;
+    struct list* memlist;
+} MmapContext;
 typedef size_t inodeid_t;
 typedef int inodekind_t;
 struct FsOps;
@@ -105,6 +110,7 @@ typedef struct FsOps {
     intptr_t (*write)(VfsFile* file, const void* buf, size_t size, off_t offset);
     intptr_t (*seek)(VfsFile* file, off_t offset, seekfrom_t from); 
     intptr_t (*ioctl)(VfsFile* file, Iop op, void* arg);
+    intptr_t (*mmap)(VfsFile* file, MmapContext* context, void** addr, size_t size_pages);
 
     // Close
     void (*close)(VfsFile* file);
@@ -266,6 +272,10 @@ intptr_t vfs_stat(VfsDirEntry* this, VfsStats* stats);
 // <  0 Error
 intptr_t vfs_ioctl(VfsFile* file, Iop op, void* arg);
 
+// Return value:
+// >= 0 Success (Implementation defined value)
+// <  0 Error
+intptr_t vfs_mmap(VfsFile* file, MmapContext* context, void** addr, size_t size_pages);
 
 intptr_t vfs_register_device(const char* name, Device* device);
 #define MAX_INODE_NAME 128
