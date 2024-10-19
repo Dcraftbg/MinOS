@@ -214,7 +214,7 @@ intptr_t exec(Task* task, const char* path, Args* args, Args* envs) {
     if (header.entry == 0)
         return_defer_err(-NO_ENTRYPOINT);
 
-    size_t stack_pages = USER_STACK_PAGES + 1 + (PAGE_ALIGN_UP(args->bytelen) / PAGE_SIZE);
+    size_t stack_pages = USER_STACK_PAGES + 1 + (PAGE_ALIGN_UP(args->bytelen+env->bytelen) / PAGE_SIZE);
 
     if(!(ustack_region=memlist_new(memregion_new(MEMREG_WRITE, KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_USER | KERNEL_PFLAG_EXEC_DISABLE | KERNEL_PTYPE_USER, USER_STACK_ADDR, stack_pages)))) 
         return_defer_err(-NOT_ENOUGH_MEM);
