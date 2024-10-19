@@ -74,3 +74,8 @@ size_t strlen(const char* cstr) {
     while(*head) head++;
     return head-cstr;
 }
+
+char* strchr(const char* str, int chr) {
+    while(str[0] && str[0] != (char)chr) str++;
+    return (char*)str;
+}
