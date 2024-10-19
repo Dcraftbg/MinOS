@@ -75,6 +75,29 @@ DEFER_ERR:
     if(process) process_drop(process);
     return e;
 }
+static intptr_t args_push(Task* task, Args* args, char** stack_head, char*** argv) {
+    // TODO: Kind of interesting but what if you swapped the cr3 AFTER YOU JOINED WITH THE KERNEL MEMORY MAP
+    // And then used memcpy, which would be wayyy faster since it doesn't need to manually do page checks;
+    //
+    // TODO: Squish this into a single operation by calculating where argv would be positioned at using bytelen
+    char* args_head = *stack_head;
+    intptr_t e=0;
+    for(size_t i = 0; i < args->argc; ++i) {
+        size_t len = strlen(args->argv[i]);
+        *stack_head -= len+1; // the stack grows backwards
+        if((e = user_memcpy(task, *stack_head, args->argv[i], len+1)) < 0) 
+            return e;
+    }
+    *stack_head -= sizeof(args_head) * args->argc; // Reserve space for argv
+    *argv = (char**)*stack_head;
+    for(size_t i = 0; i < args->argc; ++i) {
+        size_t len = strlen(args->argv[i]);
+        args_head -= len+1;
+        if((e = user_memcpy(task, (*argv)+i, &args_head, sizeof(args_head))) < 0)
+            return e;
+    }
+    return 0;
+}
 // TODO: Fix XD. XD may not be supported always so checks to remove it are necessary
 intptr_t exec(Task* task, const char* path, Args args) {
     intptr_t e=0;
@@ -205,27 +228,10 @@ intptr_t exec(Task* task, const char* path, Args args) {
     if (!page_alloc(task->image.cr3, KERNEL_STACK_ADDR, KERNEL_STACK_PAGES, KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_EXEC_DISABLE | KERNEL_PTYPE_USER))
         return_defer_err(-NOT_ENOUGH_MEM);
 
-    // TODO: Kind of interesting but what if you swapped the cr3 AFTER YOU JOINED WITH THE KERNEL MEMORY MAP
-    // And then used memcpy, which would be wayyy faster since it doesn't need to manually do page checks;
-    //
-    // TODO: Squish this into a single operation by calculating where argv would be positioned at using bytelen
     char* stack_head = (char*)USER_STACK_PTR;
-    char* args_head = stack_head;
-
-    for(size_t i = 0; i < args.argc; ++i) {
-        size_t len = strlen(args.argv[i]);
-        stack_head -= len+1; // the stack grows backwards
-        if((e = user_memcpy(task, stack_head, args.argv[i], len+1)) < 0) 
-            return_defer_err(e);
-    }
-    stack_head -= sizeof(args_head) * args.argc; // Reserve space for argv
-    char** argv = (char**)stack_head;
-    for(size_t i = 0; i < args.argc; ++i) {
-        size_t len = strlen(args.argv[i]);
-        args_head -= len+1;
-        if((e = user_memcpy(task, argv+i, &args_head, sizeof(args_head))) < 0)
-            return_defer_err(e);
-    }
+    char** argv;
+    if((e=args_push(task, &args, &stack_head, &argv)) < 0) 
+        return_defer_err(e);
     task->image.argc = args.argc;
     task->image.argv = (const char**)argv;
     IRQFrame* frame = (IRQFrame*)((virt_to_phys(task->image.cr3, KERNEL_STACK_PTR) | KERNEL_MEMORY_MASK) + sizeof(IRQFrame));
