@@ -83,16 +83,20 @@ static intptr_t args_push(Task* task, Args* args, char** stack_head, char*** arg
     char* args_head = *stack_head;
     intptr_t e=0;
     for(size_t i = 0; i < args->argc; ++i) {
-        size_t len = strlen(args->argv[i]);
-        *stack_head -= len+1; // the stack grows backwards
-        if((e = user_memcpy(task, *stack_head, args->argv[i], len+1)) < 0) 
-            return e;
+        if(args->argv[i]) {
+            size_t len = strlen(args->argv[i]);
+            *stack_head -= len+1; // the stack grows backwards
+            if((e = user_memcpy(task, *stack_head, args->argv[i], len+1)) < 0) 
+                return e;
+        }
     }
     *stack_head -= sizeof(args_head) * args->argc; // Reserve space for argv
     *argv = (char**)*stack_head;
     for(size_t i = 0; i < args->argc; ++i) {
-        size_t len = strlen(args->argv[i]);
-        args_head -= len+1;
+        if(args->argv[i]) {
+            size_t len = strlen(args->argv[i]);
+            args_head -= len+1;
+        }
         if((e = user_memcpy(task, (*argv)+i, &args_head, sizeof(args_head))) < 0)
             return e;
     }
