@@ -8,6 +8,8 @@ typedef struct {
     page_t cr3;
     size_t argc;
     const char** argv;
+    size_t envc;
+    const char** envv;
     struct list memlist;
     // Task switch rsp
     // The rsp of the task switch at which the swap initialially happened

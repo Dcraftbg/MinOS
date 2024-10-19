@@ -81,7 +81,7 @@ typedef struct {
 } ContextFrame;
 
 __attribute__((noreturn)) 
-void irq_ret_user(uint64_t ts_rsp, uint64_t cr3, uint64_t argc, const char** argv);
+void irq_ret_user(uint64_t ts_rsp, uint64_t cr3, uint64_t argc, const char** argv, uint64_t envc, const char** envv);
 
 
 __attribute__((optimize("O3")))
@@ -102,7 +102,12 @@ void task_switch(ContextFrame* frame) {
         if (select->image.flags & TASK_FLAG_FIRST_RUN) {
             select->image.flags &= ~TASK_FLAG_FIRST_RUN;
             pic_end(0);
-            irq_ret_user((uint64_t)select->image.ts_rsp, (uint64_t)select->image.cr3 & ~KERNEL_MEMORY_MASK, select->image.argc, select->image.argv);
+            irq_ret_user(
+                (uint64_t)select->image.ts_rsp,
+                (uint64_t)select->image.cr3 & ~KERNEL_MEMORY_MASK,
+                select->image.argc, select->image.argv,
+                select->image.envc, select->image.envv
+            );
         }
     }
     pic_end(0);

@@ -7,8 +7,10 @@ global irq_ret_user
 ;    rsi = new task cr3
 ;    rdx = argc
 ;    rcx = argv
+;    r8  = envc
+;    r9  = envv
 ; Xored regisers:
-;    rax, rbx, rbx, rdx
+;    rax, rbx
 ;    rbp
 ;    r8, r9, r10, r11, r12, r13, r14, r15
 ; Returns:
@@ -18,10 +20,10 @@ irq_ret_user:
    mov cr3, rsi
    mov rdi, rdx
    mov rsi, rcx
+   mov rdx, r8
+   mov rcx, r9
    xor rax, rax
    xor rbx, rbx
-   xor rcx, rcx
-   xor rdx, rdx
    xor rbp, rbp
    xor r8 , r8
    xor r9 , r9

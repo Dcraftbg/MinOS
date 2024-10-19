@@ -174,9 +174,11 @@ void _start() {
     intptr_t e = 0;
     const char* epath = NULL;
     Args args;
+    Args env;
     epath = "/user/nothing";
     args = create_args(1, &epath);
-    if((e = exec_new(epath, &args)) < 0) {
+    env  = create_args(0, NULL);
+    if((e = exec_new(epath, &args, &env)) < 0) {
         printf("Failed to exec %s : %s\n",epath,status_str(e));
         kabort();
     }
@@ -184,7 +186,9 @@ void _start() {
     epath = "/user/init";
     const char* argv[] = {epath, "test_arg"};
     args = create_args(ARRAY_LEN(argv), argv);
-    if((e = exec_new(epath, &args)) < 0) {
+    const char* envv[] = {"FOO=BAR", "BAZ=A"};
+    env  = create_args(ARRAY_LEN(envv), envv);
+    if((e = exec_new(epath, &args, &env)) < 0) {
         printf("Failed to exec %s : %s\n",epath,status_str(e));
         kabort();
     }

@@ -55,7 +55,7 @@ DEFER_ERR:
     if(result) drop_task(result);
     return e;
 }
-intptr_t exec_new(const char* path, Args* args) {    
+intptr_t exec_new(const char* path, Args* args, Args* env) {    
     intptr_t e=0;
     Process* process = kernel_process_add();
     Task* task = NULL;
@@ -66,7 +66,7 @@ intptr_t exec_new(const char* path, Args* args) {
     if(!task) return_defer_err(-LIMITS); // Reached max tasks and/or we're out of memory
     process->main_threadid = task->id;
     task->processid = process->id;
-    if((e=exec(task, path, args)) < 0)
+    if((e=exec(task, path, args, env)) < 0)
         return_defer_err(e);
     task->image.flags |= TASK_FLAG_PRESENT;
     return 0;
@@ -103,7 +103,7 @@ static intptr_t args_push(Task* task, Args* args, char** stack_head, char*** arg
     return 0;
 }
 // TODO: Fix XD. XD may not be supported always so checks to remove it are necessary
-intptr_t exec(Task* task, const char* path, Args* args) {
+intptr_t exec(Task* task, const char* path, Args* args, Args* envs) {
     intptr_t e=0;
     VfsFile file={0};
     bool fopened=false;
@@ -233,9 +233,14 @@ intptr_t exec(Task* task, const char* path, Args* args) {
         return_defer_err(-NOT_ENOUGH_MEM);
 
     char* stack_head = (char*)USER_STACK_PTR;
+    char** envp;
+    if((e=args_push(task, envs, &stack_head, &envp)) < 0) 
+        return_defer_err(e);
     char** argv;
     if((e=args_push(task, args, &stack_head, &argv)) < 0) 
         return_defer_err(e);
+    task->image.envc = envs->argc;
+    task->image.envv = (const char**)envp;
     task->image.argc = args->argc;
     task->image.argv = (const char**)argv;
     IRQFrame* frame = (IRQFrame*)((virt_to_phys(task->image.cr3, KERNEL_STACK_PTR) | KERNEL_MEMORY_MASK) + sizeof(IRQFrame));
