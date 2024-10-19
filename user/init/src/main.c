@@ -40,7 +40,7 @@ int main() {
     }
     return 0;
 }
-void _start(int argc, const char** argv) {
+void _start(int argc, const char** argv, int envc, const char** envv) {
     intptr_t e;
     if((e = open("/devices/tty0", MODE_WRITE | MODE_READ)) < 0) {
         exit(-e); 
@@ -48,6 +48,10 @@ void _start(int argc, const char** argv) {
     printf("Args dump:\n");
     for(size_t i = 0; i < argc; ++i) {
         printf("%zu> ",i+1); printf("%p",argv[i]); printf(" %s\n",argv[i]);
+    }
+    printf("Env dump:\n");
+    for(size_t i = 0; i < envc; ++i) {
+        printf("%zu> ",i+1); printf("%p",envv[i]); printf(" %s\n",envv[i]);
     }
     int code = main();
     close(STDOUT_FILENO);
