@@ -156,7 +156,8 @@ intptr_t sys_exec(const char* path, const char** argv, size_t argc) {
         return -LIMITS;
     }
     task->processid = cur_proc->id;
-    if((e=exec(task, path, create_args(argc, argv))) < 0) {
+    Args args=create_args(argc, argv);
+    if((e=exec(task, path, &args)) < 0) {
         drop_task(task);
         enable_interrupts();
         return e;

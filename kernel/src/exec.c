@@ -55,7 +55,7 @@ DEFER_ERR:
     if(result) drop_task(result);
     return e;
 }
-intptr_t exec_new(const char* path, Args args) {    
+intptr_t exec_new(const char* path, Args* args) {    
     intptr_t e=0;
     Process* process = kernel_process_add();
     Task* task = NULL;
@@ -99,7 +99,7 @@ static intptr_t args_push(Task* task, Args* args, char** stack_head, char*** arg
     return 0;
 }
 // TODO: Fix XD. XD may not be supported always so checks to remove it are necessary
-intptr_t exec(Task* task, const char* path, Args args) {
+intptr_t exec(Task* task, const char* path, Args* args) {
     intptr_t e=0;
     VfsFile file={0};
     bool fopened=false;
@@ -210,7 +210,7 @@ intptr_t exec(Task* task, const char* path, Args args) {
     if (header.entry == 0)
         return_defer_err(-NO_ENTRYPOINT);
 
-    size_t stack_pages = USER_STACK_PAGES + 1 + (PAGE_ALIGN_UP(args.bytelen) / PAGE_SIZE);
+    size_t stack_pages = USER_STACK_PAGES + 1 + (PAGE_ALIGN_UP(args->bytelen) / PAGE_SIZE);
 
     if(!(ustack_region=memlist_new(memregion_new(MEMREG_WRITE, KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_USER | KERNEL_PFLAG_EXEC_DISABLE | KERNEL_PTYPE_USER, USER_STACK_ADDR, stack_pages)))) 
         return_defer_err(-NOT_ENOUGH_MEM);
@@ -230,9 +230,9 @@ intptr_t exec(Task* task, const char* path, Args args) {
 
     char* stack_head = (char*)USER_STACK_PTR;
     char** argv;
-    if((e=args_push(task, &args, &stack_head, &argv)) < 0) 
+    if((e=args_push(task, args, &stack_head, &argv)) < 0) 
         return_defer_err(e);
-    task->image.argc = args.argc;
+    task->image.argc = args->argc;
     task->image.argv = (const char**)argv;
     IRQFrame* frame = (IRQFrame*)((virt_to_phys(task->image.cr3, KERNEL_STACK_PTR) | KERNEL_MEMORY_MASK) + sizeof(IRQFrame));
     frame->rip    = header.entry;

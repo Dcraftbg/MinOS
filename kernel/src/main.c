@@ -173,15 +173,18 @@ void _start() {
     // dev_test();
     intptr_t e = 0;
     const char* epath = NULL;
+    Args args;
     epath = "/user/nothing";
-    if((e = exec_new(epath, create_args(1, &epath))) < 0) {
+    args = create_args(1, &epath);
+    if((e = exec_new(epath, &args)) < 0) {
         printf("Failed to exec %s : %s\n",epath,status_str(e));
         kabort();
     }
 
     epath = "/user/init";
-    const char* args[] = {epath, "test_arg"};
-    if((e = exec_new(epath, create_args(ARRAY_LEN(args), args))) < 0) {
+    const char* argv[] = {epath, "test_arg"};
+    args = create_args(ARRAY_LEN(argv), argv);
+    if((e = exec_new(epath, &args)) < 0) {
         printf("Failed to exec %s : %s\n",epath,status_str(e));
         kabort();
     }
