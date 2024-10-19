@@ -1,8 +1,8 @@
 #pragma once
 #include <stddef.h>
+#include <minos/sysstd.h>
 void* malloc(size_t size);
 void free(void* addr);
-void* realloc(void* addr, size_t size);
 void _libc_internal_init_heap();
 typedef struct {
     size_t id;

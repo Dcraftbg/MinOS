@@ -17,13 +17,6 @@ void* malloc(size_t size) {
     return NULL;
 }
 
-void* realloc(void* addr, size_t size) {
-    void* nbuf = malloc(size);
-    if(!nbuf) return NULL;
-    memcpy(nbuf, addr, size);
-    free(addr);
-    return nbuf;
-}
 // TODO: Smarter free with heap_get() and checking heap ranges
 void free(void* addr) {
     for(size_t i = 0; i < _LIBC_INTERNAL_HEAPS_MAX; ++i) {
