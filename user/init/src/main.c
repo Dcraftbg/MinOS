@@ -1,5 +1,6 @@
 #include <minos/sysstd.h>
 #include <minos/status.h>
+#include <stdexec.h>
 #include <stdbool.h>
 #include <string.h>
 #include <stdio.h>

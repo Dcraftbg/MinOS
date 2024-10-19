@@ -28,8 +28,8 @@ static intptr_t fork(void) {
     return syscall0(SYS_FORK);
 }
 
-static intptr_t exec(const char* path, const char** argv, size_t argc) {
-    return syscall3(SYS_EXEC, path, argv, argc);
+static intptr_t execve(const char* path, const char** argv, size_t argc, const char** envp, size_t envc) {
+    return syscall5(SYS_EXEC, path, argv, argc, envp, envc);
 }
 
 static void exit(int64_t code) {

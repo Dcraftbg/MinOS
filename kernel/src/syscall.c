@@ -140,7 +140,7 @@ intptr_t sys_fork() {
     }
     return process->id;
 }
-intptr_t sys_exec(const char* path, const char** argv, size_t argc) {
+intptr_t sys_exec(const char* path, const char** argv, size_t argc, const char** envv, size_t envc) {
 #ifdef CONFIG_LOG_SYSCALLS
     printf("sys_exec(%s, %p, %zu)\n", path, argv, argc);
 #endif
@@ -157,7 +157,7 @@ intptr_t sys_exec(const char* path, const char** argv, size_t argc) {
     }
     task->processid = cur_proc->id;
     Args args=create_args(argc, argv);
-    Args env =create_args(0, NULL);
+    Args env =create_args(envc, envv);
     if((e=exec(task, path, &args, &env)) < 0) {
         drop_task(task);
         enable_interrupts();

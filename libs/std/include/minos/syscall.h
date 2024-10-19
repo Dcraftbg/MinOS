@@ -50,3 +50,28 @@
     ); \
     __sys_result; \
 })
+
+#define syscall4(num, arg1, arg2, arg3, arg4) \
+({ \
+    intptr_t __sys_result; \
+    asm volatile ( \
+        SYSCALL_ASM \
+        : "=a" (__sys_result) \
+        : "a" (num), "D" (arg1), "S" (arg2), "d" (arg3), "c" (arg4)\
+        : "memory" \
+    ); \
+    __sys_result; \
+})
+
+#define syscall5(num, arg1, arg2, arg3, arg4, arg5) \
+({ \
+    intptr_t __sys_result; \
+    register long r10 __asm__("r10") = arg5;\
+    __asm__ volatile ( \
+        SYSCALL_ASM \
+        : "=a" (__sys_result) \
+        : "a" (num), "D" (arg1), "S" (arg2), "d" (arg3), "c" (arg4), "r" (r10) \
+        : "memory" \
+    ); \
+    __sys_result; \
+})
