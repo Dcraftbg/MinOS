@@ -54,6 +54,8 @@ void _start(int argc, const char** argv, int envc, const char** envv) {
     for(size_t i = 0; i < envc; ++i) {
         printf("%zu> ",i+1); printf("%p",envv[i]); printf(" %s\n",envv[i]);
     }
+    environ=NULL;
+    __environ_size=0;
     int code = main();
     close(STDOUT_FILENO);
     if(STDIN_FILENO != STDOUT_FILENO) close(STDIN_FILENO);
