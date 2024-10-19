@@ -5,6 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+#include <environ.h>
 
 intptr_t readline(char* buf, size_t bufmax) {
     intptr_t e;
@@ -143,6 +144,7 @@ const char* strip_arg(Arena* arena, const char** str_result) {
 #define MAX_ARGS 128
 void run_cmd(const char** argv, size_t argc) {
     assert(argc > 0);
+    printf("__environ_size=%zu\n", __environ_size);
     intptr_t e = fork();
     if(e == (-YOU_ARE_CHILD)) {
         if((e=exec(argv[0], argv, argc)) < 0) {
