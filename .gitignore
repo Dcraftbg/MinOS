@@ -3,7 +3,7 @@ bin/
 gcc/
 backup.py
 bootstrap
-build
+build.exe
 *.exe
 *.old
 *.ini
