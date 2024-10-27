@@ -20,7 +20,7 @@ void tss_load_cpu(size_t cpu) {
     __asm__ volatile(
         "ltr %0"
         :
-        : "r" (GDT_TSS) // Offset within the GDT
+        : "r" ((uint16_t)GDT_TSS) // Offset within the GDT
     );
     kernel_reload_gdt_registers();
 }
