@@ -12,6 +12,7 @@ config.h
 *.log
 keycode.py
 kernel/embed.h
-
+build
+!*/build/
 user/task_a/
 user/task_b/
