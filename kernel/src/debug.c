@@ -57,7 +57,7 @@ void log_cache(Cache* cache) {
 void cat(const char* path) {
     VfsFile file = {0};
     intptr_t e = 0;
-    if((e=vfs_open(path, &file, MODE_READ)) < 0) {
+    if((e=vfs_open_abs(path, &file, MODE_READ)) < 0) {
         printf("ERROR: cat: Failed to open %s : %ld\n",path,e);
         return;
     }
@@ -149,7 +149,7 @@ void hexdump_mem(uint8_t* buf, size_t size) {
 void hexdump(const char* path) {
     VfsFile file = {0};
     intptr_t e = 0;
-    if((e=vfs_open(path, &file, MODE_READ)) < 0) {
+    if((e=vfs_open_abs(path, &file, MODE_READ)) < 0) {
         printf("ERROR: hexdump: Failed to open %s : %ld\n",path,e);
         return;
     }
@@ -190,7 +190,7 @@ void ls(const char* path) {
     VfsDirEntry entry = {0};
     intptr_t e = 0;
     char namebuf[MAX_INODE_NAME];
-    if ((e=vfs_diropen(path, &dir, MODE_READ)) < 0) {
+    if ((e=vfs_diropen_abs(path, &dir, MODE_READ)) < 0) {
         printf("ERROR: ls: Could not open directory: %s\n", status_str(e));
         return;
     }

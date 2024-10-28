@@ -22,7 +22,7 @@ intptr_t sys_open(const char* path, fmode_t mode) {
     Resource* resource = resource_add(current->resources, &id);
     if(!resource) return -NOT_ENOUGH_MEM;
     resource->kind = RESOURCE_FILE;
-    if((e=vfs_open(path, &resource->data.file, mode)) < 0) {
+    if((e=vfs_open_abs(path, &resource->data.file, mode)) < 0) {
         resource_remove(current->resources, id);
         return e;
     }

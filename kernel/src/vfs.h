@@ -175,39 +175,48 @@ typedef struct {
     intptr_t (*deinit)(Superblock* superblock);
 } FsDriver;
 
+typedef struct {
+    struct {
+        Superblock* superblock;
+        inodeid_t id;
+    } from;
+    const char* path;
+} Path;
 
 
 void init_vfs();
+
+
 // Return value:
-// >=0 parent id
+// >=0 Success
 // < 0 Error 
-intptr_t vfs_find_parent(const char* path, const char** pathend, Superblock** sb, inodeid_t* id);
+intptr_t vfs_find_parent(Path* path, const char** pathend, Superblock** sb, inodeid_t* id);
 
 // Return value:
 //   0 Success
 // < 0 Error 
-intptr_t vfs_find(const char* path, Superblock** sb, inodeid_t* id);
+intptr_t vfs_find(Path* path, Superblock** sb, inodeid_t* id);
 
 // Return value:
 //   0 Success
 // < 0 Error
-intptr_t vfs_create(const char* path);
+intptr_t vfs_create(Path* path);
 
 // Return value:
 //   0 Success
 // < 0 Error
-intptr_t vfs_open(const char* path, VfsFile* result, fmode_t mode);
+intptr_t vfs_open(Path* path, VfsFile* result, fmode_t mode);
 
 
 // Return value:
 //   0 Success
 // < 0 Error
-intptr_t vfs_mkdir(const char* path);
+intptr_t vfs_mkdir(Path* path);
 
 // Return value:
 //   0 Success
 // < 0 Error
-intptr_t vfs_diropen(const char* path, VfsDir* result, fmode_t mode);
+intptr_t vfs_diropen(Path* path, VfsDir* result, fmode_t mode);
 
 
 // Return value:
@@ -298,3 +307,9 @@ void idrop(Inode* inode);
 #endif
 
 
+intptr_t vfs_find_parent_abs(const char* path, const char** pathend, Superblock** sb, inodeid_t* id);
+intptr_t vfs_find_abs(const char* path, Superblock** sb, inodeid_t* id); 
+intptr_t vfs_create_abs(const char* path); 
+intptr_t vfs_open_abs(const char* path, VfsFile* result, fmode_t mode);
+intptr_t vfs_mkdir_abs(const char* path); 
+intptr_t vfs_diropen_abs(const char* path, VfsDir* result, fmode_t mode); 

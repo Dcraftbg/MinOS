@@ -195,7 +195,7 @@ void init_vfs() {
     assert(kernel.inode_cache = create_new_cache(sizeof(Inode), "Inode"));
     assert(hashpair_cache = create_new_cache(sizeof(Pair_InodeMap), "Pair_InodeMap"));
     intptr_t e=0;
-    FsDriver* root_driver = &tmpfs_driver; 
+FsDriver* root_driver = &tmpfs_driver; 
     if(root_driver->init) {
         if((e=root_driver->init(&kernel.rootBlock)) < 0) {
             printf("ERROR: Could not initialise root fs (%ld)!\n",e);
@@ -234,14 +234,14 @@ static intptr_t _vfs_find_within(VfsDir* dir, char* namebuf, size_t namecap, con
     return e;
 }
 
-intptr_t vfs_find_parent(const char* path, const char** pathend, Superblock** sb, inodeid_t* id) {
+intptr_t vfs_find_parent(Path* path, const char** pathend, Superblock** sb, inodeid_t* id) {
     intptr_t e = 0;
-    const char* dirbegin = path;
+    const char* dirbegin = path->path;
     const char* dirend   = path_dir_next(dirbegin); 
     char namebuf[MAX_INODE_NAME]; // Usually safe to allocate on the stack
     VfsDir dir = {0};
-    (*sb) = &kernel.rootBlock;
-    *id = kernel.rootBlock.root;
+    (*sb) = path->from.superblock;
+    *id   = path->from.id;
     if(!dirend) return -NOT_FOUND;
     dirbegin = dirend;
     while((dirend = path_dir_next(dirbegin))) {
@@ -251,6 +251,7 @@ intptr_t vfs_find_parent(const char* path, const char** pathend, Superblock** sb
             return e;
         }
         if((e=_vfs_diropen(curdir, &dir, MODE_READ)) < 0) {
+            idrop(curdir);
             return e;
         }
         idrop(curdir);
@@ -270,7 +271,7 @@ intptr_t vfs_find_parent(const char* path, const char** pathend, Superblock** sb
 }
 
 
-intptr_t vfs_find(const char* path, Superblock** sb, inodeid_t* id) {
+intptr_t vfs_find(Path* path, Superblock** sb, inodeid_t* id) {
     inodeid_t parent;
     Inode* parent_inode = NULL;
     VfsDir parentdir={0};
@@ -298,7 +299,7 @@ intptr_t vfs_find(const char* path, Superblock** sb, inodeid_t* id) {
     return 0;
 }
 
-intptr_t vfs_mkdir(const char* path) {
+intptr_t vfs_mkdir(Path* path) {
     inodeid_t parent;
     Inode* parent_inode=NULL;
     VfsDir parentdir={0};
@@ -338,7 +339,7 @@ intptr_t vfs_mkdir(const char* path) {
     return -ALREADY_EXISTS;
 }
 
-intptr_t vfs_create(const char* path) {
+intptr_t vfs_create(Path* path) {
     inodeid_t parent;
     Inode* parent_inode=NULL;
     VfsDir parentdir={0};
@@ -378,7 +379,7 @@ intptr_t vfs_create(const char* path) {
     return -ALREADY_EXISTS;
 }
 
-intptr_t vfs_open(const char* path, VfsFile* result, fmode_t mode) {
+intptr_t vfs_open(Path* path, VfsFile* result, fmode_t mode) {
     intptr_t e = 0;
     Superblock* sb;
     inodeid_t id;
@@ -397,7 +398,7 @@ intptr_t vfs_open(const char* path, VfsFile* result, fmode_t mode) {
     return 0;
 }
 
-intptr_t vfs_diropen(const char* path, VfsDir* result, fmode_t mode) {
+intptr_t vfs_diropen(Path* path, VfsDir* result, fmode_t mode) {
     intptr_t e = 0;
     Superblock* sb;
     inodeid_t id;
@@ -469,7 +470,7 @@ intptr_t vfs_seek(VfsFile* file, off_t offset, seekfrom_t from) {
 intptr_t vfs_register_device(const char* name, Device* device) {
     intptr_t e = 0;
     VfsDir devices = {0};
-    if((e=vfs_diropen("/devices", &devices, MODE_WRITE | MODE_READ)) < 0) {
+    if((e=vfs_diropen_abs("/devices", &devices, MODE_WRITE | MODE_READ)) < 0) {
         return e;
     }
 
@@ -500,3 +501,35 @@ intptr_t vfs_register_device(const char* name, Device* device) {
     _vfs_dirclose(&devices);
     return -ALREADY_EXISTS;
 }
+#define PATH_ABS(p) { .from = {.superblock=&kernel.rootBlock, .id=kernel.rootBlock.root }, .path=p }
+
+intptr_t vfs_find_parent_abs(const char* path, const char** pathend, Superblock** sb, inodeid_t* id) {
+    Path abs = PATH_ABS(path);
+    return vfs_find_parent(&abs, pathend, sb, id);
+}
+
+intptr_t vfs_find_abs(const char* path, Superblock** sb, inodeid_t* id) {
+    Path abs = PATH_ABS(path);
+    return vfs_find(&abs, sb, id);
+}
+
+intptr_t vfs_create_abs(const char* path) {
+    Path abs = PATH_ABS(path);
+    return vfs_create(&abs);
+}
+
+intptr_t vfs_open_abs(const char* path, VfsFile* result, fmode_t mode) {
+    Path abs = PATH_ABS(path);
+    return vfs_open(&abs, result, mode);
+}
+
+intptr_t vfs_mkdir_abs(const char* path) {
+    Path abs = PATH_ABS(path);
+    return vfs_mkdir(&abs);
+}
+
+intptr_t vfs_diropen_abs(const char* path, VfsDir* result, fmode_t mode) {
+    Path abs = PATH_ABS(path);
+    return vfs_diropen(&abs, result, mode);
+}
+

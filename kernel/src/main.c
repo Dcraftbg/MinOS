@@ -48,7 +48,7 @@ static void dev_test() {
     const char* msg = "This is a test message to test if devices work :D\nHello!";
     intptr_t e = 0;
     VfsFile file={0};
-    if((e = vfs_open(path, &file, MODE_WRITE)) < 0) {
+    if((e = vfs_open_abs(path, &file, MODE_WRITE)) < 0) {
         printf("ERROR: Failed to open %s: %s\n",path,status_str(e));
         kabort();
     }

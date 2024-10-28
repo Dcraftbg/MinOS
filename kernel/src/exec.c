@@ -128,7 +128,7 @@ intptr_t exec(Task* task, const char* path, Args* args, Args* envs) {
     task->image.rip = 0;
     task->image.flags = TASK_FLAG_FIRST_RUN;
 
-    if((e=vfs_open(path, &file, MODE_READ)) < 0) {
+    if((e=vfs_open_abs(path, &file, MODE_READ)) < 0) {
         return_defer_err(e);
     }
     fopened = true;
