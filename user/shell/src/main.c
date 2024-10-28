@@ -225,6 +225,46 @@ int main() {
                 fprintf(stderr, "Too many arguments provided to `exit`\n");
                 continue;
             }
+        } else if (strcmp(cmd, "cd") == 0) {
+            if (arg_count < 2) {
+                fprintf(stderr, "Expected path after cd\n");
+                continue;
+            }
+            else if (arg_count > 2) {
+                fprintf(stderr, "Too many arguments after cd\n");
+                continue;
+            }
+            const char* path = args[1];
+            size_t pathlen = strlen(path);
+            switch(path[0]) {
+            case '/':
+                 if(pathlen >= PATH_MAX) {
+                     fprintf(stderr, "cd: Path too big\n");
+                     continue;
+                 }
+                 memcpy(cwd, path, pathlen+1);
+                 break;
+            case '.':
+                 path++;
+                 if(path[0] != '/') {
+                     fprintf(stderr, "ERROR: invalid path to cd");
+                     continue;
+                 }
+                 path++;
+                 pathlen-=2;
+            default: {
+                 size_t cwdlen = strlen(cwd);
+                 if(cwdlen+pathlen >= PATH_MAX) {
+                     fprintf(stderr, "cd: Path too big\n");
+                     continue;
+                 }
+                 memcpy(cwd+cwdlen, path, pathlen+1);
+            } break;
+            }
+            if((e=chdir(cwd)) < 0) {
+                fprintf(stderr, "ERROR: Failed to chdir: %s\n", status_str(e));
+                exit(1);
+            }
         } else {
             run_cmd(args, arg_count);
         }
