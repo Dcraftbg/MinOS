@@ -55,5 +55,5 @@ static intptr_t chdir(const char* path) {
 }
 
 static intptr_t getcwd(char* buf, size_t cap) {
-    return syscall1(SYS_GETCWD, buf, cap);
+    return syscall2(SYS_GETCWD, buf, cap);
 }
