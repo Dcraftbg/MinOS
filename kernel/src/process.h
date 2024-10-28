@@ -30,6 +30,9 @@ typedef struct {
     int64_t exit_code;
     size_t heapid; // Current heapid count
     struct list heap_list;
+    inodeid_t curdir_id;
+    Superblock* curdir_sb;
+    char curdir[512];
 } Process;
 
 void init_processes();

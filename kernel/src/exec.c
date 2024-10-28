@@ -64,7 +64,12 @@ intptr_t exec_new(const char* path, Args* args, Args* env) {
     if(!process->resources) return_defer_err(-NOT_ENOUGH_MEM);
     task = kernel_task_add();
     if(!task) return_defer_err(-LIMITS); // Reached max tasks and/or we're out of memory
+    process->curdir_id = kernel.rootBlock.root;
+    process->curdir_sb = &kernel.rootBlock;
+    process->curdir[0] = '/';
+    process->curdir[1] = '\0';
     process->main_threadid = task->id;
+    
     task->processid = process->id;
     Path p;
     if((e=parse_abs(path, &p)) < 0)

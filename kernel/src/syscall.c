@@ -20,7 +20,10 @@ static intptr_t parse_path(Process* process, Path* res, const char* path) {
         if(path[0] != '/') return -INVALID_PATH;
         path++;
     default:
-        return -UNSUPPORTED;
+        res->from.id         = process->curdir_id;
+        res->from.superblock = process->curdir_sb;
+        res->path = path;
+        return 0;
     }
 }
 // TODO: Safety features like copy_to_userspace, copy_from_userspace
@@ -29,7 +32,6 @@ intptr_t sys_open(const char* path, fmode_t mode) {
     printf("sys_open(\"%s\", %u)\n",path,mode);
 #endif
     Path p;
-
     Process* current = current_process();
     size_t id = 0;
     intptr_t e = 0;
@@ -130,8 +132,11 @@ intptr_t sys_fork() {
         heap = (Heap*)heap->list.next;
     }
     process->heapid = current_proc->heapid;
-    Task* current = current_task();
+    process->curdir_id = current_proc->curdir_id;
+    process->curdir_sb = current_proc->curdir_sb;
+    memcpy(process->curdir, current_proc->curdir, sizeof(process->curdir));
 
+    Task* current = current_task();
     disable_interrupts();
     Task* task = kernel_task_add();
     if(!task) {
