@@ -254,7 +254,7 @@ intptr_t vfs_identify(VfsDirEntry* entry, char* namebuf, size_t namecap);
 // NOTE: 
 //   0 Success
 // < 0 Error
-intptr_t fetch_inode(VfsDirEntry* entry, Inode** result, fmode_t mode);
+intptr_t fetch_inode(Superblock* sb, inodeid_t id, Inode** result, fmode_t mode);
 
 // Return value:
 // >= 0 Where the cursor should be

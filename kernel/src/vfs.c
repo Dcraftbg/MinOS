@@ -148,7 +148,7 @@ intptr_t vfs_stat(Inode* inode, VfsStats* stats) {
 intptr_t vfs_stat_entry(VfsDirEntry* this, VfsStats* stats) {
     intptr_t e;
     Inode* inode;
-    if((e=fetch_inode(this, &inode, MODE_READ)) < 0) return e;
+    if((e=fetch_inode(this->superblock, this->inodeid, &inode, MODE_READ)) < 0) return e;
     e=_vfs_stat(inode, stats);
     idrop(inode);
     return e;
@@ -160,36 +160,35 @@ intptr_t vfs_mmap(VfsFile* file, MmapContext* context, void** addr, size_t size_
     return _vfs_mmap(file, context, addr, size_pages);
 }
 
-intptr_t fetch_inode(VfsDirEntry* entry, Inode** result, fmode_t mode) {
-    debug_assert(entry);
-    debug_assert(entry->superblock);
+intptr_t fetch_inode(Superblock* sb, inodeid_t id, Inode** result, fmode_t mode) {
+    debug_assert(sb);
     intptr_t e;
     Inode** ref = NULL;
-    mutex_lock(&entry->superblock->inodemap_lock);
-    if((ref=inodemap_get(&entry->superblock->inodemap, entry->inodeid))) {
+    mutex_lock(&sb->inodemap_lock);
+    if((ref=inodemap_get(&sb->inodemap, id))) {
         *result = *ref;
         if ((*result)->mode & MODE_WRITE /*&& !((*result)->mode & MODE_STREAM)*/) {
-            mutex_unlock(&entry->superblock->inodemap_lock);
+            mutex_unlock(&sb->inodemap_lock);
             return -RESOURCE_BUSY;
         }
         if ((*result)->mode & MODE_READ && !((*result)->mode & MODE_WRITE)) {
             if(mode & MODE_WRITE) {
-                mutex_unlock(&entry->superblock->inodemap_lock);
+                mutex_unlock(&sb->inodemap_lock);
                 return -RESOURCE_BUSY;
             }
             iget(*result);
-            mutex_unlock(&entry->superblock->inodemap_lock);
+            mutex_unlock(&sb->inodemap_lock);
             return 0;
         }
         return -INVALID_PARAM;
     }
-    if((e=_vfs_get_inode(entry->superblock, entry->inodeid, result)) < 0) return e;
+    if((e=_vfs_get_inode(sb, id, result)) < 0) return e;
     (*result)->mode = mode;
-    if(!inodemap_insert(&entry->superblock->inodemap, entry->inodeid, *result)) {
-        mutex_unlock(&entry->superblock->inodemap_lock);
+    if(!inodemap_insert(&sb->inodemap, id, *result)) {
+        mutex_unlock(&sb->inodemap_lock);
         return -NOT_ENOUGH_MEM;
     }
-    mutex_unlock(&entry->superblock->inodemap_lock);
+    mutex_unlock(&sb->inodemap_lock);
     return 0;
 }
 void init_vfs() {
@@ -203,6 +202,7 @@ void init_vfs() {
             kabort();
         }
     }
+    // All of this should be removed -------
     if(!root_driver->fs_ops->mkdir) {
         printf("ERROR: Rootfs driver does not support necessary features\n");
         kabort();
@@ -215,6 +215,7 @@ void init_vfs() {
         printf("ERROR: Could not rename root node (%ld)!\n",e);
         kabort();
     }
+    // ------- It should be part of init()
 }
 static const char* path_dir_next(const char* path) {
     while(*path) {
@@ -260,7 +261,7 @@ intptr_t vfs_find_parent(const char* path, VfsDirEntry* result) {
     dirbegin = dirend;
     while((dirend = path_dir_next(dirbegin))) {
         Inode* curdir;
-        if((e=fetch_inode(result, &curdir, MODE_READ)) < 0) {
+        if((e=fetch_inode(result->superblock, result->inodeid, &curdir, MODE_READ)) < 0) {
             return e;
         }
         if((e=_vfs_diropen(curdir, &dir, MODE_READ)) < 0) {
@@ -295,7 +296,7 @@ intptr_t vfs_find(const char* path, VfsDirEntry* result) {
     }
     const char* child = path+e;
 
-    if((e=fetch_inode(&parent, &parent_inode, MODE_READ)) < 0) {
+    if((e=fetch_inode(parent.superblock, parent.inodeid, &parent_inode, MODE_READ)) < 0) {
         return e;
     }
     if((e=_vfs_diropen(parent_inode, &parentdir, MODE_READ)) < 0) {
@@ -324,7 +325,7 @@ intptr_t vfs_mkdir(const char* path) {
         return -ALREADY_EXISTS;
     }
     const char* child = path+e;
-    if((e=fetch_inode(&parent, &parent_inode, MODE_WRITE | MODE_READ)) < 0) {
+    if((e=fetch_inode(parent.superblock, parent.inodeid, &parent_inode, MODE_WRITE | MODE_READ)) < 0) {
         return e;
     }
     if((e=_vfs_diropen(parent_inode, &parentdir, MODE_WRITE | MODE_READ)) < 0) return e;
@@ -360,7 +361,7 @@ intptr_t vfs_create(const char* path) {
         return -INODE_IS_DIRECTORY;
     }
     const char* child = path+e;
-    if((e=fetch_inode(&parent, &parent_inode, MODE_WRITE | MODE_READ)) < 0) {
+    if((e=fetch_inode(parent.superblock, parent.inodeid, &parent_inode, MODE_WRITE | MODE_READ)) < 0) {
         return e;
     }
     if((e=_vfs_diropen(parent_inode, &parentdir, MODE_WRITE | MODE_READ)) < 0) return e;
@@ -390,7 +391,7 @@ intptr_t vfs_open(const char* path, VfsFile* result, fmode_t mode) {
         return e;
     }
     Inode* inode = NULL;
-    if((e = fetch_inode(&entry, &inode, mode)) < 0) {
+    if((e = fetch_inode(entry.superblock, entry.inodeid, &inode, mode)) < 0) {
         return e;
     }
     if((e=_vfs_open(inode, result, mode)) < 0) {
@@ -409,7 +410,7 @@ intptr_t vfs_diropen(const char* path, VfsDir* result, fmode_t mode) {
     }
 
     Inode* inode = NULL;
-    if((e = fetch_inode(&entry, &inode, mode)) < 0) {
+    if((e = fetch_inode(entry.superblock, entry.inodeid, &inode, mode)) < 0) {
         return e;
     }
     if((e=_vfs_diropen(inode, result, mode)) < 0) {
