@@ -208,7 +208,7 @@ void ls(const char* path) {
             vfs_dirclose(&dir);
             return;
         }
-        if((e=vfs_stat(&entry, &stats)) < 0) {
+        if((e=vfs_stat_entry(&entry, &stats)) < 0) {
             printf("WARN: ls: Could not get stats for %s: %s\n",namebuf,status_str(e));
             continue;
         }

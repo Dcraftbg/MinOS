@@ -265,7 +265,7 @@ intptr_t vfs_seek(VfsFile* file, off_t offset, seekfrom_t from);
 // Return value:
 // >= 0 Success
 // <  0 Error
-intptr_t vfs_stat(VfsDirEntry* this, VfsStats* stats);
+intptr_t vfs_stat_entry(VfsDirEntry* this, VfsStats* stats);
 
 // Return value:
 // >= 0 Success (Implementation defined value)

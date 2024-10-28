@@ -145,7 +145,7 @@ intptr_t _vfs_mmap(VfsFile* file, MmapContext* context, void** addr, size_t size
 }
 
 
-intptr_t vfs_stat(VfsDirEntry* this, VfsStats* stats) {
+intptr_t vfs_stat_entry(VfsDirEntry* this, VfsStats* stats) {
     return _vfs_stat(this, stats);
 }
 intptr_t vfs_ioctl(VfsFile* file, Iop op, void* arg) {
