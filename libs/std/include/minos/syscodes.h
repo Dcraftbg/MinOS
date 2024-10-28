@@ -14,4 +14,5 @@ enum {
     SYS_HEAP_ALLOCATE,
     SYS_HEAP_DEALLOCATE,
     SYS_CHDIR,
+    SYS_GETCWD,
 };

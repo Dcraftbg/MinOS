@@ -50,6 +50,10 @@ static intptr_t heap_deallocate(size_t id, void* addr) {
     return syscall2(SYS_HEAP_DEALLOCATE, id, addr);
 }
 
-static intptr_t _chdir(const char* path) {
+static intptr_t chdir(const char* path) {
     return syscall1(SYS_CHDIR, path);
+}
+
+static intptr_t getcwd(char* buf, size_t cap) {
+    return syscall1(SYS_GETCWD, buf, cap);
 }

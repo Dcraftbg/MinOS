@@ -5,3 +5,4 @@ enum {
     /*append?*/
 };
 typedef uint32_t fmode_t;
+#define PATH_MAX 4096
