@@ -134,7 +134,6 @@ intptr_t sys_fork() {
     process->heapid = current_proc->heapid;
     process->curdir_id = current_proc->curdir_id;
     process->curdir_sb = current_proc->curdir_sb;
-    memcpy(process->curdir, current_proc->curdir, sizeof(process->curdir));
 
     Task* current = current_task();
     disable_interrupts();
@@ -284,5 +283,14 @@ intptr_t sys_heap_deallocate(size_t id, void* addr) {
     Heap* heap = get_heap_by_id(cur_proc, id);
     if(!heap) return -INVALID_HANDLE;
     heap_deallocate(heap, addr);
+    return 0;
+}
+
+intptr_t sys_chdir(const char* path) {
+    intptr_t e;
+    Process* cur_proc = current_process();
+    Path p;
+    if((e=parse_path(cur_proc, &p, path)) < 0) return e;
+    if((e=vfs_find(&p, &cur_proc->curdir_sb, &cur_proc->curdir_id)) < 0) return e;
     return 0;
 }
