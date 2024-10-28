@@ -4,7 +4,7 @@ bool run(Build* build) {
         &cmd,
         "qemu-system-x86_64",
         //"-serial", "none",
-        "-serial", "file:kernel_logs.txt",
+        "-serial", "stdio",
         "--no-reboot",
         "--no-shutdown",
         "-d", "int",
