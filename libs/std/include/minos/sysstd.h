@@ -49,3 +49,7 @@ static intptr_t heap_allocate(size_t id, size_t size, void** result) {
 static intptr_t heap_deallocate(size_t id, void* addr) {
     return syscall2(SYS_HEAP_DEALLOCATE, id, addr);
 }
+
+static intptr_t _chdir(const char* path) {
+    return syscall1(SYS_CHDIR, path);
+}
