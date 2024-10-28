@@ -499,52 +499,9 @@ intptr_t vfs_register_device(const char* name, Device* device) {
     _vfs_dirclose(&devices);
     return -ALREADY_EXISTS;
 }
-#define PATH_ABS(p) { .from = {.superblock=&kernel.rootBlock, .id=kernel.rootBlock.root }, .path=p }
-static intptr_t parse_abs(const char* path, Path* res) {
+intptr_t parse_abs(const char* path, Path* res) {
     if(path[0] != '/') return -INVALID_PATH;
     path++;
     *res = (Path) PATH_ABS(path);
     return 0;
 }
-intptr_t vfs_find_parent_abs(const char* path, const char** pathend, Superblock** sb, inodeid_t* id) {
-    Path abs;
-    intptr_t e;
-    if((e=parse_abs(path, &abs)) < 0) return e;
-    return vfs_find_parent(&abs, pathend, sb, id);
-}
-
-intptr_t vfs_find_abs(const char* path, Superblock** sb, inodeid_t* id) {
-    Path abs;
-    intptr_t e;
-    if((e=parse_abs(path, &abs)) < 0) return e;
-    return vfs_find(&abs, sb, id);
-}
-
-intptr_t vfs_create_abs(const char* path) {
-    Path abs;
-    intptr_t e;
-    if((e=parse_abs(path, &abs)) < 0) return e;
-    return vfs_create(&abs);
-}
-
-intptr_t vfs_open_abs(const char* path, VfsFile* result, fmode_t mode) {
-    Path abs;
-    intptr_t e;
-    if((e=parse_abs(path, &abs)) < 0) return e;
-    return vfs_open(&abs, result, mode);
-}
-
-intptr_t vfs_mkdir_abs(const char* path) {
-    Path abs;
-    intptr_t e;
-    if((e=parse_abs(path, &abs)) < 0) return e;
-    return vfs_mkdir(&abs);
-}
-
-intptr_t vfs_diropen_abs(const char* path, VfsDir* result, fmode_t mode) {
-    Path abs;
-    intptr_t e;
-    if((e=parse_abs(path, &abs)) < 0) return e;
-    return vfs_diropen(&abs, result, mode);
-}
-

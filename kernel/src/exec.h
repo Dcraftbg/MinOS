@@ -15,5 +15,5 @@ typedef struct {
 } IRQFrame;
 
 intptr_t exec_new(const char* path, Args* args, Args* env);
-intptr_t exec(Task* task, const char* path, Args* args, Args* env);
+intptr_t exec(Task* task, Path* path, Args* args, Args* envs);
 intptr_t fork_trampoline(Task* task, Task* result);

@@ -11,18 +11,31 @@
 void init_syscalls() {
     idt_register(0x80, syscall_base, IDT_SOFTWARE_TYPE);
 }
+static intptr_t parse_path(Process* process, Path* res, const char* path) {
+    switch(path[0]) {
+    case '/':
+        return parse_abs(path, res);
+    case '.':
+        return -UNSUPPORTED;
+    default:
+        return -INVALID_PATH;
+    }
+}
 // TODO: Safety features like copy_to_userspace, copy_from_userspace
 intptr_t sys_open(const char* path, fmode_t mode) {
 #ifdef CONFIG_LOG_SYSCALLS
     printf("sys_open(\"%s\", %u)\n",path,mode);
 #endif
+    Path p;
+
     Process* current = current_process();
     size_t id = 0;
     intptr_t e = 0;
+    if((e=parse_path(current, &p, path)) < 0) return e;
     Resource* resource = resource_add(current->resources, &id);
     if(!resource) return -NOT_ENOUGH_MEM;
     resource->kind = RESOURCE_FILE;
-    if((e=vfs_open_abs(path, &resource->data.file, mode)) < 0) {
+    if((e=vfs_open(&p, &resource->data.file, mode)) < 0) {
         resource_remove(current->resources, id);
         return e;
     }
@@ -158,7 +171,13 @@ intptr_t sys_exec(const char* path, const char** argv, size_t argc, const char**
     task->processid = cur_proc->id;
     Args args=create_args(argc, argv);
     Args env =create_args(envc, envv);
-    if((e=exec(task, path, &args, &env)) < 0) {
+    Path p;
+    if((e=parse_path(cur_proc, &p, path)) < 0) {
+        drop_task(task);
+        enable_interrupts();
+        return e;
+    }
+    if((e=exec(task, &p, &args, &env)) < 0) {
         drop_task(task);
         enable_interrupts();
         return e;

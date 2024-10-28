@@ -66,7 +66,10 @@ intptr_t exec_new(const char* path, Args* args, Args* env) {
     if(!task) return_defer_err(-LIMITS); // Reached max tasks and/or we're out of memory
     process->main_threadid = task->id;
     task->processid = process->id;
-    if((e=exec(task, path, args, env)) < 0)
+    Path p;
+    if((e=parse_abs(path, &p)) < 0)
+        return_defer_err(e);
+    if((e=exec(task, &p, args, env)) < 0)
         return_defer_err(e);
     task->image.flags |= TASK_FLAG_PRESENT;
     return 0;
@@ -103,7 +106,7 @@ static intptr_t args_push(Task* task, Args* args, char** stack_head, char*** arg
     return 0;
 }
 // TODO: Fix XD. XD may not be supported always so checks to remove it are necessary
-intptr_t exec(Task* task, const char* path, Args* args, Args* envs) {
+intptr_t exec(Task* task, Path* path, Args* args, Args* envs) {
     intptr_t e=0;
     VfsFile file={0};
     bool fopened=false;
@@ -128,7 +131,7 @@ intptr_t exec(Task* task, const char* path, Args* args, Args* envs) {
     task->image.rip = 0;
     task->image.flags = TASK_FLAG_FIRST_RUN;
 
-    if((e=vfs_open_abs(path, &file, MODE_READ)) < 0) {
+    if((e=vfs_open(path, &file, MODE_READ)) < 0) {
         return_defer_err(e);
     }
     fopened = true;
