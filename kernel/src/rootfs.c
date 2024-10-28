@@ -5,7 +5,7 @@ void init_rootfs() {
     const char* path = NULL;
     path = "/devices";
     if((e = vfs_mkdir(path)) < 0) {
-        printf("ERROR: init_rootfs: Could not create %s : %s\n",path,status_str(e));
+        printf("ERROR: init_rootfs: Could not create %s : %s\n", path, status_str(e));
         kabort();
     }
     for(size_t i = 0; i < embed_entries_count; ++i) {
@@ -30,7 +30,7 @@ void init_rootfs() {
         } break;
         case EMBED_DIR: {
             if((e = vfs_mkdir(entry->name)) < 0) {
-                printf("ERROR: init_rootfs: Could not create %s : %s\n",entry->name,status_str(e));
+                printf("ERROR: init_rootfs: Could not create %s : qweqwe%dqweqweqwe %s\n", entry->name, (int)e, status_str(e));
                 kabort();
             }
         } break;

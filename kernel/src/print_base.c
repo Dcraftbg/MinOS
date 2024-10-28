@@ -65,6 +65,7 @@ int print_base(void* user, PrintWriteFunc func, const char* fmt, va_list list) {
         case 's': {
             fmt++;
             bytes = va_arg(list, const char*);
+            if(bytes == NULL) bytes = "NULL";
             count = strlen(bytes);
         } break;
         default: 

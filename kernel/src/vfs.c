@@ -248,20 +248,20 @@ static intptr_t _vfs_find_within(VfsDir* dir, char* namebuf, size_t namecap, con
     return e;
 }
 
-intptr_t vfs_find_parent(const char* path, VfsDirEntry* result) {
+intptr_t vfs_find_parent(const char* path, const char** pathend, Superblock** sb, inodeid_t* id) {
     intptr_t e = 0;
     const char* dirbegin = path;
     const char* dirend   = path_dir_next(dirbegin); 
     char namebuf[MAX_INODE_NAME]; // Usually safe to allocate on the stack
     VfsDir dir = {0};
-    *result = kernel.rootBlock.rootEntry;
-    if(!dirend) {
-        return -NOT_FOUND;
-    }
+    (*sb) = &kernel.rootBlock;
+    *id = kernel.rootBlock.rootEntry.inodeid;
+    if(!dirend) return -NOT_FOUND;
     dirbegin = dirend;
     while((dirend = path_dir_next(dirbegin))) {
         Inode* curdir;
-        if((e=fetch_inode(result->superblock, result->inodeid, &curdir, MODE_READ)) < 0) {
+        VfsDirEntry entry;
+        if((e=fetch_inode(*sb, *id, &curdir, MODE_READ)) < 0) {
             return e;
         }
         if((e=_vfs_diropen(curdir, &dir, MODE_READ)) < 0) {
@@ -269,75 +269,79 @@ intptr_t vfs_find_parent(const char* path, VfsDirEntry* result) {
         }
         idrop(curdir);
         curdir = NULL;
-        if((e=_vfs_find_within(&dir, namebuf, sizeof(namebuf), dirbegin, dirend-dirbegin-1, result))) {
+        if((e=_vfs_find_within(&dir, namebuf, sizeof(namebuf), dirbegin, dirend-dirbegin-1, &entry)) < 0) {
             _vfs_dirclose(&dir);
             return e;
         }
+        *id = entry.inodeid;
+        *sb = entry.superblock;
+        // TODO: vfs_direntry_cleanup
         _vfs_dirclose(&dir);
         dirbegin = dirend;
     }
-    return dirbegin-path;
+    *pathend = dirbegin;
+    return 0;
 }
 
 
-intptr_t vfs_find(const char* path, VfsDirEntry* result) {
-    VfsDirEntry parent = {0};
+intptr_t vfs_find(const char* path, Superblock** sb, inodeid_t* id) {
+    inodeid_t parent;
     Inode* parent_inode = NULL;
     VfsDir parentdir={0};
+    VfsDirEntry entry;
     intptr_t e = 0;
     char namebuf[MAX_INODE_NAME];
-    if((e=vfs_find_parent(path, &parent)) < 0) {
-        return e;
-    }
-    // TODO: Consider optimising this by passing result instead of &parent
-    if(e == strlen(path)) {
-        *result = parent;
+    const char* pathend=NULL;
+    if((e=vfs_find_parent(path, &pathend, sb, &parent)) < 0) return e;
+    if(pathend[0] == '\0') {
+        *id = parent;
         return 0;
     }
-    const char* child = path+e;
-
-    if((e=fetch_inode(parent.superblock, parent.inodeid, &parent_inode, MODE_READ)) < 0) {
-        return e;
-    }
+    if((e=fetch_inode(*sb, parent, &parent_inode, MODE_READ)) < 0) return e;
     if((e=_vfs_diropen(parent_inode, &parentdir, MODE_READ)) < 0) {
         idrop(parent_inode);
         return e;
     }
     idrop(parent_inode);
-    if ((e=_vfs_find_within(&parentdir, namebuf, sizeof(namebuf), child, strlen(child), result)) < 0) {
+    if ((e=_vfs_find_within(&parentdir, namebuf, sizeof(namebuf), pathend, strlen(pathend), &entry)) < 0) {
         _vfs_dirclose(&parentdir);
         return e;
     }
     _vfs_dirclose(&parentdir);
+    *id=entry.inodeid;
     return 0;
 }
 
 intptr_t vfs_mkdir(const char* path) {
-    VfsDirEntry parent = {0};
+    inodeid_t parent;
     Inode* parent_inode=NULL;
     VfsDir parentdir={0};
     intptr_t e = 0;
     char namebuf[MAX_INODE_NAME];
-    if((e=vfs_find_parent(path, &parent)) < 0) {
+    const char* pathend=NULL;
+    Superblock* sb;
+    if((e=vfs_find_parent(path, &pathend, &sb, &parent)) < 0) {
         return e;
     }
-    if(e == strlen(path)) { // We are talking about root
+    if(pathend[0] == '\0') // We are talking about root
         return -ALREADY_EXISTS;
-    }
-    const char* child = path+e;
-    if((e=fetch_inode(parent.superblock, parent.inodeid, &parent_inode, MODE_WRITE | MODE_READ)) < 0) {
+
+    if((e=fetch_inode(sb, parent, &parent_inode, MODE_WRITE | MODE_READ)) < 0) {
         return e;
     }
-    if((e=_vfs_diropen(parent_inode, &parentdir, MODE_WRITE | MODE_READ)) < 0) return e;
+    if((e=_vfs_diropen(parent_inode, &parentdir, MODE_WRITE | MODE_READ)) < 0) {
+        idrop(parent_inode);
+        return e;
+    }
     idrop(parent_inode);
     VfsDirEntry entry = {0};
-    if ((e=_vfs_find_within(&parentdir, namebuf, sizeof(namebuf), child, strlen(child), &entry)) < 0) {
+    if ((e=_vfs_find_within(&parentdir, namebuf, sizeof(namebuf), pathend, strlen(pathend), &entry)) < 0) {
         if((e=_vfs_mkdir(&parentdir, &entry)) < 0) {
            _vfs_dirclose(&parentdir);
            return e;
         }
         // TODO: Unlink in case rename fails
-        if((e=_vfs_rename(&entry, child, strlen(child))) < 0) {
+        if((e=_vfs_rename(&entry, pathend, strlen(pathend))) < 0) {
            _vfs_dirclose(&parentdir);
            return e;
         }
@@ -349,31 +353,35 @@ intptr_t vfs_mkdir(const char* path) {
 }
 
 intptr_t vfs_create(const char* path) {
-    VfsDirEntry parent = {0};
+    inodeid_t parent;
     Inode* parent_inode=NULL;
     VfsDir parentdir={0};
     intptr_t e = 0;
     char namebuf[MAX_INODE_NAME];
-    if((e=vfs_find_parent(path, &parent)) < 0) {
+    const char* pathend=NULL;
+    Superblock* sb;
+    if((e=vfs_find_parent(path, &pathend, &sb, &parent)) < 0) {
         return e;
     }
-    if(e == strlen(path)) {
+    if(pathend[0] == '\0') // We are talking about root
         return -INODE_IS_DIRECTORY;
-    }
-    const char* child = path+e;
-    if((e=fetch_inode(parent.superblock, parent.inodeid, &parent_inode, MODE_WRITE | MODE_READ)) < 0) {
+
+    if((e=fetch_inode(sb, parent, &parent_inode, MODE_WRITE | MODE_READ)) < 0) {
         return e;
     }
-    if((e=_vfs_diropen(parent_inode, &parentdir, MODE_WRITE | MODE_READ)) < 0) return e;
+    if((e=_vfs_diropen(parent_inode, &parentdir, MODE_WRITE | MODE_READ)) < 0) {
+        idrop(parent_inode);
+        return e;
+    }
     idrop(parent_inode);
     VfsDirEntry entry = {0};
-    if ((e=_vfs_find_within(&parentdir, namebuf, sizeof(namebuf), child, strlen(child), &entry)) < 0) {
+    if ((e=_vfs_find_within(&parentdir, namebuf, sizeof(namebuf), pathend, strlen(pathend), &entry)) < 0) {
         if((e=_vfs_create(&parentdir, &entry)) < 0) {
            _vfs_dirclose(&parentdir);
            return e;
         }
         // TODO: Unlink in case rename fails
-        if((e=_vfs_rename(&entry, child, strlen(child))) < 0) {
+        if((e=_vfs_rename(&entry, pathend, strlen(pathend))) < 0) {
            _vfs_dirclose(&parentdir);
            return e;
         }
@@ -385,13 +393,14 @@ intptr_t vfs_create(const char* path) {
 }
 
 intptr_t vfs_open(const char* path, VfsFile* result, fmode_t mode) {
-    VfsDirEntry entry = {0};
     intptr_t e = 0;
-    if((e = vfs_find(path, &entry)) < 0) {
+    Superblock* sb;
+    inodeid_t id;
+    if((e = vfs_find(path, &sb, &id)) < 0) {
         return e;
     }
     Inode* inode = NULL;
-    if((e = fetch_inode(entry.superblock, entry.inodeid, &inode, mode)) < 0) {
+    if((e = fetch_inode(sb, id, &inode, mode)) < 0) {
         return e;
     }
     if((e=_vfs_open(inode, result, mode)) < 0) {
@@ -403,21 +412,21 @@ intptr_t vfs_open(const char* path, VfsFile* result, fmode_t mode) {
 }
 
 intptr_t vfs_diropen(const char* path, VfsDir* result, fmode_t mode) {
-    VfsDirEntry entry = {0};
     intptr_t e = 0;
-    if((e = vfs_find(path, &entry)) < 0) {
+    Superblock* sb;
+    inodeid_t id;
+    if((e = vfs_find(path, &sb, &id)) < 0) {
         return e;
     }
-
     Inode* inode = NULL;
-    if((e = fetch_inode(entry.superblock, entry.inodeid, &inode, mode)) < 0) {
+    if((e = fetch_inode(sb, id, &inode, mode)) < 0) {
         return e;
     }
     if((e=_vfs_diropen(inode, result, mode)) < 0) {
         idrop(inode);
         return e;
     }
-    idrop(inode); // from the inode itself
+    idrop(inode);
     return 0;
 }
 

@@ -179,14 +179,14 @@ typedef struct {
 
 void init_vfs();
 // Return value:
-// >=0 Offset within the path at which child name begins
+// >=0 parent id
 // < 0 Error 
-intptr_t vfs_find_parent(const char* path, VfsDirEntry* result);
+intptr_t vfs_find_parent(const char* path, const char** pathend, Superblock** sb, inodeid_t* id);
 
 // Return value:
 //   0 Success
 // < 0 Error 
-intptr_t vfs_find(const char* path, VfsDirEntry* result);
+intptr_t vfs_find(const char* path, Superblock** sb, inodeid_t* id);
 
 // Return value:
 //   0 Success
