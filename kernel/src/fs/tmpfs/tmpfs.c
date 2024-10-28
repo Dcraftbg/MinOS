@@ -173,19 +173,6 @@ intptr_t tmpfs_get_inode(Superblock* superblock, inodeid_t id, Inode** result) {
     return 0;
 }
 
-intptr_t tmpfs_get_inode_of(VfsDirEntry* entry, Inode** result) {
-    if(!entry || !result) return -INVALID_PARAM;
-    if(!entry->private) return -INVALID_PARAM;
-    Inode* inode = (*result = iget(vfs_new_inode()));
-    TmpfsInode* privInode = (TmpfsInode*)entry->private;
-    inode_constr(inode);
-    inode->superblock = entry->superblock;
-    inode->private = privInode;
-    inode->kind = privInode->kind;
-    inode->ops = &tmpfs_inodeops;
-    inode->inodeid = (inodeid_t)privInode;
-    return 0;
-}
 // Inode Ops
 intptr_t tmpfs_open(Inode* this, VfsFile* result, fmode_t mode) {
     if(!this || !this->private) return -BAD_INODE;
@@ -486,7 +473,6 @@ intptr_t init_tmpfs(Superblock* sb) {
     tmpfs_fsops.diriter_close = tmpfs_diriter_close;
 
     tmpfs_fsops.identify = tmpfs_identify;
-    tmpfs_fsops.get_inode_of = tmpfs_get_inode_of;
     tmpfs_fsops.rename = tmpfs_rename;
 
     tmpfs_fsops.read = tmpfs_read;

@@ -101,7 +101,6 @@ struct FsOps {
 
     // Ops for direntries
     intptr_t (*identify)(VfsDirEntry* this, char* namebuf, size_t namecap);
-    intptr_t (*get_inode_of)(VfsDirEntry* this, Inode** result);
     intptr_t (*rename)(VfsDirEntry* this, const char* name, size_t namelen);
 
     // Ops for files

@@ -99,10 +99,6 @@ static intptr_t _vfs_identify(VfsDirEntry* this, char* namebuf, size_t namecap) 
     if(!this->ops->identify) return -UNSUPPORTED;
     return this->ops->identify(this, namebuf, namecap);
 }
-static intptr_t _vfs_get_inode_of(VfsDirEntry* this, Inode** result) {
-    if(!this->ops->get_inode_of) return -UNSUPPORTED;
-    return this->ops->get_inode_of(this, result);
-}
 static intptr_t _vfs_get_inode(Superblock* sb, inodeid_t id, Inode** result) {
     if(!sb->get_inode) return -UNSUPPORTED;
     return sb->get_inode(sb, id, result);
