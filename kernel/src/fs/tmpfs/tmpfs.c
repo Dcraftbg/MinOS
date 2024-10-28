@@ -131,8 +131,8 @@ static void dir_remove_inode(TmpfsDir* dir, TmpfsInode* inode) {
 static FsOps tmpfs_fsops = {0};
 static FsOps tmpfs_device_fsops = {0};
 static InodeOps tmpfs_inodeops = {0};
-intptr_t init_tmpfs();
-intptr_t deinit_tmpfs();
+intptr_t init_tmpfs(Superblock* sb);
+intptr_t deinit_tmpfs(Superblock* sb);
 FsDriver tmpfs_driver = {
     &tmpfs_fsops,
     &tmpfs_inodeops,
@@ -159,6 +159,20 @@ intptr_t tmpfs_register_device(VfsDir* dir, Device* device, VfsDirEntry* result)
     direntry_constr(result, inode, dir->inode->superblock);
     return 0;
 }
+
+intptr_t tmpfs_get_inode(Superblock* superblock, inodeid_t id, Inode** result) {
+    if(!result) return -INVALID_PARAM;
+    Inode* inode = (*result = iget(vfs_new_inode()));
+    TmpfsInode* privInode = (TmpfsInode*)id;
+    inode_constr(inode);
+    inode->superblock = superblock;
+    inode->private = privInode;
+    inode->kind = privInode->kind;
+    inode->ops = &tmpfs_inodeops;
+    inode->inodeid = id;
+    return 0;
+}
+
 intptr_t tmpfs_get_inode_of(VfsDirEntry* entry, Inode** result) {
     if(!entry || !result) return -INVALID_PARAM;
     if(!entry->private) return -INVALID_PARAM;
@@ -456,7 +470,7 @@ intptr_t tmpfs_device_open(Inode* this, VfsFile* result) {
 }
 #endif
 // Initialization
-intptr_t init_tmpfs() {
+intptr_t init_tmpfs(Superblock* sb) {
     memset(&tmpfs_inodeops, 0, sizeof(tmpfs_inodeops));
     memset(&tmpfs_fsops, 0, sizeof(tmpfs_fsops));
     memset(&tmpfs_device_fsops, 0, sizeof(tmpfs_device_fsops));
@@ -482,6 +496,7 @@ intptr_t init_tmpfs() {
     tmpfs_fsops.close = tmpfs_close;
     tmpfs_fsops.dirclose = tmpfs_dirclose;
 
+    sb->get_inode = tmpfs_get_inode;
 #if 0
     tmpfs_device_fsops.open  = tmpfs_device_open ;
     tmfps_device_fsops.read  = tmpfs_device_read ;
@@ -491,7 +506,8 @@ intptr_t init_tmpfs() {
 #endif
     return 0;
 }
-intptr_t deinit_tmpfs() {
+intptr_t deinit_tmpfs(Superblock* sb) {
+    (void)sb;
     return 0;
 }
 #if 1

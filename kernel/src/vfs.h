@@ -142,6 +142,7 @@ typedef struct Superblock {
     VfsDirEntry rootEntry;
     InodeMap inodemap;
     Mutex inodemap_lock;
+    intptr_t (*get_inode)(struct Superblock* sb, inodeid_t id, Inode** result);
 } Superblock;
 /*
 typedef struct {
@@ -261,6 +262,10 @@ intptr_t fetch_inode(VfsDirEntry* entry, Inode** result, fmode_t mode);
 // <  0 Error
 intptr_t vfs_seek(VfsFile* file, off_t offset, seekfrom_t from);
 
+// Return value:
+// >= 0 Success
+// <  0 Error
+intptr_t vfs_stat(Inode* this, VfsStats* stats);
 
 // Return value:
 // >= 0 Success

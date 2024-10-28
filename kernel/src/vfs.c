@@ -103,7 +103,10 @@ static intptr_t _vfs_get_inode_of(VfsDirEntry* this, Inode** result) {
     if(!this->ops->get_inode_of) return -UNSUPPORTED;
     return this->ops->get_inode_of(this, result);
 }
-
+static intptr_t _vfs_get_inode(Superblock* sb, inodeid_t id, Inode** result) {
+    if(!sb->get_inode) return -UNSUPPORTED;
+    return sb->get_inode(sb, id, result);
+}
 static intptr_t _vfs_mkdir(VfsDir* parent, VfsDirEntry* result) {
     if(!parent->ops->mkdir) return -UNSUPPORTED;
     return parent->ops->mkdir(parent, result);
@@ -143,7 +146,9 @@ intptr_t _vfs_mmap(VfsFile* file, MmapContext* context, void** addr, size_t size
     if(!file->ops->mmap) return -UNSUPPORTED;
     return file->ops->mmap(file, context, addr, size_pages);
 }
-
+intptr_t vfs_stat(Inode* inode, VfsStats* stats) {
+    return _vfs_stat(inode, stats);
+}
 intptr_t vfs_stat_entry(VfsDirEntry* this, VfsStats* stats) {
     intptr_t e;
     Inode* inode;
@@ -182,7 +187,7 @@ intptr_t fetch_inode(VfsDirEntry* entry, Inode** result, fmode_t mode) {
         }
         return -INVALID_PARAM;
     }
-    if((e=_vfs_get_inode_of(entry, result)) < 0) return e;
+    if((e=_vfs_get_inode(entry->superblock, entry->inodeid, result)) < 0) return e;
     (*result)->mode = mode;
     if(!inodemap_insert(&entry->superblock->inodemap, entry->inodeid, *result)) {
         mutex_unlock(&entry->superblock->inodemap_lock);
