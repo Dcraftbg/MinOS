@@ -101,7 +101,6 @@ typedef struct FsOps {
 
     // Ops for direntries
     intptr_t (*identify)(VfsDirEntry* this, char* namebuf, size_t namecap);
-    intptr_t (*stat)(VfsDirEntry* this, VfsStats* stats);
     intptr_t (*get_inode_of)(VfsDirEntry* this, Inode** result);
     intptr_t (*rename)(VfsDirEntry* this, const char* name, size_t namelen);
 
@@ -159,6 +158,7 @@ typedef struct Device {
     intptr_t (*stat)(struct Device* this, VfsStats* stats);
 } Device;
 typedef struct InodeOps {
+    intptr_t (*stat)(Inode* this, VfsStats* stats);
     // NOTE: mode is only used for permission checks by the driver
     intptr_t (*open)(Inode* this, VfsFile* result, fmode_t mode);    // @check ops
     // NOTE: mode is only used for permission checks by the driver

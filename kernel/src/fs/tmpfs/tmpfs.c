@@ -231,11 +231,10 @@ intptr_t tmpfs_identify(VfsDirEntry* this, char* namebuf, size_t namecap) {
     namebuf[namelen] = '\0'; // Null terminator
     return 0;
 }
-intptr_t tmpfs_stat(VfsDirEntry* this, VfsStats* stats) {
+intptr_t tmpfs_stat(Inode* this, VfsStats* stats) {
     if(!this || !this->private) return -BAD_INODE;
-    // NOTE: VfsDirEntry private is just a TmpfsInode
     TmpfsInode* inode = (TmpfsInode*)this->private;
-    switch(this->kind) {
+    switch(inode->kind) {
     case INODE_DIR: {
         memset(stats, 0, sizeof(*stats));
         // Explicit declarations
@@ -464,6 +463,7 @@ intptr_t init_tmpfs() {
 
     tmpfs_inodeops.open = tmpfs_open;
     tmpfs_inodeops.diropen = tmpfs_diropen;
+    tmpfs_inodeops.stat = tmpfs_stat;
 
     tmpfs_fsops.create = tmpfs_create;
     tmpfs_fsops.mkdir = tmpfs_mkdir;
@@ -472,7 +472,6 @@ intptr_t init_tmpfs() {
     tmpfs_fsops.diriter_close = tmpfs_diriter_close;
 
     tmpfs_fsops.identify = tmpfs_identify;
-    tmpfs_fsops.stat = tmpfs_stat;
     tmpfs_fsops.get_inode_of = tmpfs_get_inode_of;
     tmpfs_fsops.rename = tmpfs_rename;
 

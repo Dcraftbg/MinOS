@@ -129,7 +129,7 @@ static intptr_t _vfs_seek(VfsFile* file, off_t offset, seekfrom_t from) {
     return file->ops->seek(file,offset,from);
 }
 
-static intptr_t _vfs_stat(VfsDirEntry* this, VfsStats* stats) {
+static intptr_t _vfs_stat(Inode* this, VfsStats* stats) {
     if(!this->ops->stat) return -UNSUPPORTED;
     return this->ops->stat(this, stats);
 }
@@ -144,9 +144,13 @@ intptr_t _vfs_mmap(VfsFile* file, MmapContext* context, void** addr, size_t size
     return file->ops->mmap(file, context, addr, size_pages);
 }
 
-
 intptr_t vfs_stat_entry(VfsDirEntry* this, VfsStats* stats) {
-    return _vfs_stat(this, stats);
+    intptr_t e;
+    Inode* inode;
+    if((e=fetch_inode(this, &inode, MODE_READ)) < 0) return e;
+    e=_vfs_stat(inode, stats);
+    idrop(inode);
+    return e;
 }
 intptr_t vfs_ioctl(VfsFile* file, Iop op, void* arg) {
     return _vfs_ioctl(file, op, arg);
