@@ -16,9 +16,11 @@ static intptr_t parse_path(Process* process, Path* res, const char* path) {
     case '/':
         return parse_abs(path, res);
     case '.':
-        return -UNSUPPORTED;
+        path++;
+        if(path[0] != '/') return -INVALID_PATH;
+        path++;
     default:
-        return -INVALID_PATH;
+        return -UNSUPPORTED;
     }
 }
 // TODO: Safety features like copy_to_userspace, copy_from_userspace
