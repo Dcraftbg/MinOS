@@ -69,6 +69,11 @@ intptr_t exec_new(const char* path, Args* args, Args* env) {
     process->main_threadid = task->id;
     
     task->processid = process->id;
+    process->curdir = kernel_malloc(PATH_MAX);
+    if(!process->curdir)
+        return_defer_err(-NOT_ENOUGH_MEM);
+    process->curdir[0] = '/';
+    process->curdir[1] = '\0';
     Path p;
     if((e=parse_abs(path, &p)) < 0)
         return_defer_err(e);

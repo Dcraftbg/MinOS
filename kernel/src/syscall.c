@@ -121,6 +121,12 @@ intptr_t sys_fork() {
         process_drop(process);
         return -NOT_ENOUGH_MEM;
     }
+    process->curdir = kernel_malloc(PATH_MAX);
+    if(!process->curdir) {
+        process_drop(process);
+        return -NOT_ENOUGH_MEM;
+    }
+    memcpy(process->curdir, current_proc->curdir, PAGE_SIZE);
     Heap* heap = (Heap*)current_proc->heap_list.next;
     while(&heap->list != &current_proc->heap_list) {
         Heap* nh = heap_clone(heap);
@@ -287,10 +293,22 @@ intptr_t sys_heap_deallocate(size_t id, void* addr) {
 }
 
 intptr_t sys_chdir(const char* path) {
+    size_t pathlen = strlen(path);
+    if(pathlen >= PATH_MAX) return -LIMITS; 
     intptr_t e;
     Process* cur_proc = current_process();
+    memcpy(cur_proc->curdir, path, pathlen+1);
     Path p;
     if((e=parse_path(cur_proc, &p, path)) < 0) return e;
     if((e=vfs_find(&p, &cur_proc->curdir_sb, &cur_proc->curdir_id)) < 0) return e;
+    return 0;
+}
+intptr_t sys_getcwd(char* buf, size_t cap) {
+    if(cap == 0) return -INVALID_PARAM;
+    Process* cur_proc = current_process();
+    size_t pathlen = strlen(cur_proc->curdir);
+    size_t amount = pathlen < cap-1 ? pathlen : cap-1;
+    memcpy(buf, cur_proc->curdir, amount);
+    buf[amount] = '\0';
     return 0;
 }

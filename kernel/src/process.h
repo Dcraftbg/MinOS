@@ -32,6 +32,7 @@ typedef struct {
     struct list heap_list;
     inodeid_t curdir_id;
     Superblock* curdir_sb;
+    char* curdir /*[PATH_MAX]*/;
 } Process;
 
 void init_processes();

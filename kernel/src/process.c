@@ -26,6 +26,7 @@ Process* kernel_process_add() {
 } 
 void process_drop(Process* process) {
     if(process->resources) resourceblock_dealloc(process->resources);
+    if(process->curdir) kernel_dealloc(process->curdir, PATH_MAX);
     Heap* heap = (Heap*)process->heap_list.next;
     while(&heap->list != &process->heap_list) {
         Heap* next_heap = (Heap*)heap->list.next;
