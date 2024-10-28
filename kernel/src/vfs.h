@@ -138,7 +138,7 @@ MAKE_HASHMAP_EX2(InodeMap, inodemap, Inode*, inodeid_t, INODEMAP_HASH, INODEMAP_
 
 #include <sync/rwlock.h>
 struct Superblock {
-    VfsDirEntry rootEntry;
+    inodeid_t root;
     InodeMap inodemap;
     Mutex inodemap_lock;
     intptr_t (*get_inode)(struct Superblock* sb, inodeid_t id, Inode** result);

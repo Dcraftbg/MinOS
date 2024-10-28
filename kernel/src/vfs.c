@@ -27,7 +27,7 @@ Inode* iget(Inode* inode) {
 void _idrop(const char* func, Inode* inode) {
     debug_assert(inode->shared);
     if(inode->shared == 1) {
-        // assert(inode->inodeid != kernel.rootBlock.rootEntry.inodeid);
+        // assert(inode->inodeid != kernel.rootBlock.root);
         printf("[idrop] (%s) before removing: %zu elements\n",func, inode->superblock->inodemap.len);
         assert(inodemap_remove(&inode->superblock->inodemap, inode->inodeid));
         printf("[idrop] (%s) after removing: %zu elements\n",func, inode->superblock->inodemap.len);
@@ -202,20 +202,6 @@ void init_vfs() {
             kabort();
         }
     }
-    // All of this should be removed -------
-    if(!root_driver->fs_ops->mkdir) {
-        printf("ERROR: Rootfs driver does not support necessary features\n");
-        kabort();
-    }
-    if((e=root_driver->fs_ops->mkdir(NULL, &kernel.rootBlock.rootEntry)) < 0) {
-        printf("ERROR: Could not create root node (%ld)!\n",e);
-        kabort();
-    }
-    if((e=_vfs_rename(&kernel.rootBlock.rootEntry, "/", 1)) < 0) {
-        printf("ERROR: Could not rename root node (%ld)!\n",e);
-        kabort();
-    }
-    // ------- It should be part of init()
 }
 static const char* path_dir_next(const char* path) {
     while(*path) {
@@ -255,7 +241,7 @@ intptr_t vfs_find_parent(const char* path, const char** pathend, Superblock** sb
     char namebuf[MAX_INODE_NAME]; // Usually safe to allocate on the stack
     VfsDir dir = {0};
     (*sb) = &kernel.rootBlock;
-    *id = kernel.rootBlock.rootEntry.inodeid;
+    *id = kernel.rootBlock.root;
     if(!dirend) return -NOT_FOUND;
     dirbegin = dirend;
     while((dirend = path_dir_next(dirbegin))) {

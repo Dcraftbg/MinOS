@@ -271,16 +271,6 @@ intptr_t tmpfs_create(VfsDir* parent, VfsDirEntry* this) {
 }
 intptr_t tmpfs_mkdir(VfsDir* parent, VfsDirEntry* this) {
     if(!this) return -INVALID_PARAM;
-
-    if(!parent) { 
-        // Initializing root node
-        TmpfsInode* inode = new_tmpfs_inode();
-        if(!inode) return -NOT_ENOUGH_MEM;
-        inode->kind = INODE_DIR;
-        memset(&inode->data.dir, 0, sizeof(inode->data.dir));
-        direntry_constr(this, inode, &kernel.rootBlock);
-        return 0;
-    }
     if(!parent->private) return -BAD_INODE;
     TmpfsDir* dir = (TmpfsDir*)parent->private;
     TmpfsInode* inode = dir_create_inode(dir);
@@ -483,13 +473,11 @@ intptr_t init_tmpfs(Superblock* sb) {
     tmpfs_fsops.dirclose = tmpfs_dirclose;
 
     sb->get_inode = tmpfs_get_inode;
-#if 0
-    tmpfs_device_fsops.open  = tmpfs_device_open ;
-    tmfps_device_fsops.read  = tmpfs_device_read ;
-    tmfps_device_fsops.write = tmpfs_device_write;
-    tmfps_device_fsops.seek  = tmpfs_device_seek ;
-    tmpfs_device_fsops.close = tmpfs_device_close;
-#endif
+    TmpfsInode* root_inode = new_tmpfs_inode();
+    if(!root_inode) return -NOT_ENOUGH_MEM;
+    root_inode->kind = INODE_DIR;
+    memset(&root_inode->data.dir, 0, sizeof(root_inode->data.dir));
+    sb->root = (inodeid_t)root_inode;
     return 0;
 }
 intptr_t deinit_tmpfs(Superblock* sb) {
