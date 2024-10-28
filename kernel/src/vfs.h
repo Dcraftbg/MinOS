@@ -19,19 +19,19 @@ typedef struct {
 } MmapContext;
 typedef size_t inodeid_t;
 typedef int inodekind_t;
-struct FsOps;
-struct InodeOps;
-struct Inode;
-struct VfsDir;
-struct Superblock;
+typedef struct FsOps FsOps;
+typedef struct InodeOps InodeOps;
+typedef struct Inode Inode;
+typedef struct VfsDir VfsDir;
+typedef struct Superblock Superblock;
 typedef struct {
-    struct VfsDir* dir;
-    struct FsOps* ops;
+    VfsDir* dir;
+    FsOps* ops;
     void* private; // (State) FS defined
 } VfsDirIter;
 typedef struct {
-    struct Inode* inode;
-    struct FsOps* ops;
+    Inode* inode;
+    FsOps* ops;
     off_t cursor;
     void* private; // FS defined
     // FIXME: Remove this
@@ -46,8 +46,8 @@ typedef struct {
        (file)->mode = (v_mode);\
    } while(0)
 typedef struct VfsDir {
-    struct Inode* inode;
-    struct FsOps* ops;
+    Inode* inode;
+    FsOps* ops;
     void* private;
 } VfsDir;
 typedef struct {
@@ -58,17 +58,17 @@ typedef struct {
     };
 } VfsStats;
 typedef struct Inode {
-    struct Superblock* superblock;
+    Superblock* superblock;
     _Atomic size_t shared;
     fmode_t mode;
-    struct InodeOps* ops;
+    InodeOps* ops;
     inodekind_t kind;
     inodeid_t inodeid;
     void* private;
 } Inode;
 typedef struct VfsDirEntry {
-    struct Superblock* superblock;
-    struct FsOps* ops;
+    Superblock* superblock;
+    FsOps* ops;
     inodekind_t kind;
     inodeid_t inodeid;
     void* private;
@@ -88,7 +88,7 @@ enum {
 };
 typedef uintptr_t seekfrom_t;
 typedef uint32_t Iop;
-typedef struct FsOps {
+struct FsOps {
     // Ops for directories
     intptr_t (*create)(VfsDir* parent, VfsDirEntry* result);         // @check ops
     intptr_t (*mkdir)(VfsDir* parent, VfsDirEntry* result);          // @check ops
@@ -114,7 +114,7 @@ typedef struct FsOps {
     // Close
     void (*close)(VfsFile* file);
     void (*dirclose)(VfsDir* dir);
-} FsOps;
+};
 
 
 #ifdef INODEMAP_DEFINE
@@ -138,12 +138,12 @@ MAKE_HASHMAP_EX2(InodeMap, inodemap, Inode*, inodeid_t, INODEMAP_HASH, INODEMAP_
 
 
 #include <sync/rwlock.h>
-typedef struct Superblock {
+struct Superblock {
     VfsDirEntry rootEntry;
     InodeMap inodemap;
     Mutex inodemap_lock;
     intptr_t (*get_inode)(struct Superblock* sb, inodeid_t id, Inode** result);
-} Superblock;
+};
 /*
 typedef struct {
     struct list next;
@@ -151,14 +151,14 @@ typedef struct {
     Superblock* superblock;
 } Mount;
 */
-struct Device;
-typedef struct Device {
+typedef struct Device Device;
+struct Device {
     FsOps* ops;
     void* private;
-    intptr_t (*open)(struct Device* this, VfsFile* file, fmode_t mode);
-    intptr_t (*stat)(struct Device* this, VfsStats* stats);
-} Device;
-typedef struct InodeOps {
+    intptr_t (*open)(Device* this, VfsFile* file, fmode_t mode);
+    intptr_t (*stat)(Device* this, VfsStats* stats);
+};
+struct InodeOps {
     intptr_t (*stat)(Inode* this, VfsStats* stats);
     // NOTE: mode is only used for permission checks by the driver
     intptr_t (*open)(Inode* this, VfsFile* result, fmode_t mode);    // @check ops
@@ -168,7 +168,7 @@ typedef struct InodeOps {
     // Only called when shared=0 to cleanup memory
     void (*cleanup)(Inode* this); 
     // TODO: unlink which will free all memory of that inode. But only the inode itself, not its children (job of caller (vfs))
-} InodeOps;
+};
 typedef struct {
     FsOps *fs_ops;
     InodeOps *inode_ops;
