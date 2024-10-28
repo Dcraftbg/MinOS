@@ -176,11 +176,20 @@ int main() {
     intptr_t e = 0;
     assert(MAX_ARGS > 0);
     const char** args = malloc(MAX_ARGS*sizeof(*args));
+    char* cwd = malloc(PATH_MAX);
+    if((e=getcwd(cwd, PATH_MAX)) < 0) {
+        fprintf(stderr, "ERROR: Failed to getcwd on initial getcwd: %s\n", status_str(e));
+        free(args);
+        free(cwd);
+        free(linebuf);
+        return 1;
+    }
     size_t arg_count=0;
     bool running = true;
     int exit_code = 0;
+
     while(running) {
-        printf("> ");
+        printf("%s > ", cwd);
         arena_reset(&arena);
         arg_count=0;
         if((e=readline(linebuf, LINEBUF_MAX-1)) < 0) {
