@@ -237,13 +237,11 @@ static intptr_t _vfs_find_within(VfsDir* dir, char* namebuf, size_t namecap, con
 intptr_t vfs_find_parent(Path* path, const char** pathend, Superblock** sb, inodeid_t* id) {
     intptr_t e = 0;
     const char* dirbegin = path->path;
-    const char* dirend   = path_dir_next(dirbegin); 
+    const char* dirend; 
     char namebuf[MAX_INODE_NAME]; // Usually safe to allocate on the stack
     VfsDir dir = {0};
     (*sb) = path->from.superblock;
     *id   = path->from.id;
-    if(!dirend) return -NOT_FOUND;
-    dirbegin = dirend;
     while((dirend = path_dir_next(dirbegin))) {
         Inode* curdir;
         VfsDirEntry entry;
@@ -502,34 +500,51 @@ intptr_t vfs_register_device(const char* name, Device* device) {
     return -ALREADY_EXISTS;
 }
 #define PATH_ABS(p) { .from = {.superblock=&kernel.rootBlock, .id=kernel.rootBlock.root }, .path=p }
-
+static intptr_t parse_abs(const char* path, Path* res) {
+    if(path[0] != '/') return -INVALID_PATH;
+    path++;
+    *res = (Path) PATH_ABS(path);
+    return 0;
+}
 intptr_t vfs_find_parent_abs(const char* path, const char** pathend, Superblock** sb, inodeid_t* id) {
-    Path abs = PATH_ABS(path);
+    Path abs;
+    intptr_t e;
+    if((e=parse_abs(path, &abs)) < 0) return e;
     return vfs_find_parent(&abs, pathend, sb, id);
 }
 
 intptr_t vfs_find_abs(const char* path, Superblock** sb, inodeid_t* id) {
-    Path abs = PATH_ABS(path);
+    Path abs;
+    intptr_t e;
+    if((e=parse_abs(path, &abs)) < 0) return e;
     return vfs_find(&abs, sb, id);
 }
 
 intptr_t vfs_create_abs(const char* path) {
-    Path abs = PATH_ABS(path);
+    Path abs;
+    intptr_t e;
+    if((e=parse_abs(path, &abs)) < 0) return e;
     return vfs_create(&abs);
 }
 
 intptr_t vfs_open_abs(const char* path, VfsFile* result, fmode_t mode) {
-    Path abs = PATH_ABS(path);
+    Path abs;
+    intptr_t e;
+    if((e=parse_abs(path, &abs)) < 0) return e;
     return vfs_open(&abs, result, mode);
 }
 
 intptr_t vfs_mkdir_abs(const char* path) {
-    Path abs = PATH_ABS(path);
+    Path abs;
+    intptr_t e;
+    if((e=parse_abs(path, &abs)) < 0) return e;
     return vfs_mkdir(&abs);
 }
 
 intptr_t vfs_diropen_abs(const char* path, VfsDir* result, fmode_t mode) {
-    Path abs = PATH_ABS(path);
+    Path abs;
+    intptr_t e;
+    if((e=parse_abs(path, &abs)) < 0) return e;
     return vfs_diropen(&abs, result, mode);
 }
 
