@@ -236,8 +236,8 @@ int main() {
             }
             const char* path = args[1];
             if((e=chdir(path)) < 0) {
-                fprintf(stderr, "Failed to cd: %s\n", status_str(e));
-                break;
+                fprintf(stderr, "Failed to cd into `%s`: %s\n", path, status_str(e));
+                continue;
             }
             if((e=getcwd(cwd, PATH_MAX)) < 0) {
                 fprintf(stderr, "Failed to get cwd: %s\n", status_str(e));

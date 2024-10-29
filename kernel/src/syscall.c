@@ -302,6 +302,13 @@ intptr_t sys_chdir(const char* path) {
     Superblock* curdir_sb = cur_proc->curdir_sb;
     if((e=parse_path(cur_proc, &p, path)) < 0) return e;
     if((e=vfs_find(&p, &cur_proc->curdir_sb, &cur_proc->curdir_id)) < 0) return e;
+    Inode* inode;
+    if((e=fetch_inode(cur_proc->curdir_sb, cur_proc->curdir_id, &inode, MODE_READ)) < 0) return e;
+    if(inode->kind != INODE_DIR) {
+        idrop(inode);
+        return -IS_NOT_DIRECTORY;
+    }
+    idrop(inode);
     switch(path[0]) {
     case '/':
          if(pathlen >= PATH_MAX) {
@@ -320,11 +327,13 @@ intptr_t sys_chdir(const char* path) {
          pathlen-=2;
     default: {
          size_t cwdlen = strlen(cur_proc->curdir);
-         if(cwdlen+pathlen >= PATH_MAX) {
+         if(cwdlen+pathlen+1 >= PATH_MAX) {
              e=-LIMITS;
              goto str_path_resolve_err;
          }
-         memcpy(cur_proc->curdir+cwdlen, path, pathlen+1);
+         if(cwdlen == 1) cwdlen--;
+         cur_proc->curdir[cwdlen] = '/';
+         memcpy(cur_proc->curdir+cwdlen+1, path, pathlen+1);
     } break;
     }
     return 0;
