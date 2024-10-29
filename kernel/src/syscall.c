@@ -297,11 +297,41 @@ intptr_t sys_chdir(const char* path) {
     if(pathlen >= PATH_MAX) return -LIMITS; 
     intptr_t e;
     Process* cur_proc = current_process();
-    memcpy(cur_proc->curdir, path, pathlen+1);
     Path p;
+    inodeid_t curdir_id = cur_proc->curdir_id;
+    Superblock* curdir_sb = cur_proc->curdir_sb;
     if((e=parse_path(cur_proc, &p, path)) < 0) return e;
     if((e=vfs_find(&p, &cur_proc->curdir_sb, &cur_proc->curdir_id)) < 0) return e;
+    switch(path[0]) {
+    case '/':
+         if(pathlen >= PATH_MAX) {
+             e=-LIMITS;
+             goto str_path_resolve_err;
+         }
+         memcpy(cur_proc->curdir, path, pathlen+1);
+         break;
+    case '.':
+         path++;
+         if(path[0] != '/') {
+             e=-INVALID_PATH;
+             goto str_path_resolve_err;
+         } 
+         path++;
+         pathlen-=2;
+    default: {
+         size_t cwdlen = strlen(cur_proc->curdir);
+         if(cwdlen+pathlen >= PATH_MAX) {
+             e=-LIMITS;
+             goto str_path_resolve_err;
+         }
+         memcpy(cur_proc->curdir+cwdlen, path, pathlen+1);
+    } break;
+    }
     return 0;
+str_path_resolve_err:
+    cur_proc->curdir_id = curdir_id;
+    cur_proc->curdir_sb = curdir_sb;
+    return e;
 }
 intptr_t sys_getcwd(char* buf, size_t cap) {
     if(cap == 0) return -INVALID_PARAM;

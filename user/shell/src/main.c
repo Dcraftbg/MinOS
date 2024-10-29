@@ -235,35 +235,13 @@ int main() {
                 continue;
             }
             const char* path = args[1];
-            size_t pathlen = strlen(path);
-            switch(path[0]) {
-            case '/':
-                 if(pathlen >= PATH_MAX) {
-                     fprintf(stderr, "cd: Path too big\n");
-                     continue;
-                 }
-                 memcpy(cwd, path, pathlen+1);
-                 break;
-            case '.':
-                 path++;
-                 if(path[0] != '/') {
-                     fprintf(stderr, "ERROR: invalid path to cd");
-                     continue;
-                 }
-                 path++;
-                 pathlen-=2;
-            default: {
-                 size_t cwdlen = strlen(cwd);
-                 if(cwdlen+pathlen >= PATH_MAX) {
-                     fprintf(stderr, "cd: Path too big\n");
-                     continue;
-                 }
-                 memcpy(cwd+cwdlen, path, pathlen+1);
-            } break;
+            if((e=chdir(path)) < 0) {
+                fprintf(stderr, "Failed to cd: %s\n", status_str(e));
+                break;
             }
-            if((e=chdir(cwd)) < 0) {
-                fprintf(stderr, "ERROR: Failed to chdir: %s\n", status_str(e));
-                exit(1);
+            if((e=getcwd(cwd, PATH_MAX)) < 0) {
+                fprintf(stderr, "Failed to get cwd: %s\n", status_str(e));
+                exit(1); 
             }
         } else {
             run_cmd(args, arg_count);
