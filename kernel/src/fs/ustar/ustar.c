@@ -38,7 +38,6 @@ typedef struct {
 #define USTAR_MAGIC_OFF 257
 #define USTAR_DATA 512
 intptr_t ustar_unpack(const char* into, const char* ustar_data, size_t ustar_size) {
-    const char* ustar_start = ustar_data;
     const char* ustar_end = ustar_data+ustar_size;
     intptr_t e;
     size_t into_len = strlen(into);
@@ -89,8 +88,6 @@ intptr_t ustar_unpack(const char* into, const char* ustar_data, size_t ustar_siz
         }
         ustar_data += (((size+511)/512) + 1)*512;
     }
-    kinfo("ustar: Bytes left unchecked: %zu. The thing after this is: %s", ustar_end-ustar_data, ustar_data+USTAR_MAGIC_OFF);
-    kinfo("ustar ending on %p", (void*)(ustar_end-ustar_start));
     kernel_dealloc(path, PATH_MAX);
     return 0;
 err:
