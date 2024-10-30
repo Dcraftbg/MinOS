@@ -38,6 +38,7 @@ bool build(Build* build) {
     if(!build_std(build->forced)) return false;
     if(!build_user()) return false;
     if(!embed_fs()) return false;
+    if(!initrd_setup()) return false;
     if(!build_kernel(build->forced)) return false;
     if(!link_kernel()) return false;
     if(!make_limine()) return false;

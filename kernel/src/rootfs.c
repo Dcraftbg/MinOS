@@ -1,5 +1,9 @@
 #include "rootfs.h"
+#ifdef ENABLE_EMBED_FS
 #include "../embed.h"
+#endif
+#include "fs/ustar/ustar.h"
+#include "log.h"
 void init_rootfs() {
     intptr_t e = 0;
     const char* path = NULL;
@@ -8,6 +12,17 @@ void init_rootfs() {
         printf("ERROR: init_rootfs: Could not create %s : %s\n", path, status_str(e));
         kabort();
     }
+
+    const char* initrd = "/initrd";
+    BootModule module;
+    if(find_bootmodule(initrd, &module)) {
+        if((e=ustar_unpack("/", module.data, module.size)) < 0) {
+            kerror("Failed to unpack: %s into root: %s", initrd, status_str(e));
+        }
+    } 
+    else kwarn("Failed to find %s", initrd); 
+    ktrace("Unpacking embedfs");
+#ifdef ENABLE_EMBED_FS
     for(size_t i = 0; i < embed_entries_count; ++i) {
         EmbedEntry* entry = &embed_entries[i];
         switch(entry->kind) {
@@ -36,7 +51,8 @@ void init_rootfs() {
         } break;
         }
     }
-#if 1
+#endif
+#ifdef ENABLE_WELCOME
     path = "/Welcome.txt";
     if((e = vfs_create_abs(path)) < 0) {
         printf("ERROR: init_rootfs: Could not create %s : %s\n",path,status_str(e));

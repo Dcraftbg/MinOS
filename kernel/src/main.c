@@ -69,9 +69,7 @@ static void do_probe() {
     fmbuf_fill(&fb, 0x00ff00);
 }
 #endif
-
 void _start() {
-
     disable_interrupts();
     BREAKPOINT();
 
@@ -129,7 +127,6 @@ void _start() {
 
     update_bar(step++, "init_vfs");
     init_vfs();
-
     update_bar(step++, "init_rootfs");
     init_rootfs();
 
@@ -166,6 +163,7 @@ void _start() {
     update_bar(step++, "pit_set_count");
     pit_set_count(1000);
 
+    cat("/Hello.txt");
 
     update_bar(step++, "fbt test");
     fbt();

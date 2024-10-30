@@ -31,6 +31,8 @@ void embed_fs_clean(EmbedFs* fs) {
 bool embed_fs() {
     bool result = true;
     EmbedFs fs = {0};
+#if 0
+    FILE* f = NULL;
     if(!embed_mkdir(&fs, "/user")) nob_return_defer(false);
     if(!embed(&fs, "./bin/user/nothing/nothing", "/user/nothing")) nob_return_defer(false);
     if(!embed(&fs, "./bin/user/init/init", "/user/init")) nob_return_defer(false);
@@ -38,7 +40,7 @@ bool embed_fs() {
     if(!embed(&fs, "./bin/user/hello/hello", "/user/hello")) nob_return_defer(false);
     if(!embed(&fs, "./bin/user/fbtest/fbtest", "/user/fbtest")) nob_return_defer(false);
     const char* opath = "./kernel/embed.h";
-    FILE* f = fopen(opath, "wb");
+    f = fopen(opath, "wb");
     if(!f) {
         nob_log(NOB_ERROR, "Failed to open file %s: %s", opath, strerror(errno));
         embed_fs_clean(&fs);
@@ -57,8 +59,8 @@ bool embed_fs() {
     fprintf(f, "    EMBED_DIR,\n");
     fprintf(f, "    EMBED_FILE\n");
     fprintf(f, "} EmbedFsKind;\n");
-    fprintf(f, "size_t embed_entries_count = %zu;\n", fs.count);
-    fprintf(f, "EmbedEntry embed_entries[] = {\n");
+    fprintf(f, "#define embed_entries_count %zu\n", fs.count);
+    fprintf(f, "EmbedEntry embed_entries[%zu] = {\n", fs.count);
     for(size_t i = 0; i < fs.count; ++i) {
         if(i != 0) fprintf(f, ",\n");
         EmbedEntry* e = &fs.items[i];
@@ -78,6 +80,8 @@ bool embed_fs() {
     fprintf(f, "\n};");
 defer:
     embed_fs_clean(&fs);
-    fclose(f);
+    if(f) fclose(f);
+#endif
+    nob_log(NOB_WARNING, "embedfs is deprecated in favour of initrd");
     return result;
 }

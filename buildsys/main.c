@@ -33,6 +33,7 @@ typedef struct {
 #include "compile.h"
 #include "libc.h"
 #include "embed.h"
+#include "ustar.h"
 #include "build/make_dirs.h"
 #include "build/crt.h"
 #include "build/libc.h"
@@ -121,6 +122,7 @@ int main(int argc, char** argv) {
 
 #include "utils.c"
 #include "embed.c"
+#include "ustar.c"
 #include "compile.c"
 #include "libc.c"
 #include "build/make_dirs.c"
@@ -145,3 +147,4 @@ int main(int argc, char** argv) {
 #include "subcmd/gdb.c"
 #include "subcmd/telnet.c"
 #include "subcmd/disasm.c"
+

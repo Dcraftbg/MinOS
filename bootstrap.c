@@ -174,7 +174,7 @@ bool bootstrap_config(Build* build) {
      fprintf(f, "#define LD  \"%s\"\n", ld);
      fprintf(f, "//// Other options\n");
      fprintf(f, "//// Enable/Disable serial colors for loggers\n");
-     fprintf(f, "#define NO_SERIAL_COLOR\n");
+     fprintf(f, "// #define NO_SERIAL_COLOR\n");
      fprintf(f, "//// Place GDT and IDT in global storage\n");
      fprintf(f, "//// Instead of allocating them in the bitmap heap\n");
      fprintf(f, "// #define GLOBAL_STORAGE_GDT_IDT\n");
@@ -182,6 +182,13 @@ bool bootstrap_config(Build* build) {
      fprintf(f, "//// NOTE: Only intended to be used for debugging purposes\n");
      fprintf(f, "//// Will most likely be removed in the future\n");
      fprintf(f, "// #define PROGRESS_BAR\n");
+     fprintf(f, "//// Enable embedfs which is a file system that is embedded\n");
+     fprintf(f, "//// Into the kernel itself\n");
+     fprintf(f, "//// NOTE: This has now been deprecated and is no longer supported for most build in favour of initrd\n");
+     fprintf(f, "// #define ENABLE_EMBED_FS\n");
+     fprintf(f, "//// Enable the Welcome.txt message (will be created at runtime)\n");
+     fprintf(f, "//// NOTE: This like embedfs has been superseeded by initrd\n");
+     fprintf(f, "// #define ENABLE_WELCOME\n");
      fclose(f);
      return true;
 }

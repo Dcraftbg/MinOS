@@ -16,3 +16,4 @@ build
 !*/build/
 user/task_a/
 user/task_b/
+initrd/
