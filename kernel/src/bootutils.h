@@ -12,4 +12,13 @@ Framebuffer get_framebuffer_by_id(size_t id);
 void kernel_file_data(void** data, size_t* size);
 void kernel_mempair(Mempair* mempair);    // Gives the phys and virt address of the kernel
 void boot_map_phys_memory(); // Map physical memory into virtual memory. Bootloader specific as it uses the responses from the bootloader itself
+typedef struct {
+    const char* path;
+    const char* cmdline;
+    size_t size;
+    char* data;
+} BootModule;
+size_t get_bootmodules_count();
+bool get_bootmodule(size_t i, BootModule* module);
+bool find_bootmodule(const char* path, BootModule* module);
 #define PHYS_RAM_MIRROR_SIZE (4LLU * 1024LLU * 1024LLU * 1024LLU) 
