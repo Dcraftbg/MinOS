@@ -163,8 +163,6 @@ void _start() {
     update_bar(step++, "pit_set_count");
     pit_set_count(1000);
 
-    cat("/Hello.txt");
-
     update_bar(step++, "fbt test");
     fbt();
     init_tty();
