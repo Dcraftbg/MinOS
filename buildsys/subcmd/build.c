@@ -35,13 +35,38 @@ bool make_limine() {
 // TODO Separate these out maybe? Idk
 bool build(Build* build) {
     if(!make_build_dirs()) return false;
-    if(!build_std(build->forced)) return false;
-    if(!build_user()) return false;
-    if(!embed_fs()) return false;
-    if(!initrd_setup()) return false;
-    if(!build_kernel(build->forced)) return false;
-    if(!link_kernel()) return false;
-    if(!make_limine()) return false;
-    if(!make_iso()) return false;
+    if(build->build_what.count > 0) {
+        for(size_t i = 0; i < build->build_what.count; ++i) {
+            const char* what = build->build_what.items[i];
+            if(strcmp(what, "std") == 0) {
+                if(!build_std(build->forced)) return false;
+            } else if(strcmp(what, "initrd") == 0) {
+                if(!initrd_setup()) return false;
+            } else if(strcmp(what, "kernel") == 0) {
+                if(!build_kernel(build->forced)) return false;
+                if(!link_kernel()) return false;
+                if(!make_limine()) return false;
+                if(!make_iso()) return false;
+            } else if(strcmp(what, "iso") == 0) {
+                if(!make_iso()) return false;
+            } else if (strcmp(what, "user") == 0) {
+                if(!build_user(NULL)) return false;
+            } else if(strstarts(what, "user/")) {
+                if(!build_user(what+5)) return false;
+            } else {
+                nob_log(NOB_ERROR, "Don't know how to build `%s`", what);
+                return false;
+            }
+        }
+    } else {
+        if(!build_std(build->forced)) return false;
+        if(!build_user(NULL)) return false;
+        if(!embed_fs()) return false;
+        if(!initrd_setup()) return false;
+        if(!build_kernel(build->forced)) return false;
+        if(!link_kernel()) return false;
+        if(!make_limine()) return false;
+        if(!make_iso()) return false;
+    }
     return true;
 }

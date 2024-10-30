@@ -21,6 +21,7 @@ typedef struct {
     char* exe;
     int argc;
     char** argv;
+    Nob_File_Paths build_what;
     // Building
     bool forced;
     // Qemu
@@ -67,17 +68,21 @@ typedef struct {
 #include "subcmd/telnet.h"
 #include "subcmd/disasm.h"
 Cmd commands[] = {
-   help_cmd,
-   build_cmd,
-   run_cmd, 
-   bruh_cmd,
-   run_bochs_cmd,
-   bruh_bochs_cmd,
-   gdb_cmd,
-   telnet_cmd,
-   disasm_cmd,
+    help_cmd,
+    build_cmd,
+    run_cmd, 
+    bruh_cmd,
+    run_bochs_cmd,
+    bruh_bochs_cmd,
+    gdb_cmd,
+    telnet_cmd,
+    disasm_cmd,
 };
-
+bool strstarts(const char* str, const char* needle) {
+    // Works? Why:
+    // Because str is null terminated and it will complain about it if its less
+    return memcmp(str, needle, strlen(needle)) == 0;
+}
 int main(int argc, char** argv) {
     NOB_GO_REBUILD_URSELF(argc,argv);
     Build build = {0};
@@ -106,8 +111,15 @@ int main(int argc, char** argv) {
         ) {
             build.telmonitor = true;
         } else {
-            nob_log(NOB_ERROR, "Unknown argument: %s", arg);
-            return 1;
+            if(
+                strcmp(cmd, "build") == 0 ||
+                strstarts(cmd, "bruh")
+            ) {
+                nob_da_append(&build.build_what, arg);
+            } else {
+                nob_log(NOB_ERROR, "Unknown argument: %s", arg);
+                return 1;
+            }
         }
     }
     for(size_t i = 0; i < NOB_ARRAY_LEN(commands); ++i) {
