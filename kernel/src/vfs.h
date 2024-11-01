@@ -152,10 +152,9 @@ typedef struct {
 */
 typedef struct Device Device;
 struct Device {
-    FsOps* ops;
+    InodeOps* ops;
     void* private;
-    intptr_t (*open)(Device* this, VfsFile* file, fmode_t mode);
-    intptr_t (*stat)(Device* this, VfsStats* stats);
+    intptr_t (*init_inode)(Device* device, Inode* inode);
 };
 struct InodeOps {
     intptr_t (*stat)(Inode* this, VfsStats* stats);

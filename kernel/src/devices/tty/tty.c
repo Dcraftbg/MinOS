@@ -7,6 +7,7 @@
 #include <minos/key.h>
 
 static FsOps ttyOps = {0};
+static InodeOps inodeOps = {0};
 #define KEY_BYTES ((MINOS_KEY_COUNT+7)/8)
 typedef struct {
     // Is key down?
@@ -211,8 +212,9 @@ static intptr_t tty_draw_codepoint(TtyFb* fb, int codepoint, uint32_t fg, uint32
     return 0;
 }
 static Cache* tty_cache = NULL;
-static intptr_t tty_open(struct Device* this, VfsFile* file, fmode_t mode) {
+static intptr_t tty_open(struct Inode* this, VfsFile* file, fmode_t mode) {
     file->private = this->private;
+    file->ops = &ttyOps;
     return 0;
 }
 
@@ -336,12 +338,15 @@ static intptr_t new_tty_private_display(void** private, size_t display, const ch
     }
     return 0;
 }
+static intptr_t init_inode(Device* this, Inode* inode) {
+    inode->ops = &inodeOps;
+    inode->private = this->private;
+    return 0;
+}
 intptr_t create_tty_device_display(size_t display, const char* keyboard, Device* device) {
-    static_assert(sizeof(Device) == 32, "Update create_tty_device");
     intptr_t e = 0;
-    device->ops = &ttyOps;
-    device->open = tty_open;
-    device->stat = NULL;
+    device->ops = &inodeOps;
+    device->init_inode = init_inode;
     if((e = new_tty_private_display(&device->private, display, keyboard)) < 0) return e;
     return 0;
 }
@@ -355,6 +360,7 @@ void destroy_tty_device(Device* device) {
 
 static intptr_t tty_init() {
     memset(&ttyOps, 0, sizeof(ttyOps));
+    inodeOps.open = tty_open;
     ttyOps.write = tty_dev_write;
     ttyOps.read = tty_dev_read;
     ttyOps.close = tty_close;

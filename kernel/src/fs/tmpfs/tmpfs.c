@@ -164,6 +164,12 @@ intptr_t tmpfs_get_inode(Superblock* superblock, inodeid_t id, Inode** result) {
     if(!result) return -INVALID_PARAM;
     Inode* inode = (*result = iget(vfs_new_inode()));
     TmpfsInode* privInode = (TmpfsInode*)id;
+    if(privInode->kind == INODE_DEVICE) {
+        inode->superblock = superblock;
+        inode->inodeid = id;
+        if(privInode->data.device.device->init_inode) return privInode->data.device.device->init_inode(privInode->data.device.device, inode);
+        return -BAD_DEVICE;
+    }
     inode_constr(inode);
     inode->superblock = superblock;
     inode->private = privInode;
@@ -176,29 +182,10 @@ intptr_t tmpfs_get_inode(Superblock* superblock, inodeid_t id, Inode** result) {
 // Inode Ops
 intptr_t tmpfs_open(Inode* this, VfsFile* result, fmode_t mode) {
     if(!this || !this->private) return -BAD_INODE;
-    switch(this->kind) {
-    case INODE_FILE: {
-        TmpfsInode* tmpfs_inode = (TmpfsInode*)this->private;
-        assert(tmpfs_inode->kind == INODE_FILE);
-        vfsfile_constr(result, this, &tmpfs_fsops, 0, &((TmpfsInode*)this->private)->data.file, mode);
-        // result->ops = &tmpfs_fsops;
-        // result->cursor = 0;
-        // result->private = &((TmpfsInode*)this->private)->data.file;
-    } break;
-    case INODE_DEVICE: {
-        TmpfsInode* tmpfs_inode = (TmpfsInode*)this->private;
-        assert(tmpfs_inode->kind == INODE_DEVICE);
-
-        if(tmpfs_inode->data.device.device && tmpfs_inode->data.device.device->open) {
-            result->ops = tmpfs_inode->data.device.device->ops;
-            return tmpfs_inode->data.device.device->open(tmpfs_inode->data.device.device, result, mode);
-        }
-        return -BAD_DEVICE;
-    } break;
-    default:
-        return -INVALID_PARAM;
-    }
-    // Unreachable
+    if(this->kind != INODE_FILE) return -INODE_IS_DIRECTORY;
+    TmpfsInode* tmpfs_inode = (TmpfsInode*)this->private;
+    assert(tmpfs_inode->kind == INODE_FILE);
+    vfsfile_constr(result, this, &tmpfs_fsops, 0, &((TmpfsInode*)this->private)->data.file, mode);
     return 0;
 }
 intptr_t tmpfs_diropen(Inode* this, VfsDir* result, fmode_t mode) {
@@ -249,10 +236,6 @@ intptr_t tmpfs_stat(Inode* this, VfsStats* stats) {
         stats->lba = 0;
         stats->size = inode->data.file.size;
         return 0;
-    } break;
-    case INODE_DEVICE: {
-        if(!inode->data.device.device || !inode->data.device.device->stat) return -UNSUPPORTED;
-        return inode->data.device.device->stat(inode->data.device.device, stats);
     } break;
     }
     return -UNSUPPORTED;

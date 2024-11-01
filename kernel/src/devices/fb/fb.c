@@ -6,6 +6,7 @@
 // GLOBALS
 Cache* fbd_cache=NULL;
 static FsOps fbOps = {0};
+static InodeOps inodeOps = {0};
 // TODO: Some sort of synchronization for Framebuffers like with inodes. Maybe TtyFb should borrow Framebuffer or something
 typedef struct {
     Framebuffer fb;
@@ -77,8 +78,9 @@ err_no_insert_point:
     return e;
 }
 
-static intptr_t fb_open(struct Device* this, VfsFile* file, fmode_t mode) {
+static intptr_t fb_open(struct Inode* this, VfsFile* file, fmode_t mode) {
     file->private = this->private;
+    file->ops = &fbOps;
     return 0;
 }
 static void fb_close(VfsFile* file) {
@@ -87,11 +89,18 @@ static void fb_close(VfsFile* file) {
 
 static intptr_t fb_init() {
     memset(&fbOps, 0, sizeof(fbOps));
+    inodeOps.open = fb_open;
+    fbOps.close = fb_close;
     fbOps.ioctl = fb_ioctl;
     fbOps.mmap  = fb_mmap;
     fbOps.close = fb_close;
     fbd_cache = create_new_cache(sizeof(FbDevice), "FbDevice");
     if(!fbd_cache) return -NOT_ENOUGH_MEM;
+    return 0;
+}
+static intptr_t init_inode(Device* device, Inode* inode) {
+    inode->private = device->private;
+    inode->ops = &inodeOps;
     return 0;
 }
 intptr_t init_fb_devices() {
@@ -112,8 +121,7 @@ intptr_t init_fb_devices() {
         fbd->fb = get_framebuffer_by_id(i);
         if(!fbd->fb.addr) goto err_invalid_framebuffer;
         device->private = fbd;
-        device->ops = &fbOps;
-        device->open = fb_open;
+        device->ops = &inodeOps;
         stbsp_snprintf(namebuf, sizeof(namebuf), "fb%zu", i);
         if((e=vfs_register_device(namebuf, device))) goto err_register_device;
         continue;

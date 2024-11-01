@@ -127,6 +127,7 @@ void ps2_keyboard_handler() {
 }
 
 static FsOps ps2keyboardOps = {0};
+static InodeOps inodeOps = {0};
 static intptr_t ps2keyboard_read(VfsFile* file, void* buf, size_t size, off_t offset) {
     (void)offset;
     if(size % sizeof(Key) != 0) return -SIZE_MISMATCH;
@@ -137,19 +138,25 @@ static intptr_t ps2keyboard_read(VfsFile* file, void* buf, size_t size, off_t of
     }
     return count * sizeof(Key);
 }
-static intptr_t ps2keyboard_open(Device* this, VfsFile* file, fmode_t mode) {
+static intptr_t ps2keyboard_open(Inode* this, VfsFile* file, fmode_t mode) {
     if(mode != MODE_READ) return -UNSUPPORTED;
     file->private = this->private;
+    file->ops = &ps2keyboardOps;
+    return 0;
+}
+static intptr_t init_inode(Device* this, Inode* inode) {
+    inode->private = this->private;
+    inode->ops = &inodeOps;
     return 0;
 }
 intptr_t ps2keyboard_init() {
     memset(&ps2keyboardOps, 0, sizeof(ps2keyboardOps));
+    inodeOps.open = ps2keyboard_open;
     ps2keyboardOps.read = ps2keyboard_read;
     return 0;
 }
 Device ps2keyboard_device = {
-    .ops=&ps2keyboardOps,
+    .ops=&inodeOps,
     .private=&ps2queue,
-    .open=ps2keyboard_open,
-    .stat=NULL
+    .init_inode=init_inode,
 };
