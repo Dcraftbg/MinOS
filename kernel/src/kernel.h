@@ -42,6 +42,7 @@ typedef struct {
     struct list cache_list;
     struct Logger* logger;
     PitInfo pit_info;
+    bool unwinding;
 } Kernel;
 extern Kernel kernel;
 
