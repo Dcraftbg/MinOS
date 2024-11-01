@@ -54,4 +54,5 @@ static void memlist_dealloc(MemoryList* list, page_t pml4) {
 }
 void memlist_add(struct list *list, MemoryList *new);
 MemoryList* memlist_find_available(struct list *list, MemoryRegion* result, size_t minsize_pages, size_t maxsize_pages);
+MemoryList* memlist_find(struct list *list, void* address);
 

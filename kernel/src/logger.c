@@ -25,8 +25,6 @@ static void logger_default_write_func(void* logger_void, const char* str, size_t
     Logger* logger = (Logger*)logger_void;
     logger->write_str(logger, str, len);
 }
-// TODO: actual printf implementation in logger_kdefault.
-// Probably would be a good idea to have it as a separate function logger_printf_base
 static intptr_t logger_log_default(Logger* logger, uint32_t level, const char* fmt, va_list args) {
     if(level >= LOG_COUNT) {
         logger_log(logger, LOG_WARN, "Invalid log level %u >= %u", level, LOG_COUNT);

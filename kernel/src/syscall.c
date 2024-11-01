@@ -7,6 +7,7 @@
 #include "log.h"
 #include "benchmark.h"
 #include "arch/x86_64/idt.h"
+#include <minos/heap.h>
 
 void init_syscalls() {
     idt_register(0x80, syscall_base, IDT_SOFTWARE_TYPE);
@@ -235,7 +236,7 @@ intptr_t sys_waitpid(size_t pid) {
 #define MIN_HEAP_PAGES 16
 #define MAX_HEAP_PAGES 64
 // FIXME: Possible problem with multiple tasks
-intptr_t sys_heap_create() {
+intptr_t sys_heap_create(uint64_t flags) {
     Process* cur_proc = current_process();
     Task* cur_task = current_task();
     MemoryRegion* region = memregion_new(
@@ -256,7 +257,7 @@ intptr_t sys_heap_create() {
         memlist_dealloc(list, NULL);
         return -NOT_ENOUGH_MEM;
     }
-    Heap* heap = heap_new(cur_proc->heapid++, region->address, region->pages);
+    Heap* heap = heap_new(cur_proc->heapid++, region->address, region->pages, flags);
     if(!heap) {
         memlist_dealloc(list, NULL);
         return -NOT_ENOUGH_MEM;
@@ -280,6 +281,17 @@ intptr_t sys_heap_allocate(size_t id, size_t size, void** result) {
     if(alloc) {
         *result = alloc;
         return 0;
+    }
+    if(heap->flags & HEAP_RESIZABLE) {
+        intptr_t e;
+        if((e=process_heap_extend(cur_proc, heap, (size+(PAGE_SIZE-1))/PAGE_SIZE)) < 0)
+           return e;
+        invalidate_full_page_table();
+        void* alloc = heap_allocate(heap, size);
+        if(alloc) {
+            *result = alloc;
+            return 0;
+        }
     }
     return -NOT_ENOUGH_MEM;
 }

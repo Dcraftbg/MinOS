@@ -6,7 +6,7 @@ _LibcInternalHeap _libc_internal_heaps[_LIBC_INTERNAL_HEAPS_MAX];
 void* malloc(size_t size) {
     for(size_t i = 0; i < _LIBC_INTERNAL_HEAPS_MAX; ++i) {
         if(_libc_internal_heaps[i].id == _LIBC_INTERNAL_INVALID_HEAPID) {
-            intptr_t e = heap_create();
+            intptr_t e = heap_create(HEAP_RESIZABLE);
             if(e < 0) return NULL; // Failed to create heap. Most likely out of memory
             _libc_internal_heaps[i].id = e;
         }

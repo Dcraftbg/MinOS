@@ -54,3 +54,29 @@ Heap* get_heap_by_id(Process* process, size_t heapid) {
     }
     return NULL;
 }
+
+// FIXME: Possible issues with multiple threads
+intptr_t process_heap_extend(Process* process, Heap* heap, size_t extra) {
+    intptr_t e=0;
+    Task* task = get_task_by_id(process->main_threadid); 
+    // Invalidly resized.
+    // Checking overflow:
+    if(heap->address + (heap->pages+extra)*PAGE_SIZE <= heap->address) return -NOT_ENOUGH_MEM;
+    MemoryList* reglist = memlist_find(&task->image.memlist, (void*)heap->address);
+    MemoryRegion* region = reglist->region;
+    if(!region) return -INVALID_PARAM;
+    if(reglist->list.next != &task->image.memlist) {
+        MemoryRegion* next = (MemoryRegion*)reglist->list.next;
+        if(next->address < heap->address + (heap->pages+extra)*PAGE_SIZE) return -NOT_ENOUGH_MEM;
+    }
+    uintptr_t end = heap->address + (heap->pages)*PAGE_SIZE;
+    if(!page_alloc(task->image.cr3, end, extra, KERNEL_PFLAG_WRITE | KERNEL_PFLAG_USER | KERNEL_PFLAG_PRESENT))
+        return -NOT_ENOUGH_MEM;
+    if((e=process_heap_extend(process, heap, extra)) < 0)
+        goto err;
+    region->pages += extra;
+    return 0;
+err:
+    page_unalloc(task->image.cr3, end, extra);
+    return e;
+}

@@ -2,6 +2,7 @@
 #include "syscall.h"
 #include "syscodes.h"
 #include "fsdefs.h"
+#include "heap.h"
 
 static intptr_t open(const char* path, fmode_t mode) {
     return syscall2(SYS_OPEN, path, mode);
@@ -40,8 +41,8 @@ static intptr_t wait_pid(size_t pid) {
     return syscall1(SYS_WAITPID, pid);
 }
 
-static intptr_t heap_create() {
-    return syscall0(SYS_HEAP_CREATE);
+static intptr_t heap_create(uint64_t flags) {
+    return syscall1(SYS_HEAP_CREATE, flags);
 }
 static intptr_t heap_allocate(size_t id, size_t size, void** result) {
     return syscall3(SYS_HEAP_ALLOCATE, id, size, result);
