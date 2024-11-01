@@ -1,3 +1,4 @@
+#pragma once
 #include "port.h"
 #include "utils.h"
 #include <stdint.h>

@@ -1,3 +1,4 @@
+#pragma once
 #include "page.h"
 paddr_t kernel_page_alloc();
 void kernel_page_dealloc(paddr_t page);
