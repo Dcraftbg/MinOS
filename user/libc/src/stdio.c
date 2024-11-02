@@ -136,7 +136,7 @@ ssize_t vsnprintf(char* buf, size_t size, const char* fmt, va_list args) {
     };
     ssize_t result = print_base(&writer, _swrite_base_func, fmt, args);
     if(result < 0) return result;
-    writer.head[result] = '\0';
+    buf[result] = '\0';
     return result;
 }
 ssize_t snprintf(char* buf, size_t size, const char* fmt, ...) {

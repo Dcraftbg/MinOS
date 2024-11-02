@@ -117,9 +117,10 @@ end:
     return res;
 }
 char* strncpy(char *restrict dest, const char *restrict src, size_t len) {
-    size_t src_len = strlen(src)+1;
+    size_t src_len = strlen(src);
     if(len > src_len) len = src_len;
     memcpy(dest, src, len);
+    dest[len] = '\0';
     return dest;
 }
 char* strstr (const char* str, const char* substr) {
