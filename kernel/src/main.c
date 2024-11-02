@@ -15,6 +15,7 @@
 #include "debug.h"
 #include "page.h"
 #include "arch/x86_64/gdt.h"
+#include "arch/x86_64/enable_arch_extra.h"
 #include "exception.h"
 #include "vfs.h"
 #include "rootfs.h"
@@ -121,6 +122,7 @@ void _start() {
     tss_load_cpu(0);
     enable_interrupts();
 #endif
+    enable_cpu_features();
 
     update_bar(step++, "init_cache_cache");
     init_cache_cache();
