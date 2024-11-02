@@ -1,3 +1,6 @@
 [submodule "kernel/vendor/limine"]
 	path = kernel/vendor/limine
 	url = https://github.com/limine-bootloader/limine.git
+[submodule "user/doomgeneric"]
+	path = user/doomgeneric
+	url = https://github.com/Dcraftbg/doomgeneric.git
