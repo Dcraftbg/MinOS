@@ -63,8 +63,10 @@ intptr_t process_heap_extend(Process* process, Heap* heap, size_t extra) {
     // Checking overflow:
     if(heap->address + (heap->pages+extra)*PAGE_SIZE <= heap->address) return -NOT_ENOUGH_MEM;
     MemoryList* reglist = memlist_find(&task->image.memlist, (void*)heap->address);
+    if(!reglist)
+        return -INVALID_PARAM;
+    
     MemoryRegion* region = reglist->region;
-    if(!region) return -INVALID_PARAM;
     if(reglist->list.next != &task->image.memlist) {
         MemoryRegion* next = (MemoryRegion*)reglist->list.next;
         if(next->address < heap->address + (heap->pages+extra)*PAGE_SIZE) return -NOT_ENOUGH_MEM;
@@ -72,7 +74,7 @@ intptr_t process_heap_extend(Process* process, Heap* heap, size_t extra) {
     uintptr_t end = heap->address + (heap->pages)*PAGE_SIZE;
     if(!page_alloc(task->image.cr3, end, extra, KERNEL_PFLAG_WRITE | KERNEL_PFLAG_USER | KERNEL_PFLAG_PRESENT))
         return -NOT_ENOUGH_MEM;
-    if((e=process_heap_extend(process, heap, extra)) < 0)
+    if((e=heap_extend(heap, extra)) < 0)
         goto err;
     region->pages += extra;
     return 0;

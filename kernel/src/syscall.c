@@ -197,7 +197,7 @@ intptr_t sys_exec(const char* path, const char** argv, size_t argc, const char**
     }
     cur_task->image.flags &= ~(TASK_FLAG_PRESENT);
     cur_task->image.flags |= TASK_FLAG_DYING;
-    cur_proc->main_threadid = cur_task->id;
+    cur_proc->main_threadid = task->id;
     task->image.flags |= TASK_FLAG_PRESENT;
     Heap* heap = (Heap*)cur_proc->heap_list.next;
     while(&heap->list != &cur_proc->heap_list) {
