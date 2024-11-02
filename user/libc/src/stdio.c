@@ -186,13 +186,16 @@ FILE* fopen(const char* path, const char* mode) {
         case 'w':
             fmode |= MODE_WRITE;
             break;
+        case 'b':
+            break;
         default:
             // '...' Unknown formatter
             return NULL;
         }
         mode++;
     }
-    return (FILE*)open(path, fmode);
+    
+    return (FILE*)open(path, fmode, O_CREAT);
 }
 
 void fclose(FILE* f) {
@@ -204,20 +207,20 @@ int fflush(FILE* f) {
     return 0;
 }
 int fseek (FILE* f, long offset, int origin) {
-    fprintf(stderr, "ERROR: Unimplemented `fseek` (%p, %p, %d)", f, (void*)offset, origin);
+    fprintf(stderr, "ERROR: Unimplemented `fseek` (%p, %p, %d)\n", f, (void*)offset, origin);
     return -1;
 }
 ssize_t ftell(FILE* f) {
-    fprintf(stderr, "ERROR: Unimplemented `ftell`");
+    fprintf(stderr, "ERROR: Unimplemented `ftell`\n");
     return -1;
 }
 int rename(const char* old_filename, const char* new_filename) {
-    fprintf(stderr, "ERROR: Unimplemented `rename` (%s, %s)", old_filename, new_filename);
+    fprintf(stderr, "ERROR: Unimplemented `rename` (%s, %s)\n", old_filename, new_filename);
     return -1;
 }
 
 int remove(const char* path) {
-    fprintf(stderr, "ERROR: Unimplemented `remove` (%s)", path);
+    fprintf(stderr, "ERROR: Unimplemented `remove` (%s)\n", path);
     return -1;
 }
 // TODO: Set error

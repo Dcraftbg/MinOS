@@ -4,8 +4,8 @@
 #include "fsdefs.h"
 #include "heap.h"
 
-static intptr_t open(const char* path, fmode_t mode) {
-    return syscall2(SYS_OPEN, path, mode);
+static intptr_t open(const char* path, fmode_t mode, oflags_t flags) {
+    return syscall3(SYS_OPEN, path, mode, flags);
 }
 
 static intptr_t write(uintptr_t handle, const void* buf, size_t size) {

@@ -28,9 +28,9 @@ static intptr_t parse_path(Process* process, Path* res, const char* path) {
     }
 }
 // TODO: Safety features like copy_to_userspace, copy_from_userspace
-intptr_t sys_open(const char* path, fmode_t mode) {
+intptr_t sys_open(const char* path, fmode_t mode, oflags_t flags) {
 #ifdef CONFIG_LOG_SYSCALLS
-    printf("sys_open(\"%s\", %u)\n",path,mode);
+    kinfo("sys_open(\"%s\", %d, %d)", path, (int)mode, (int)flags);
 #endif
     Path p;
     Process* current = current_process();
@@ -41,6 +41,17 @@ intptr_t sys_open(const char* path, fmode_t mode) {
     if(!resource) return -NOT_ENOUGH_MEM;
     resource->kind = RESOURCE_FILE;
     if((e=vfs_open(&p, &resource->data.file, mode)) < 0) {
+        if(flags & O_CREAT) {
+            if((e=vfs_create(&p)) < 0) {
+                resource_remove(current->resources, id);
+                return e;
+            }
+            // TODO: Is it defined behaviour if the file is created but can't be opened?
+            if((e=vfs_open(&p, &resource->data.file, mode)) < 0) {
+                resource_remove(current->resources, id);
+                return e;
+            }
+        }
         resource_remove(current->resources, id);
         return e;
     }

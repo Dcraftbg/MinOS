@@ -44,7 +44,7 @@ int main() {
 }
 void _start(int argc, const char** argv, int envc, const char** envv) {
     intptr_t e;
-    if((e = open("/devices/tty0", MODE_WRITE | MODE_READ)) < 0) {
+    if((e = open("/devices/tty0", MODE_WRITE | MODE_READ, 0)) < 0) {
         exit(-e); 
     }
     printf("Args dump:\n");
