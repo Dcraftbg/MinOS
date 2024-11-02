@@ -13,12 +13,12 @@
     "-O2",\
     /*"-fomit-frame-pointer", "-fno-builtin", */\
     /*"-mno-red-zone",*/\
-   "-mno-mmx",\
-   "-mno-sse", "-mno-sse2",\
-   "-mno-3dnow",\
-   "-fPIC",\
-   "-I", "libs/std/include",\
-   "-I", "kernel/src"
+    "-mno-mmx",\
+    "-mno-sse", "-mno-sse2",\
+    "-mno-3dnow",\
+    "-fPIC",\
+    "-I", "libs/std/include",\
+    "-I", "kernel/src"
 
 #define USER_CFLAGS\
     "-g",\
@@ -30,7 +30,7 @@
     "-Wall", \
     "-fno-stack-protector", \
     "-mno-mmx",\
-    "-mno-sse", "-mno-sse2",\
+    /*"-mno-sse", "-mno-sse2",*/\
     "-mno-3dnow",\
     "-fPIC",\
     "-I", "libs/std/include",

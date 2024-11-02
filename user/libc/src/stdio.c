@@ -5,6 +5,11 @@ typedef ssize_t (*PrintWriteFunc)(void* user, const char* data, size_t len);
 #include <minos/sysstd.h>
 #include <minos/status.h>
 static ssize_t _fwrite_base_func(void* user, const char* data, size_t len);
+typedef struct {
+    char* head;
+    char* end;
+} SWriter;
+static ssize_t _fwrite_base_func(void* user, const char* data, size_t len);
 static ssize_t print_base(void* user, PrintWriteFunc func, const char* fmt, va_list list) {
 #define FUNC_CALL(user, data, len) \
     do {\
@@ -114,7 +119,45 @@ ssize_t printf(const char* fmt, ...) {
     ssize_t result = vprintf(fmt, args);
     va_end(args);
     return result;
-} 
+}
+static ssize_t _swrite_base_func(void* user, const char* data, size_t len) {
+    SWriter* swriter = (SWriter*)user;
+    size_t cap = (swriter->end-swriter->head);
+    if(cap < len) len=cap;
+    memcpy(swriter->head, data, len);
+    swriter->head+=len;
+    return len;
+}
+ssize_t vsnprintf(char* buf, size_t size, const char* fmt, va_list args) {
+    if(size == 0) return 0;
+    SWriter writer={
+        .head=buf,
+        .end=buf+size-1,
+    };
+    ssize_t result = print_base(&writer, _swrite_base_func, fmt, args);
+    if(result < 0) return result;
+    writer.head[result] = '\0';
+    return result;
+}
+ssize_t snprintf(char* buf, size_t size, const char* fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    ssize_t result = vsnprintf(buf, size, fmt, args);
+    va_end(args);
+    return result;
+}
+ssize_t vsprintf(char* buf, const char* fmt, va_list args) {
+    //                              v----- Artificial sprintf limit
+    ssize_t result = vsnprintf(buf, 100000, fmt, args);
+    return result;
+}
+ssize_t sprintf(char* buf, const char* fmt, ...) {
+    va_list args;
+    va_start(args, fmt);
+    ssize_t result = vsprintf(buf, fmt, args);
+    va_end(args);
+    return result;
+}
 ssize_t vprintf(const char* fmt, va_list args) {
     return vfprintf(stdout, fmt, args);
 }
@@ -133,6 +176,50 @@ static ssize_t _fwrite_base_func(void* user, const char* data, size_t len) {
     return write((uintptr_t)user, data, len);
 }
 
+FILE* fopen(const char* path, const char* mode) {
+    fmode_t fmode = 0;
+    while(mode[0]) {
+        switch(mode[0]) {
+        case 'r':
+            fmode |= MODE_READ;
+            break;
+        case 'w':
+            fmode |= MODE_WRITE;
+            break;
+        default:
+            // '...' Unknown formatter
+            return NULL;
+        }
+        mode++;
+    }
+    return (FILE*)open(path, fmode);
+}
+
+void fclose(FILE* f) {
+    close((uintptr_t)f);
+}
+
+int fflush(FILE* f) {
+    (void)f;
+    return 0;
+}
+int fseek (FILE* f, long offset, int origin) {
+    fprintf(stderr, "ERROR: Unimplemented `fseek` (%p, %p, %d)", f, (void*)offset, origin);
+    return -1;
+}
+ssize_t ftell(FILE* f) {
+    fprintf(stderr, "ERROR: Unimplemented `ftell`");
+    return -1;
+}
+int rename(const char* old_filename, const char* new_filename) {
+    fprintf(stderr, "ERROR: Unimplemented `rename` (%s, %s)", old_filename, new_filename);
+    return -1;
+}
+
+int remove(const char* path) {
+    fprintf(stderr, "ERROR: Unimplemented `remove` (%s)", path);
+    return -1;
+}
 // TODO: Set error
 size_t fread(void* buffer, size_t size, size_t count, FILE* f) {
     if(size == 0 || count == 0) return 0;
@@ -162,4 +249,7 @@ int fputs(const char* restrict str, FILE* restrict stream) {
     fwrite(str, strlen(str), 1, stream);
     return 0;
 }
-
+int sscanf(const char *restrict buffer, const char *restrict fmt, ...) {
+    fprintf(stderr, "ERROR: Unimplemented `sscanf` (%s, %s)", buffer, fmt);
+    return -1;
+}

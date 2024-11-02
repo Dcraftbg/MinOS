@@ -4,6 +4,7 @@
 #include <stdbool.h>
 #include <string.h>
 #include <stdio.h>
+#include <stdlib.h>
 
 intptr_t readline(char* buf, size_t bufmax) {
     intptr_t e;

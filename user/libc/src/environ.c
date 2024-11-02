@@ -17,14 +17,6 @@ static bool __environ_reserve(size_t extra) {
     }
     return true;
 }
-static char* __strdup(const char* str) {
-    size_t len = strlen(str);
-    char* res = malloc(len+1);
-    if(!res) goto end;
-    memcpy(res, str, len+1);
-end:
-    return res;
-}
 static int environ_find_index(const char* name) {
     if(name == NULL) return -1;
     size_t namelen = strlen(name);
@@ -79,7 +71,7 @@ void _libc_init_environ(const char** envv, int envc) {
     // Not enough memory
     if(!__environ_reserve(envc)) exit(1);
     for(size_t i = 0; i < envc; ++i) {
-        char* env = __strdup(envv[i]);
+        char* env = strdup(envv[i]);
         if(!env) exit(1);
         environ[__environ_size++] = env;
     }

@@ -33,7 +33,7 @@ static intptr_t execve(const char* path, const char** argv, size_t argc, const c
     return syscall5(SYS_EXEC, path, argv, argc, envp, envc);
 }
 
-static void exit(int64_t code) {
+static void _exit(int64_t code) {
     syscall1(SYS_EXIT, code);
 }
 

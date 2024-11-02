@@ -1,4 +1,6 @@
 #include "string.h"
+#include "stdlib.h"
+#include "ctype.h"
 void *memset (void *dest, int x          , size_t n) {
     asm volatile(
         "rep stosb"
@@ -69,6 +71,24 @@ int strncmp(const char* s1, const char* s2, size_t max) {
    if(max != 0) return ((unsigned char)*s1) - ((unsigned char)*s2);
    return 0;
 }
+
+int strcasecmp(const char *restrict s1, const char *restrict s2) {
+   while(*s1 && tolower(*s1) == tolower(*s2)) {
+        s1++;
+        s2++;
+   }
+   return ((unsigned char)*s1)-((unsigned char)*s2);
+}
+
+int strncasecmp(const char* s1, const char* s2, size_t max) {
+   while(max && *s1 && *s2 && (tolower(*s1) == tolower(*s2))) {
+        s1++;
+        s2++;
+        max--;
+   }
+   if(max != 0) return ((unsigned char)*s1) - ((unsigned char)*s2);
+   return 0;
+}
 size_t strlen(const char* cstr) {
     const char* head = cstr;
     while(*head) head++;
@@ -78,4 +98,33 @@ size_t strlen(const char* cstr) {
 char* strchr(const char* str, int chr) {
     while(str[0] && str[0] != (char)chr) str++;
     return (char*)str;
+}
+
+char* strrchr(const char* str, int chr) {
+    char* head=NULL;
+    while(str[0]) {
+        if(str[0] == (char)chr) head = (char*)str;
+        str++;
+    }
+    return head;
+}
+char* strdup(const char* str) {
+    size_t len = strlen(str);
+    char* res = malloc(len+1);
+    if(!res) goto end;
+    memcpy(res, str, len+1);
+end:
+    return res;
+}
+
+char* strstr (const char* str, const char* substr) {
+    if(substr[0] == '\0') return (char*)str;
+    size_t str_len = strlen(str);
+    size_t substr_len = strlen(substr);
+    while(str[0] && str_len > substr_len) {
+        if(strcmp(str, substr) == 0) return (char*)str;
+        str++;
+        str_len--;
+    }
+    return NULL;
 }
