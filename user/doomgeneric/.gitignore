@@ -1,0 +1,10 @@
+*.o
+*.obj
+*.exe
+*.DS_Store
+*.log
+*.user
+*~
+.vs/
+Debug/
+Release/
