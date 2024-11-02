@@ -25,6 +25,15 @@ bool initrd_setup() {
         "./bin/user/hello/hello",
         "./bin/user/fbtest/fbtest",
     )) return false;
+    const char* doom_path = "./user/doomgeneric/doomgeneric/doomgeneric";
+    if(nob_file_exists(doom_path) == 1) {
+        if(!copy_all_to(
+            "./initrd/user",
+            doom_path
+        )) return false;
+    } else {
+        nob_log(NOB_WARNING, "Could not find `%s`. Won't be embedded", doom_path);
+    }
     if(!ustar_zip_dir("./initrd", "./bin/iso/initrd")) return false;
     return true;
 }
