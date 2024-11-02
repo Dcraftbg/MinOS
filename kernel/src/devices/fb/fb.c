@@ -122,6 +122,7 @@ intptr_t init_fb_devices() {
         if(!fbd->fb.addr) goto err_invalid_framebuffer;
         device->private = fbd;
         device->ops = &inodeOps;
+        device->init_inode = init_inode;
         stbsp_snprintf(namebuf, sizeof(namebuf), "fb%zu", i);
         if((e=vfs_register_device(namebuf, device))) goto err_register_device;
         continue;
