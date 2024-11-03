@@ -168,15 +168,8 @@ intptr_t tty_draw_codepoint_at(Framebuffer* fm, size_t x, size_t y, int codepoin
 
 static intptr_t tty_draw_codepoint(TtyFb* fb, int codepoint, uint32_t fg, uint32_t bg) {
     if(fb->y+16 > fb->fb.height) {
-        size_t diff = 16;
-        uint8_t* addr=fb->fb.addr;
-        size_t bytes =fb->fb.bpp/8;
-        for(size_t y = 0; y < fb->fb.height-diff; ++y) {
-            memmove(addr, addr+diff*fb->fb.pitch_bytes, fb->fb.width*bytes);
-            addr+=fb->fb.pitch_bytes;
-        }
-        fmbuf_draw_rect(&fb->fb, 0, fb->fb.height-diff, fb->fb.width, fb->fb.height, bg);
-        fb->y -= diff;
+        fmbuf_scroll_up(&fb->fb, 16, bg);
+        fb->y -= 16;
     }
     if(fb->y >= fb->fb.height) return 0;
     switch(codepoint) {

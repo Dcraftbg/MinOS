@@ -1,4 +1,5 @@
 #include "framebuffer.h"
+#include "string.h"
 #define swap_sz(a, b) \
     do { \
        size_t __swap = a; \
@@ -30,4 +31,15 @@ void fmbuf_draw_rect(Framebuffer* this, size_t left, size_t top, size_t right, s
         } 
         at = (uint32_t*)(((uint8_t*)at) + this->pitch_bytes);
     }
+}
+
+void fmbuf_scroll_up(Framebuffer* this, size_t rows, uint32_t bg) {
+    debug_assert(this->height >= rows);
+    uint8_t* addr=this->addr;
+    size_t bytes =this->bpp/8;
+    for(size_t y = 0; y < this->height-rows; ++y) {
+        memmove(addr, addr+rows*this->pitch_bytes, this->width*bytes);
+        addr+=this->pitch_bytes;
+    }
+    fmbuf_draw_rect(this, 0, this->height-rows, this->width, this->height, bg);
 }
