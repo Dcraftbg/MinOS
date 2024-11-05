@@ -12,6 +12,7 @@ enum {
     SYS_WAITPID,
     SYS_HEAP_CREATE,
     SYS_HEAP_GET,
+    SYS_HEAP_EXTEND,
     SYS_CHDIR,
     SYS_GETCWD,
 };

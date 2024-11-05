@@ -12,6 +12,7 @@ extern sys_exit
 extern sys_waitpid
 extern sys_heap_create
 extern sys_heap_get
+extern sys_heap_extend
 extern sys_chdir
 extern sys_getcwd
 %define KERNEL_UNSUPPORTED 7
@@ -31,6 +32,7 @@ syscall_table:
    dq sys_waitpid
    dq sys_heap_create
    dq sys_heap_get
+   dq sys_heap_extend
    dq sys_chdir
    dq sys_getcwd
 syscall_table_end:

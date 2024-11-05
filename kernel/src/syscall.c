@@ -291,6 +291,15 @@ intptr_t sys_heap_get(uintptr_t id, MinOSHeap* result) {
     result->size = heap->pages*PAGE_SIZE;
     return 0;
 }
+// TODO: Maybe make this into sys_heap_resize instead
+intptr_t sys_heap_extend(uintptr_t id, size_t extra_bytes) {
+    size_t extra_pages = (extra_bytes+(PAGE_SIZE-1))/PAGE_SIZE;
+    if(extra_pages == 0) return 0;
+    Process* cur_proc = current_process();
+    Heap* heap = get_heap_by_id(cur_proc, id);
+    if(!heap) return -INVALID_HANDLE;
+    return process_heap_extend(cur_proc, heap, extra_pages);
+}
 intptr_t sys_chdir(const char* path) {
     size_t pathlen = strlen(path);
     if(pathlen >= PATH_MAX) return -LIMITS; 

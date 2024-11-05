@@ -47,6 +47,9 @@ static intptr_t heap_create(uint64_t flags) {
 static intptr_t heap_get(uintptr_t id, MinOSHeap* heap) {
     return syscall2(SYS_HEAP_GET, id, heap);
 }
+static intptr_t heap_extend(uintptr_t id, size_t bytes) {
+    return syscall2(SYS_HEAP_EXTEND, id, bytes);
+}
 static intptr_t chdir(const char* path) {
     return syscall1(SYS_CHDIR, path);
 }

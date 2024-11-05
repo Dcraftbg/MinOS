@@ -30,8 +30,20 @@ struct _HeapNode {
 #define MIN_HEAP_BLOCK_SIZE (sizeof(_HeapNode)+16)
 #define alignup_to(n, size)   ((((n)+((size)-1))/(size))*(size))
 #define aligndown_to(n, size) (((n)/(size))*(size))
-void* libc_heap_allocate(_LibcInternalHeap* heap, size_t size) {
-    if(heap->heap.size < sizeof(_HeapNode)) return NULL;
+bool libc_heap_extend(_LibcInternalHeap* heap, size_t extra) {
+    // TODO: Maybe ask for page size instead
+    size_t page_extend = alignup_to(alignup_to(extra, sizeof(_HeapNode)), 4096);
+    intptr_t e;
+    if((e=heap_extend(heap->id, page_extend)) < 0) return false;
+    _HeapNode* end = (_HeapNode*)(heap->heap.address+heap->heap.size);
+    list_init(&end->list);
+    end->size = extra;
+    end->free = true;
+    list_append(&end->list, heap->alloc_list.prev);
+    heap->heap.size += extra;
+    return true;
+}
+void* libc_heap_allocate_within(_LibcInternalHeap* heap, size_t size) {
     for(_HeapNode* node=(_HeapNode*)heap->alloc_list.next; &node->list != &heap->alloc_list; node = (_HeapNode*)node->list.next) {
         if(node->size >= size && node->free) {
             size_t left = node->size-size;
@@ -49,6 +61,13 @@ void* libc_heap_allocate(_LibcInternalHeap* heap, size_t size) {
         }
     }
     return NULL;
+}
+void* libc_heap_allocate(_LibcInternalHeap* heap, size_t size) {
+    if(heap->heap.size < sizeof(_HeapNode)) return NULL;
+    void* addr=libc_heap_allocate_within(heap, size);
+    if(addr) return addr;
+    if(!libc_heap_extend(heap, size)) return NULL;
+    return libc_heap_allocate_within(heap, size);
 }
 
 // TODO: faster Deallocation infering address is a valid heap address
