@@ -1,7 +1,7 @@
 #pragma once
 #include "mem/bitmap.h"
 #include "mem/slab.h"
-#include "list.h"
+#include <collections/list.h>
 #include "vfs.h"
 #include "string.h"
 #include "ctype.h"

@@ -283,38 +283,14 @@ intptr_t sys_heap_create(uint64_t flags) {
     list_append(&list->list, &insert_into->list);
     return heap->id;
 }
-
-intptr_t sys_heap_allocate(size_t id, size_t size, void** result) {
+intptr_t sys_heap_get(uintptr_t id, MinOSHeap* result) {
     Process* cur_proc = current_process();
     Heap* heap = get_heap_by_id(cur_proc, id);
     if(!heap) return -INVALID_HANDLE;
-    void* alloc = heap_allocate(heap, size);
-    if(alloc) {
-        *result = alloc;
-        return 0;
-    }
-    if(heap->flags & HEAP_RESIZABLE) {
-        intptr_t e;
-        if((e=process_heap_extend(cur_proc, heap, (size+(PAGE_SIZE-1))/PAGE_SIZE)) < 0)
-           return e;
-        invalidate_full_page_table();
-        void* alloc = heap_allocate(heap, size);
-        if(alloc) {
-            *result = alloc;
-            return 0;
-        }
-    }
-    return -NOT_ENOUGH_MEM;
-}
-
-intptr_t sys_heap_deallocate(size_t id, void* addr) {
-    Process* cur_proc = current_process();
-    Heap* heap = get_heap_by_id(cur_proc, id);
-    if(!heap) return -INVALID_HANDLE;
-    heap_deallocate(heap, addr);
+    result->address = (void*)heap->address;
+    result->size = heap->pages*PAGE_SIZE;
     return 0;
 }
-
 intptr_t sys_chdir(const char* path) {
     size_t pathlen = strlen(path);
     if(pathlen >= PATH_MAX) return -LIMITS; 

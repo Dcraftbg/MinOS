@@ -11,8 +11,7 @@ extern sys_exec
 extern sys_exit
 extern sys_waitpid
 extern sys_heap_create
-extern sys_heap_allocate
-extern sys_heap_deallocate
+extern sys_heap_get
 extern sys_chdir
 extern sys_getcwd
 %define KERNEL_UNSUPPORTED 7
@@ -31,8 +30,7 @@ syscall_table:
    dq sys_exit
    dq sys_waitpid
    dq sys_heap_create
-   dq sys_heap_allocate
-   dq sys_heap_deallocate
+   dq sys_heap_get
    dq sys_chdir
    dq sys_getcwd
 syscall_table_end:
