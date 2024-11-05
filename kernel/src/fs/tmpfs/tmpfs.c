@@ -352,7 +352,7 @@ intptr_t tmpfs_seek(VfsFile* file, off_t offset, seekfrom_t from) {
             if(offset < 0 && (-offset) > file->cursor) return -INVALID_OFFSET;
             file->cursor += offset;
             return file->cursor;
-        case SEEK_END:
+        case SEEK_EOF:
             if(offset > 0) return -INVALID_OFFSET;
             if(offset < 0 && (-offset) > tmpfs_file->size) return -INVALID_OFFSET;
             file->cursor = tmpfs_file->size-((size_t)(-offset));

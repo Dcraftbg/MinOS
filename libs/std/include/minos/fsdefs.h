@@ -10,3 +10,10 @@ enum {
     O_CREAT=0b1,
 };
 typedef uint32_t oflags_t;
+
+enum {
+    SEEK_START,
+    SEEK_CURSOR,
+    SEEK_EOF,
+};
+typedef uintptr_t seekfrom_t;

@@ -63,7 +63,7 @@ void cat(const char* path) {
         kwarn("cat: Failed to open %s : %s", path, status_str(e));
         return;
     }
-    if((e=vfs_seek(&file, 0, SEEK_END)) < 0) {
+    if((e=vfs_seek(&file, 0, SEEK_EOF)) < 0) {
         kwarn("cat: Could not seek to file end : %s", status_str(e));
         vfs_close(&file);
         return;
@@ -155,7 +155,7 @@ void hexdump(const char* path) {
         kerror("hexdump: Failed to open %s : %ld",path,e);
         return;
     }
-    if((e=vfs_seek(&file, 0, SEEK_END)) < 0) {
+    if((e=vfs_seek(&file, 0, SEEK_EOF)) < 0) {
         kerror("hexdump: Could not seek to file end : %ld",e);
         vfs_close(&file);
         return;

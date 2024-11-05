@@ -81,12 +81,6 @@ typedef struct VfsDirEntry {
         (entry)->inodeid    = (v_inodeid);\
         (entry)->private    = (v_private);\
     } while(0)
-enum {
-    SEEK_START,
-    SEEK_CURSOR,
-    SEEK_END,
-};
-typedef uintptr_t seekfrom_t;
 typedef uint32_t Iop;
 struct FsOps {
     // Ops for directories
