@@ -62,6 +62,26 @@ void* libc_heap_allocate_within(_LibcInternalHeap* heap, size_t size) {
     }
     return NULL;
 }
+bool libc_heap_find_alloc(_LibcInternalHeap* heap, void* addr, size_t *size) {
+    for(_HeapNode* node=(_HeapNode*)heap->alloc_list.next; &node->list != &heap->alloc_list; node = (_HeapNode*)node->list.next) {
+        if(node->data == addr) {
+            *size = node->size;
+            return true;
+        }
+    }
+    return false;
+}
+void* libc_heap_reallocate_within(_LibcInternalHeap* heap, void* addr, size_t newsize) {
+    size_t oldsize;
+    // Invalid allocation
+    if(!libc_heap_find_alloc(heap, addr, &oldsize)) return NULL;
+    void* new_data = libc_heap_allocate_within(heap, newsize);
+    if(new_data) {
+        memcpy(new_data, addr, newsize > oldsize ? oldsize : newsize);
+        free(addr);
+    }
+    return new_data;
+}
 void* libc_heap_allocate(_LibcInternalHeap* heap, size_t size) {
     if(heap->heap.size < sizeof(_HeapNode)) return NULL;
     void* addr=libc_heap_allocate_within(heap, size);
@@ -70,6 +90,13 @@ void* libc_heap_allocate(_LibcInternalHeap* heap, size_t size) {
     return libc_heap_allocate_within(heap, size);
 }
 
+void* libc_heap_reallocate(_LibcInternalHeap* heap, void* oldaddr, size_t newsize) {
+    if(heap->heap.size < sizeof(_HeapNode)) return NULL;
+    void* addr = libc_heap_reallocate_within(heap, oldaddr, newsize);
+    if(addr) return addr;
+    if(!libc_heap_extend(heap, newsize)) return NULL;
+    return libc_heap_allocate_within(heap, newsize);
+}
 // TODO: faster Deallocation infering address is a valid heap address
 void libc_heap_deallocate(_LibcInternalHeap* heap, void* address) {
     if(heap->heap.size < sizeof(_HeapNode)) return;
@@ -125,9 +152,17 @@ void* calloc(size_t elm, size_t size) {
     return buf;
 }
 #include <stdio.h>
-void* realloc(void* ptr, size_t newsize) {
-    fprintf(stderr, "ERROR: Unimplemented `realloc` (%p, %zu)", ptr, newsize);
-    return NULL;
+void* realloc(void* addr, size_t newsize) {
+    if(!addr) return malloc(newsize);
+    for(size_t i = 0; i < _LIBC_INTERNAL_HEAPS_MAX; ++i) {
+        if(_libc_internal_heaps[i].id == _LIBC_INTERNAL_INVALID_HEAPID) continue;
+        _LibcInternalHeap* heap = &_libc_internal_heaps[i];
+        if(heap->heap.address <= addr && addr < heap->heap.address+heap->heap.size) {
+            return libc_heap_reallocate(heap, addr, newsize);
+        }
+    }
+    // Reached limit
+    assert(false && "Invalid address to realloc");
 }
 // TODO: Smarter free with heap_get() and checking heap ranges
 void free(void* addr) {
