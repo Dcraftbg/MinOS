@@ -105,6 +105,20 @@ intptr_t sys_mmap(uintptr_t handle, void** addr, size_t size) {
     invalidate_full_page_table();
     return e;
 }
+intptr_t sys_seek(uintptr_t handle, off_t offset, seekfrom_t from) {
+    Process* current = current_process();
+    Resource* res = resource_find_by_id(current->resources, handle);
+    if(!res) return -INVALID_HANDLE;
+    if(res->kind != RESOURCE_FILE) return -INVALID_TYPE;
+    return vfs_seek(&res->data.file, offset, from);
+}
+intptr_t sys_tell(uintptr_t handle) {
+    Process* current = current_process();
+    Resource* res = resource_find_by_id(current->resources, handle);
+    if(!res) return -INVALID_HANDLE;
+    if(res->kind != RESOURCE_FILE) return -INVALID_TYPE;
+    return res->data.file.cursor;
+}
 // TODO: More generic close for everything including directories, networking sockets, etc. etc.
 intptr_t sys_close(uintptr_t handle) {
 #ifdef CONFIG_LOG_SYSCALLS

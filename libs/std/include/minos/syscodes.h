@@ -5,6 +5,8 @@ enum {
     SYS_READ,
     SYS_IOCTL,
     SYS_MMAP,
+    SYS_SEEK,
+    SYS_TELL,
     SYS_CLOSE,
     SYS_FORK,
     SYS_EXEC,

@@ -20,7 +20,12 @@ static intptr_t ioctl(uintptr_t handle, uint32_t op, void* arg) {
 static intptr_t mmap(uintptr_t handle, void** addr, size_t size) {
     return syscall3(SYS_MMAP, handle, addr, size);
 }
-
+static intptr_t seek(uintptr_t handle, off_t offset, seekfrom_t from) {
+    return syscall3(SYS_SEEK, handle, offset, from);
+}
+static intptr_t tell(uintptr_t handle) {
+    return syscall1(SYS_TELL, handle);
+}
 static intptr_t close(uintptr_t handle) {
     return syscall1(SYS_CLOSE, handle);
 }

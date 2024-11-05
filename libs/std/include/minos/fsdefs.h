@@ -17,3 +17,4 @@ enum {
     SEEK_EOF,
 };
 typedef uintptr_t seekfrom_t;
+typedef intptr_t off_t;

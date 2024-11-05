@@ -6,7 +6,6 @@
 #include <collections/list.h>
 #include "utils.h"
 #include "page.h"
-typedef intptr_t off_t;
 typedef enum {
     INODE_DIR,
     INODE_FILE,
