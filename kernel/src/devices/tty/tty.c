@@ -167,9 +167,10 @@ intptr_t tty_draw_codepoint_at(Framebuffer* fm, size_t x, size_t y, int codepoin
 }
 
 static intptr_t tty_draw_codepoint(TtyFb* fb, int codepoint, uint32_t fg, uint32_t bg) {
-    if(fb->y+16 > fb->fb.height) {
-        fmbuf_scroll_up(&fb->fb, 16, bg);
-        fb->y -= 16;
+    if((fb->y+16) > fb->fb.height) {
+        size_t to_scroll = (fb->y+16) - fb->fb.height;
+        fmbuf_scroll_up(&fb->fb, to_scroll, bg);
+        fb->y -= to_scroll;
     }
     if(fb->y >= fb->fb.height) return 0;
     switch(codepoint) {
@@ -230,6 +231,11 @@ static void tty_close(VfsFile* file) {
 #define TTY_BLINK_WIDTH 8
 #define TTY_BLINK_HEIGHT 16
 static void ttyfb_fill_blink(TtyFb* fb, uint32_t color) {
+    if((fb->y+TTY_BLINK_HEIGHT) > fb->fb.height) {
+        size_t to_scroll = (fb->y+TTY_BLINK_HEIGHT) - fb->fb.height;
+        fmbuf_scroll_up(&fb->fb, to_scroll, VGA_BG);
+        fb->y -= to_scroll;
+    }
     fmbuf_draw_rect(&fb->fb, fb->x, fb->y, fb->x+TTY_BLINK_WIDTH, fb->y+TTY_BLINK_HEIGHT, color);
 }
 
