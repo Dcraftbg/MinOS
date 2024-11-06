@@ -52,6 +52,7 @@ intptr_t cat(const char* path) {
     }
     buf[size] = '\0';
     fputs(buf, stdout);
+    printf("\n");
     free(buf);
     close(fd);
     return 0;
@@ -73,6 +74,5 @@ int main(int argc, const char** argv) {
     while((arg=shift_args(&argc, &argv))) {
         cat(arg);
     }
-    printf("\n");
     return 0;
 }
