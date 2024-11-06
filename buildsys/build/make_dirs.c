@@ -13,6 +13,7 @@ bool make_build_dirs() {
     if(!nob_mkdir_if_not_exists_silent("./bin/user/init"   )) return false;
     if(!nob_mkdir_if_not_exists_silent("./bin/user/shell"  )) return false;
     if(!nob_mkdir_if_not_exists_silent("./bin/user/hello"  )) return false;
+    if(!nob_mkdir_if_not_exists_silent("./bin/user/cat"  )) return false;
     if(!nob_mkdir_if_not_exists_silent("./bin/user/fbtest" )) return false;
     if(!nob_mkdir_if_not_exists_silent("./initrd"          )) return false;
     if(!nob_mkdir_if_not_exists_silent("./initrd/user/"    )) return false;
