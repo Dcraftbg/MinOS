@@ -51,6 +51,7 @@ intptr_t sys_open(const char* path, fmode_t mode, oflags_t flags) {
                 resource_remove(current->resources, id);
                 return e;
             }
+            return id;
         }
         resource_remove(current->resources, id);
         return e;
