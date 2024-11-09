@@ -71,17 +71,6 @@ bool libc_heap_find_alloc(_LibcInternalHeap* heap, void* addr, size_t *size) {
     }
     return false;
 }
-void* libc_heap_reallocate_within(_LibcInternalHeap* heap, void* addr, size_t newsize) {
-    size_t oldsize;
-    // Invalid allocation
-    if(!libc_heap_find_alloc(heap, addr, &oldsize)) return NULL;
-    void* new_data = libc_heap_allocate_within(heap, newsize);
-    if(new_data) {
-        memcpy(new_data, addr, newsize > oldsize ? oldsize : newsize);
-        free(addr);
-    }
-    return new_data;
-}
 void* libc_heap_allocate(_LibcInternalHeap* heap, size_t size) {
     if(heap->heap.size < sizeof(_HeapNode)) return NULL;
     void* addr=libc_heap_allocate_within(heap, size);
@@ -92,10 +81,14 @@ void* libc_heap_allocate(_LibcInternalHeap* heap, size_t size) {
 
 void* libc_heap_reallocate(_LibcInternalHeap* heap, void* oldaddr, size_t newsize) {
     if(heap->heap.size < sizeof(_HeapNode)) return NULL;
-    void* addr = libc_heap_reallocate_within(heap, oldaddr, newsize);
-    if(addr) return addr;
-    if(!libc_heap_extend(heap, newsize)) return NULL;
-    return libc_heap_allocate_within(heap, newsize);
+    void* newaddr = libc_heap_allocate(heap, newsize);
+    if(!newaddr) return NULL;
+    size_t oldsize;
+    assert(libc_heap_find_alloc(heap, oldaddr, &oldsize) && "Invalid allocation passed to realloc");
+    if(oldsize >= newsize) oldsize=newsize;
+    memcpy(newaddr, oldaddr, oldsize);
+    free(oldaddr);
+    return newaddr;
 }
 // TODO: faster Deallocation infering address is a valid heap address
 void libc_heap_deallocate(_LibcInternalHeap* heap, void* address) {
