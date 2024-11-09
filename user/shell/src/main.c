@@ -171,21 +171,6 @@ void run_cmd(const char** argv, size_t argc) {
 #include "strinternal.h"
 int main() {
     printf("Started MinOS shell\n");
-    size_t size;
-    void* buf;
-    size=69;
-    buf=malloc(size);
-    void* b1 = buf;
-    printf("malloc: %p %zu\n", buf, size);
-    size=69;
-    buf=malloc(size);
-    printf("malloc: %p %zu\n", buf, size);
-
-    size=69;
-    buf=realloc(b1, size);
-    printf("realloc: %p %zu\n", buf, size);
-    return 0;
-#if 0
     Arena arena={0};
     char* linebuf = malloc(LINEBUF_MAX);
     intptr_t e = 0;
@@ -265,5 +250,4 @@ int main() {
     arena_drop(&arena);
     free(args);
     return exit_code;
-#endif
 }
