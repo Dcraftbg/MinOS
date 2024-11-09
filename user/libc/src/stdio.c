@@ -195,11 +195,15 @@ FILE* fopen(const char* path, const char* mode) {
         mode++;
     }
     
-    return (FILE*)open(path, fmode, O_CREAT);
+    intptr_t e = open(path, fmode, fmode & MODE_WRITE ? O_CREAT : 0);
+    if(e < 0) {
+        return NULL;
+    }
+    return (FILE*)e;
 }
 
 void fclose(FILE* f) {
-    close((uintptr_t)f);
+    if(f) close((uintptr_t)f);
 }
 
 int fflush(FILE* f) {
