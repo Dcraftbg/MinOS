@@ -206,13 +206,27 @@ int fflush(FILE* f) {
     (void)f;
     return 0;
 }
+// #define LOG_FT_FS
 int fseek (FILE* f, long offset, int origin) {
-    fprintf(stderr, "ERROR: Unimplemented `fseek` (%p, %p, %d)\n", f, (void*)offset, origin);
-    return -1;
+#ifdef LOG_FT_FS
+    fprintf(stderr, "fseek(%p, %p, %d)... ", f, (void*)offset, origin);
+    intptr_t res = seek((uintptr_t)f, offset, origin);
+    if(res > 0) fprintf(stderr, "%p\n", (void*)res);
+    else        fprintf(stderr, "Error: %d\n", (int)res);
+    return res;
+#endif
+    return seek((uintptr_t)f, offset, origin);
 }
 ssize_t ftell(FILE* f) {
-    fprintf(stderr, "ERROR: Unimplemented `ftell`\n");
-    return -1;
+#ifdef LOG_FT_FS
+    fprintf(stderr, "ftell(%p)... ", f);
+    intptr_t res = tell((uintptr_t)f);
+    if(res > 0) fprintf(stderr, "%p\n", (void*)res);
+    else        fprintf(stderr, "Error: %d\n", (int)res);
+    return res;
+#else
+    return tell((uintptr_t)f);
+#endif
 }
 int rename(const char* old_filename, const char* new_filename) {
     fprintf(stderr, "ERROR: Unimplemented `rename` (%s, %s)\n", old_filename, new_filename);

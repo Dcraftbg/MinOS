@@ -206,3 +206,7 @@ float atof(const char *str) {
 int abs(int num) {
     return num < 0 ? -num : num;
 }
+long int strtol (const char* str, char** endptr, int base) {
+    fprintf(stderr, "I need to implement strtol. I'm too lazy rn: %s %p %d\n", str, endptr, base);
+    exit(1);
+}
