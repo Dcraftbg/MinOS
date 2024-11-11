@@ -129,7 +129,10 @@ intptr_t sys_close(uintptr_t handle) {
     Resource* res = resource_find_by_id(current->resources, handle);
     if(!res) return -INVALID_HANDLE;
     if(res->kind != RESOURCE_FILE) return -INVALID_TYPE;
-    intptr_t e = vfs_close(&res->data.file);
+    intptr_t e = 0;
+    if(res->shared == 1) {
+        e = vfs_close(&res->data.file);
+    }
     resource_remove(current->resources, handle);
     return e;
 }
