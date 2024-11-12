@@ -14,6 +14,11 @@ int print_base(void* user, PrintWriteFunc func, const char* fmt, va_list list) {
         size_t count=0;
         const char* end;
         fmt++;
+        char pad_with = ' ';
+        if(fmt[0] == '0') {
+            pad_with = '0';
+            fmt++;
+        }
         int pad = atoi(fmt, &end);
         fmt=end;
         char ibuf[30];
@@ -55,12 +60,17 @@ int print_base(void* user, PrintWriteFunc func, const char* fmt, va_list list) {
         case 'X': {
             fmt++;
             bytes = ibuf;
-            count = utoha(ibuf, sizeof(ibuf), va_arg(list, unsigned int));
+            count = utoha(ibuf, sizeof(ibuf), va_arg(list, unsigned int), hex_upper_digits);
+        } break;
+        case 'x': {
+            fmt++;
+            bytes = ibuf;
+            count = utoha(ibuf, sizeof(ibuf), va_arg(list, unsigned int), hex_lower_digits);
         } break;
         case 'p': {
             fmt++;
             bytes = ibuf;
-            count = uptrtoha_full(ibuf, sizeof(ibuf), (uintptr_t)va_arg(list, void*));
+            count = uptrtoha_full(ibuf, sizeof(ibuf), (uintptr_t)va_arg(list, void*), hex_upper_digits);
         } break;
         case 's': {
             fmt++;
@@ -78,14 +88,12 @@ int print_base(void* user, PrintWriteFunc func, const char* fmt, va_list list) {
         }
 
         while(pad > 0) {
-            static const char c=' ';
-            func(user, &c, 1);
+            func(user, &pad_with, 1);
             pad--;
         }
         func(user, bytes, count);
         while(pad < 0) {
-            static const char c=' ';
-            func(user, &c, 1);
+            func(user, &pad_with, 1);
             pad++;
         }
     }

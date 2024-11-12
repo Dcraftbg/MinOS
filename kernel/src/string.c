@@ -115,23 +115,24 @@ size_t sztoa(char* buf, size_t cap, size_t value) {
     strflip(buf, at);
     return at;
 }
-static const char* hex_digits = "0123456789ABCDEF";
-size_t utoha(char* buf, size_t cap, unsigned int value) {
+const char* hex_upper_digits = "0123456789ABCDEF";
+const char* hex_lower_digits = "0123456789abcdef";
+size_t utoha(char* buf, size_t cap, unsigned int value, const char* digits) {
     size_t at=0;
     while(at < cap && value > 0) {
         int k = value & 0xF;
         value >>= 4;
-        buf[at++] = hex_digits[k];
+        buf[at++] = digits[k];
     }
     strflip(buf, at);
     return at;
 }
-size_t uptrtoha_full(char* buf, size_t cap, uintptr_t value) {
+size_t uptrtoha_full(char* buf, size_t cap, uintptr_t value, const char* digits) {
     size_t at=0;
     while(at < cap && at < 16) {
         int k = value & 0xF;
         value >>= 4;
-        buf[at++] = hex_digits[k];
+        buf[at++] = digits[k];
     }
     strflip(buf, at);
     return at;
