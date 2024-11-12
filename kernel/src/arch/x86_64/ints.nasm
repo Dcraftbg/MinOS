@@ -3,6 +3,7 @@
 section .text
 extern exception_handler
 extern ps2_keyboard_handler
+extern serial_handler
 
 global idt_exception_division
 global idt_exception_debug
@@ -42,7 +43,7 @@ idt_%1:
 %endmacro
 
 register_irq ps2_keyboard_handler
-
+register_irq serial_handler
 
 
 idt_spurious_interrupt:
