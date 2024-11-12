@@ -149,6 +149,7 @@ typedef struct {
     uint8_t output_kind;
     union {
         TtyFb as_framebuffer;
+        VfsFile as_chardevice;
     } output;
 
     TtyScratch scratch;
@@ -262,6 +263,13 @@ static void ttyfb_putch(TtyFb* fb, int code) {
     tty_draw_codepoint(fb, code, VGA_FG, VGA_BG);
     ttyfb_fill_blink(fb, blink_color[fb->blink]);
 }
+static void tty_putch(TtyDevice* tty, int code) {
+    if(tty->input_kind == TTY_OUTPUT_DISPLAY) {
+        ttyfb_putch(&tty->output.as_framebuffer, code);
+    } else {
+        vfs_write(&tty->output.as_chardevice, &code, 1);
+    }
+}
 // TODO: Unicode support
 static intptr_t tty_dev_read(VfsFile* file, void* buf, size_t size, off_t offset) {
     (void)offset;
@@ -269,7 +277,6 @@ static intptr_t tty_dev_read(VfsFile* file, void* buf, size_t size, off_t offset
     if(tty->scratch.len) goto END;
     intptr_t e;
     assert(tty->input_kind == TTY_OUTPUT_DISPLAY);
-    TtyFb* fb = &tty->output.as_framebuffer;
     for(;;) {
         uint32_t code;
         switch(tty->input_kind) {
@@ -277,14 +284,17 @@ static intptr_t tty_dev_read(VfsFile* file, void* buf, size_t size, off_t offset
                 Key key;
                 for(;;) {
                     if((e=vfs_read(&tty->input.as_kb.keyboard, &key, sizeof(key))) < 0) {
-                        if(fb->blink) ttyfb_fill_blink(fb, VGA_BG);
+                        if(tty->output_kind == TTY_OUTPUT_DISPLAY && tty->output.as_framebuffer.blink) ttyfb_fill_blink(&tty->output.as_framebuffer, VGA_BG);
                         return e;
                     } else if (e > 0) break;
-                    size_t now = kernel.pit_info.ticks;
-                    if(now-fb->blink_time >= TTY_MILISECOND_BLINK) {
-                        fb->blink = !fb->blink;
-                        fb->blink_time = now;
-                        ttyfb_fill_blink(fb, blink_color[fb->blink]);
+                    if(tty->output_kind == TTY_OUTPUT_DISPLAY) {
+                        TtyFb* fb = &tty->output.as_framebuffer;
+                        size_t now = kernel.pit_info.ticks;
+                        if(now-fb->blink_time >= TTY_MILISECOND_BLINK) {
+                            fb->blink = !fb->blink;
+                            fb->blink_time = now;
+                            ttyfb_fill_blink(fb, blink_color[fb->blink]);
+                        }
                     }
                 }
                 key_set(&tty->input.as_kb.keystate, key.code, key.attribs);
@@ -304,19 +314,19 @@ static intptr_t tty_dev_read(VfsFile* file, void* buf, size_t size, off_t offset
         switch(code) {
         case '\b':
             if(tty->scratch.len) {
-                ttyfb_putch(fb, '\b');
+                tty_putch(tty, '\b');
                 tty->scratch.len--;
             }
             break;
         case '\n':
             if(!ttyscratch_push(&tty->scratch, '\n')) return -NOT_ENOUGH_MEM;
-            ttyfb_putch(fb, '\n');
+            tty_putch(tty, '\n');
             goto END;
         default: {
             // NOTE: Non unicode keys are not yet supported cuz of reasons
             if(code >= 256) return -UNSUPPORTED;
             if(!ttyscratch_push(&tty->scratch, code)) return -NOT_ENOUGH_MEM;
-            ttyfb_putch(fb, code);
+            tty_putch(tty, code);
         } break;
         }
     }
