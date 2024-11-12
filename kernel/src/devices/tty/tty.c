@@ -5,6 +5,7 @@
 #include "../../fonts/zap-light16.h"
 #include <minos/keycodes.h>
 #include <minos/key.h>
+#include "../../cmdline.h"
 
 static FsOps ttyOps = {0};
 static InodeOps inodeOps = {0};
@@ -342,7 +343,7 @@ static intptr_t new_tty_private_display(void** private, size_t display, const ch
     }
     tty->input_kind = TTY_INPUT_KEYBOARD;
     if((e=vfs_open_abs(keyboard, &tty->input.as_kb.keyboard, MODE_READ)) < 0) {
-        kwarn("[new_tty_private] (vfs_open) Keyboard Error\n");
+        kwarn("[new_tty_private] (vfs_open) Keyboard Error");
         cache_dealloc(tty_cache, tty);
         return e;
     }
@@ -387,9 +388,10 @@ void init_tty() {
         kwarn("Failed to initialise VGA: %s",status_str(e));
         return;
     }
+    // TODO: Separate module for cmdline parsing
     size_t display = 0;
-    const char* keyboard = "/devices/ps2keyboard";
-
+    const char* keyboard = cmdline_get("tty:input");
+    if(!keyboard) keyboard = "/devices/ps2keyboard";
     Device* device = (Device*)cache_alloc(kernel.device_cache);
     if(!device) return;
     e = create_tty_device_display(display, keyboard, device);
