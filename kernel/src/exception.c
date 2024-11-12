@@ -31,14 +31,11 @@ void exception_handler(IDTEFrame* frame) {
     }
     if(frame->type == EXCEPTION_GPF) {
         kerror("General protection fault");
-#if 0
-#error 02X is not ported in printf
         if(frame->code) {
             printf("- External = %s\n", (frame->code >> 0) & 0b1 ? "true" : "false");
             printf("- Table    = %s\n", gpf_table[(frame->code >> 1) & 0b11]);
             printf("- Index    = 0x%02X\n", (uint16_t)frame->code >> 3);
         }
-#endif
     }
     kinfo ("cr2=%p    type=%p    rip=%p    cs =%p    flags=%p    rsp=%p    ss =%p", (void*)frame->cr2, (void*)frame->type, (void*)frame->rip, (void*)frame->cs , (void*)frame->flags, (void*)frame->rsp, (void*)frame->ss );
     kinfo ("r15=%p    r14 =%p    r13=%p    r12=%p    r11  =%p    r10=%p    r9 =%p", (void*)frame->r15, (void*)frame->r14 , (void*)frame->r13, (void*)frame->r12, (void*)frame->r11  , (void*)frame->r10, (void*)frame->r9 );
