@@ -12,6 +12,8 @@ const char* strflip(char* str, size_t len);
 size_t itoa(char* buf, size_t cap, int value);
 size_t sztoa(char* buf, size_t cap, size_t value);
 
+char* strchr(const char* str, int ch);
+
 extern const char* hex_upper_digits;
 extern const char* hex_lower_digits;
 size_t utoha(char* buf, size_t cap, unsigned int value, const char* digits);

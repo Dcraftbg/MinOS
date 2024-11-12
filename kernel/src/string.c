@@ -164,3 +164,8 @@ int atoi(const char* buf, const char** end) {
     *end = buf;
     return neg ? -value : value;
 }
+
+char* strchr(const char* str, int chr) {
+    while(str[0] && str[0] != (char)chr) str++;
+    return (char*)str;
+}
