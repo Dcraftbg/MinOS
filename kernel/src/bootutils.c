@@ -116,3 +116,8 @@ bool find_bootmodule(const char* path, BootModule* module) {
     }
     return false;
 }
+
+char* get_kernel_cmdline() {
+    if(!limine_kernel_file_request.response || !limine_kernel_file_request.response->kernel_file) return NULL;
+    return limine_kernel_file_request.response->kernel_file->cmdline;
+}

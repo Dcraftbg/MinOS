@@ -21,4 +21,5 @@ typedef struct {
 size_t get_bootmodules_count();
 bool get_bootmodule(size_t i, BootModule* module);
 bool find_bootmodule(const char* path, BootModule* module);
+char* get_kernel_cmdline();
 #define PHYS_RAM_MIRROR_SIZE (4LLU * 1024LLU * 1024LLU * 1024LLU) 
