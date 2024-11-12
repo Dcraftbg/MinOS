@@ -47,7 +47,10 @@ bool build(Build* build) {
                 if(!link_kernel()) return false;
                 if(!make_limine()) return false;
                 if(!make_iso()) return false;
+            } else if (strcmp(what, "limine") == 0) {
+                if(!make_limine()) return false;
             } else if(strcmp(what, "iso") == 0) {
+                if(!make_limine()) return false;
                 if(!make_iso()) return false;
             } else if (strcmp(what, "user") == 0) {
                 if(!build_user(NULL)) return false;
