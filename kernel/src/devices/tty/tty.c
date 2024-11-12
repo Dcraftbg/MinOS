@@ -75,11 +75,13 @@ static int key_unicode(Keyboard* keyboard, uint16_t code) {
 }
 enum {
     TTY_INPUT_KEYBOARD,
+    TTY_INPUT_CHAR,
     TTY_INPUT_COUNT,
 };
 
 enum {
     TTY_OUTPUT_DISPLAY,
+    TTY_OUTPUT_CHAR,
     TTY_OUTPUT_COUNT
 };
 typedef struct {
@@ -266,50 +268,57 @@ static intptr_t tty_dev_read(VfsFile* file, void* buf, size_t size, off_t offset
     TtyDevice* tty = (TtyDevice*)file->private;
     if(tty->scratch.len) goto END;
     intptr_t e;
-    Key key;
     assert(tty->input_kind == TTY_OUTPUT_DISPLAY);
     TtyFb* fb = &tty->output.as_framebuffer;
     for(;;) {
-       assert(tty->input_kind == TTY_INPUT_KEYBOARD);
-       for(;;) {
-           if((e=vfs_read(&tty->input.as_kb.keyboard, &key, sizeof(key))) < 0) {
-               if(fb->blink) ttyfb_fill_blink(fb, VGA_BG);
-               return e;
-           } else if (e > 0) break;
-           size_t now = kernel.pit_info.ticks;
-           if(now-fb->blink_time >= TTY_MILISECOND_BLINK) {
-               fb->blink = !fb->blink;
-               fb->blink_time = now;
-               ttyfb_fill_blink(fb, blink_color[fb->blink]);
-           }
-       }
-       key_set(&tty->input.as_kb.keystate, key.code, key.attribs);
-       switch(key.code) {
-       case MINOS_KEY_BACKSPACE:
-           if(!(key.attribs & KEY_ATTRIB_RELEASE)) {
-               if(tty->scratch.len) {
-                   ttyfb_putch(fb, '\b');
-                   tty->scratch.len--;
-               }
-           } 
-           break;
-       case MINOS_KEY_ENTER:
-           if(!(key.attribs & KEY_ATTRIB_RELEASE)) {
-               if(!ttyscratch_push(&tty->scratch, '\n')) return -NOT_ENOUGH_MEM;
-               ttyfb_putch(fb, '\n');
-               goto END;
-           }
-           break;
-       default: {
-           int code = key_unicode(&tty->input.as_kb.keystate, key.code);
-           if(code) {
-               // NOTE: Non unicode keys are not yet supported cuz of reasons
-               if(code >= 256) return -UNSUPPORTED;
-               if(!ttyscratch_push(&tty->scratch, code)) return -NOT_ENOUGH_MEM;
-               ttyfb_putch(fb, code);
-           }
-       } break;
-       }
+        uint32_t code;
+        switch(tty->input_kind) {
+            case TTY_INPUT_KEYBOARD: {
+                Key key;
+                for(;;) {
+                    if((e=vfs_read(&tty->input.as_kb.keyboard, &key, sizeof(key))) < 0) {
+                        if(fb->blink) ttyfb_fill_blink(fb, VGA_BG);
+                        return e;
+                    } else if (e > 0) break;
+                    size_t now = kernel.pit_info.ticks;
+                    if(now-fb->blink_time >= TTY_MILISECOND_BLINK) {
+                        fb->blink = !fb->blink;
+                        fb->blink_time = now;
+                        ttyfb_fill_blink(fb, blink_color[fb->blink]);
+                    }
+                }
+                key_set(&tty->input.as_kb.keystate, key.code, key.attribs);
+                code = key_unicode(&tty->input.as_kb.keystate, key.code);
+                if(key.attribs & KEY_ATTRIB_RELEASE) continue;
+            } break; 
+            case TTY_INPUT_CHAR:
+                for(;;) {
+                    if((e=vfs_read(&tty->input.as_kb.keyboard, &code, sizeof(char))) < 0) {
+                        return e;
+                    } else if (e > 0) break;
+                }
+                break;
+            default:
+                kerror("Unimplemented tty input_kind=%d", tty->input_kind);
+        }
+        switch(code) {
+        case '\b':
+            if(tty->scratch.len) {
+                ttyfb_putch(fb, '\b');
+                tty->scratch.len--;
+            }
+            break;
+        case '\n':
+            if(!ttyscratch_push(&tty->scratch, '\n')) return -NOT_ENOUGH_MEM;
+            ttyfb_putch(fb, '\n');
+            goto END;
+        default: {
+            // NOTE: Non unicode keys are not yet supported cuz of reasons
+            if(code >= 256) return -UNSUPPORTED;
+            if(!ttyscratch_push(&tty->scratch, code)) return -NOT_ENOUGH_MEM;
+            ttyfb_putch(fb, code);
+        } break;
+        }
     }
 END:
     size_t to_copy = tty->scratch.len < size ? tty->scratch.len : size;
