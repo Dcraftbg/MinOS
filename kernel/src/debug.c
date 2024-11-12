@@ -93,7 +93,7 @@ void hexdump_mem(uint8_t* buf, size_t size) {
     for(size_t i = 0; i < size/16; ++i) {
         uint8_t* current = &buf[i*16];
         if(prev == NULL || memcmp(current, prev, 16) != 0) {
-           printf("%08X:  ",(uint32_t)i*16);
+           printf("%08x  ",(uint32_t)i*16);
            for(size_t x = 0; x < 16; ++x) {
               if(x != 0) {
                 if(x % 8 == 0) {
@@ -103,7 +103,7 @@ void hexdump_mem(uint8_t* buf, size_t size) {
                 }
               }
               uint8_t byte = current[x];
-              printf("%02X",byte);
+              printf("%02x",byte);
            }
            printf("  |");
            for(size_t x = 0; x < 16; ++x) {
@@ -124,7 +124,7 @@ void hexdump_mem(uint8_t* buf, size_t size) {
        size_t i = size-(size%16);
        uint8_t* current = &buf[i];
 
-       printf("%08X:  ",(uint32_t)i);
+       printf("%08x  ",(uint32_t)i);
        size_t left = size-i;
        for(size_t x = 0; x < left; ++x) {
           if(x != 0) {
@@ -135,7 +135,7 @@ void hexdump_mem(uint8_t* buf, size_t size) {
             }
           }
           uint8_t byte = current[x];
-          printf("%02X",byte);
+          printf("%02x",byte);
        }
        printf("  |");
        for(size_t x = 0; x < left; ++x) {
