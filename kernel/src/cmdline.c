@@ -30,8 +30,9 @@ bool  cmdline_set(const char* name, char* value) {
 }
 void init_cmdline() {
     char* cmdline = get_kernel_cmdline();
+    char* endcmdline = cmdline+strlen(cmdline);
     if(!cmdline) return;
-    while(cmdline[0]) {
+    while(cmdline < endcmdline) {
         while(cmdline[0]==' ') cmdline++;
         char* end = strchr(cmdline, ' ');
         char* split = strchr(cmdline, '=');
@@ -44,10 +45,12 @@ void init_cmdline() {
 
         const char* name = cmdline;
         char* value = split+1;
+        kinfo("Adding: %s, %s", name, value);
+        kinfo("HELLO???");
         if(!cmdline_set(name, value)) {
             kwarn("Ignoring %s=%s because we have exceeded the max arguments", name, value);
         }
     end_loop:
-        cmdline=end;
+        cmdline=end+1;
     }
 }
