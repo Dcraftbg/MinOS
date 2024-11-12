@@ -32,9 +32,9 @@ void exception_handler(IDTEFrame* frame) {
     if(frame->type == EXCEPTION_GPF) {
         kerror("General protection fault");
         if(frame->code) {
-            printf("- External = %s\n", (frame->code >> 0) & 0b1 ? "true" : "false");
-            printf("- Table    = %s\n", gpf_table[(frame->code >> 1) & 0b11]);
-            printf("- Index    = 0x%02X\n", (uint16_t)frame->code >> 3);
+            kerror("- External = %s", (frame->code >> 0) & 0b1 ? "true" : "false");
+            kerror("- Table    = %s", gpf_table[(frame->code >> 1) & 0b11]);
+            kerror("- Index    = 0x%02X", (uint16_t)frame->code >> 3);
         }
     }
     kinfo ("cr2=%p    type=%p    rip=%p    cs =%p    flags=%p    rsp=%p    ss =%p", (void*)frame->cr2, (void*)frame->type, (void*)frame->rip, (void*)frame->cs , (void*)frame->flags, (void*)frame->rsp, (void*)frame->ss );
