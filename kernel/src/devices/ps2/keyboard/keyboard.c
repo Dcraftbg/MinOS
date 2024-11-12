@@ -139,7 +139,7 @@ static intptr_t ps2keyboard_read(VfsFile* file, void* buf, size_t size, off_t of
     return count * sizeof(Key);
 }
 static intptr_t ps2keyboard_open(Inode* this, VfsFile* file, fmode_t mode) {
-    if(mode != MODE_READ) return -UNSUPPORTED;
+    if(mode & MODE_WRITE) return -UNSUPPORTED;
     file->private = this->private;
     file->ops = &ps2keyboardOps;
     return 0;

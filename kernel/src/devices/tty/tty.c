@@ -342,8 +342,8 @@ static intptr_t new_tty_private_display(void** private, size_t display, const ch
         return -NOT_FOUND;
     }
     tty->input_kind = TTY_INPUT_KEYBOARD;
-    if((e=vfs_open_abs(keyboard, &tty->input.as_kb.keyboard, MODE_READ)) < 0) {
-        kwarn("[new_tty_private] (vfs_open) Keyboard Error");
+    if((e=vfs_open_abs(keyboard, &tty->input.as_kb.keyboard, MODE_READ | MODE_STREAM)) < 0) {
+        kwarn("[new_tty_private] (vfs_open) Keyboard Error: %s", status_str(e));
         cache_dealloc(tty_cache, tty);
         return e;
     }
