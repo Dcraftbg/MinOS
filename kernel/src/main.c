@@ -34,6 +34,7 @@
 #include <sync.h>
 #include "prog_bar.h"
 #include "heap.h"
+#include "cmdline.h"
 
 // TODO: create a symlink "/devices/keyboard" which will be a link to the currently selected keyboard
 // Like for example PS1 or USB or anything like that
@@ -97,6 +98,9 @@ void _start() {
 
     enable_interrupts();
 #endif
+
+    update_bar(step++, "init_bitmap");
+    init_cmdline();
 
     update_bar(step++, "init_bitmap");
     init_bitmap();

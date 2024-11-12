@@ -3,7 +3,7 @@
 #ifdef PROGRESS_BAR
 #include <stddef.h>
 #include "fbwriter.h"
-#define TOTAL_STEPS 24 
+#define TOTAL_STEPS 25 
 void update_bar(size_t at, const char* msg);
 extern size_t step;
 #else
