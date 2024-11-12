@@ -35,6 +35,7 @@
 #include "prog_bar.h"
 #include "heap.h"
 #include "cmdline.h"
+#include "charqueue.h"
 
 // TODO: create a symlink "/devices/keyboard" which will be a link to the currently selected keyboard
 // Like for example PS1 or USB or anything like that
@@ -99,7 +100,7 @@ void _start() {
     enable_interrupts();
 #endif
 
-    update_bar(step++, "init_bitmap");
+    update_bar(step++, "init_cmdline");
     init_cmdline();
 
     update_bar(step++, "init_bitmap");
@@ -138,6 +139,9 @@ void _start() {
 
     update_bar(step++, "device cache");
     assert(kernel.device_cache = create_new_cache(sizeof(Device), "Device"));
+
+    update_bar(step++, "init_charqueue");
+    init_charqueue();
 
     update_bar(step++, "init_devices");
     init_devices();
@@ -194,6 +198,7 @@ void _start() {
         printf("Failed to exec %s : %s\n",epath,status_str(e));
         kabort();
     }
+
     pic_clear_mask(1);
     pic_clear_mask(0);
     for(;;) {
