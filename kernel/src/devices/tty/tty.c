@@ -145,6 +145,7 @@ typedef struct {
             VfsFile keyboard;
             Keyboard keystate;
         } as_kb;
+        VfsFile chardevice;
     } input;
     uint8_t output_kind;
     union {
@@ -250,12 +251,19 @@ static const uint32_t blink_color[2] = {
 static intptr_t tty_dev_write(VfsFile* file, const void* buf, size_t size, off_t offset) {
     (void)offset;
     TtyDevice* tty = (TtyDevice*)file->private;
-    assert(tty->output_kind == TTY_OUTPUT_DISPLAY);
-    TtyFb* fb = &tty->output.as_framebuffer;
-    if(fb->blink) ttyfb_fill_blink(fb, VGA_BG);
-    for(size_t i = 0; i < size; ++i) {
-       tty_draw_codepoint(fb, ((uint8_t*)buf)[i], VGA_FG, VGA_BG);
+    switch(tty->output_kind) {
+        case TTY_OUTPUT_DISPLAY: {
+            TtyFb* fb = &tty->output.as_framebuffer;
+            if(fb->blink) ttyfb_fill_blink(fb, VGA_BG);
+            for(size_t i = 0; i < size; ++i) {
+               tty_draw_codepoint(fb, ((uint8_t*)buf)[i], VGA_FG, VGA_BG);
+            }
+        } break;
+        case TTY_OUTPUT_CHAR: {
+            return vfs_write(&tty->output.as_chardevice, buf, size);
+        } break;
     }
+    
     return size;
 }
 static void ttyfb_putch(TtyFb* fb, int code) {
@@ -340,32 +348,12 @@ END:
 }
 
 
-static intptr_t new_tty_private_display(void** private, size_t display, const char* keyboard) {
-    ktrace("[new_tty_private] display (id=%zu)",display);
-    ktrace("[new_tty_private] keyboard: %s",keyboard);
-    debug_assert(private);
-    debug_assert(keyboard);
+static intptr_t new_tty_private(void** private) {
     TtyDevice* tty = cache_alloc(tty_cache);
-    intptr_t e;
     if(tty == NULL) return -NOT_ENOUGH_MEM;
     memset(tty, 0, sizeof(*tty));
     ttyscratch_init(&tty->scratch);
     *private = tty;
-    tty->output_kind = TTY_OUTPUT_DISPLAY;
-    tty->output.as_framebuffer.fb = get_framebuffer_by_id(display);
-    tty->output.as_framebuffer.x = 0;
-    tty->output.as_framebuffer.y = 0;
-
-    if(!tty->output.as_framebuffer.fb.addr) {
-        cache_dealloc(tty_cache, tty);
-        return -NOT_FOUND;
-    }
-    tty->input_kind = TTY_INPUT_KEYBOARD;
-    if((e=vfs_open_abs(keyboard, &tty->input.as_kb.keyboard, MODE_READ | MODE_STREAM)) < 0) {
-        kwarn("[new_tty_private] (vfs_open) Keyboard Error: %s", status_str(e));
-        cache_dealloc(tty_cache, tty);
-        return e;
-    }
     return 0;
 }
 static intptr_t init_inode(Device* this, Inode* inode) {
@@ -373,12 +361,67 @@ static intptr_t init_inode(Device* this, Inode* inode) {
     inode->private = this->private;
     return 0;
 }
-intptr_t create_tty_device_display(size_t display, const char* keyboard, Device* device) {
+intptr_t create_tty_device(Device* device, int output_kind, void* output, int input_kind, void* input) {
     intptr_t e = 0;
     device->ops = &inodeOps;
     device->init_inode = init_inode;
-    if((e = new_tty_private_display(&device->private, display, keyboard)) < 0) return e;
+    if((e = new_tty_private(&device->private)) < 0) return e;
+    TtyDevice* tty = device->private;
+    tty->output_kind = output_kind;
+    switch(input_kind) {
+    case TTY_INPUT_KEYBOARD:
+        if((e=vfs_open_abs((const char*)input, &tty->input.as_kb.keyboard, MODE_READ | MODE_STREAM)) < 0) {
+            kwarn("[new_tty_private] (vfs_open) Keyboard Error: %s", status_str(e));
+            goto err_input;
+        }
+        break;
+    case TTY_INPUT_CHAR:
+        if((e=vfs_open_abs((const char*)input, &tty->input.chardevice, MODE_READ | MODE_STREAM)) < 0) {
+            kwarn("[new_tty_private] (vfs_open) Chardevice Error: %s", status_str(e));
+            goto err_input;
+        }
+        break;
+    default:
+        kerror("Unsupported tty input: %d", input_kind);
+        e = -UNSUPPORTED;
+        goto err_input;
+    }
+
+    switch(output_kind) {
+    case TTY_OUTPUT_DISPLAY:
+        tty->output.as_framebuffer.fb = get_framebuffer_by_id((size_t)output);
+        tty->output.as_framebuffer.x = 0;
+        tty->output.as_framebuffer.y = 0;
+
+        if(!tty->output.as_framebuffer.fb.addr) {
+            e=-NOT_FOUND;
+            goto err_output;
+        }
+        break;
+    case TTY_OUTPUT_CHAR:
+        if((e=vfs_open_abs((const char*)output, &tty->output.as_chardevice, MODE_WRITE | MODE_STREAM)) < 0) {
+            kwarn("[new_tty_private] (vfs_open) Chardevice Error: %s", status_str(e));
+            goto err_output;
+        }
+        break;
+    default:
+        kerror("Unsupported tty output: %d", output_kind);
+        e = -UNSUPPORTED;
+        goto err_output;
+    }
     return 0;
+err_output:
+    switch(tty->output_kind) {
+    case TTY_INPUT_KEYBOARD:
+        vfs_close(&tty->input.as_kb.keyboard);
+        break;
+    case TTY_INPUT_CHAR:
+        vfs_close(&tty->input.chardevice);
+        break;
+    }
+err_input:
+    cache_dealloc(tty_cache, tty);
+    return e;
 }
 
 void destroy_tty_device(Device* device) {
@@ -407,13 +450,33 @@ void init_tty() {
         kwarn("Failed to initialise VGA: %s",status_str(e));
         return;
     }
-    // TODO: Separate module for cmdline parsing
-    size_t display = 0;
-    const char* keyboard = cmdline_get("tty:input");
-    if(!keyboard) keyboard = "/devices/ps2keyboard";
+    int input_kind;
+    char* input = cmdline_get("tty:input");
+    if(!input) input = "/devices/ps2keyboard";
+    if(strncmp(input, "c:", 2) == 0) {
+        input += 2;
+        input_kind = TTY_INPUT_CHAR;
+    } else {
+        input_kind = TTY_INPUT_KEYBOARD;
+    }
+    
+    int output_kind;
+    char* output = cmdline_get("tty:output");
+    if(output) kinfo("output=%s", output);
+    if(!output) {
+        output = (char*)(0);
+        output_kind = TTY_OUTPUT_DISPLAY;
+    } else if(strncmp(output, "c:", 2) == 0) {
+        output += 2;
+        output_kind = TTY_OUTPUT_CHAR;
+    } else {
+        kerror("Unsupported output medium: %s", output);
+        return;
+    }
+
     Device* device = (Device*)cache_alloc(kernel.device_cache);
     if(!device) return;
-    e = create_tty_device_display(display, keyboard, device);
+    e = create_tty_device(device, output_kind, output, input_kind, input);
     if(e < 0) {
         kwarn("Failed to initialise TTY (id=%zu): %s",0lu,status_str(e));
         cache_dealloc(kernel.device_cache, device);
@@ -426,4 +489,6 @@ void init_tty() {
         return;
     }
     ktrace("Initialised TTY (id=%zu)",0lu);
+    ktrace("input kind = %d", input_kind);
+    ktrace("output kind = %d", output_kind);
 }

@@ -22,7 +22,6 @@ void serial_handler() {
     pic_end(4);
 }
 static intptr_t serial_open(struct Inode* this, VfsFile* file, fmode_t mode) {
-    if(mode != MODE_WRITE) return -UNSUPPORTED;
     file->ops = &serialOps;
     file->private = this->private;
     return 0;
