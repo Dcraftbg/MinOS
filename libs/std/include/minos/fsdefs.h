@@ -1,7 +1,8 @@
 #pragma once
 enum {
-    MODE_READ =0b01,
-    MODE_WRITE=0b10,
+    MODE_READ  =0b1,
+    MODE_WRITE =0b10,
+    MODE_STREAM=0b100,
     /*append?*/
 };
 typedef uint32_t fmode_t;

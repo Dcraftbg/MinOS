@@ -167,6 +167,11 @@ intptr_t fetch_inode(Superblock* sb, inodeid_t id, Inode** result, fmode_t mode)
     mutex_lock(&sb->inodemap_lock);
     if((ref=inodemap_get(&sb->inodemap, id))) {
         *result = *ref;
+        if ((*result)->mode & MODE_STREAM && mode & MODE_STREAM) {
+            iget(*result);
+            mutex_unlock(&sb->inodemap_lock);
+            return 0;
+        }
         if ((*result)->mode & MODE_WRITE /*&& !((*result)->mode & MODE_STREAM)*/) {
             mutex_unlock(&sb->inodemap_lock);
             return -RESOURCE_BUSY;
