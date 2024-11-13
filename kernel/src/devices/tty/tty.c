@@ -284,9 +284,8 @@ static intptr_t tty_dev_read(VfsFile* file, void* buf, size_t size, off_t offset
     TtyDevice* tty = (TtyDevice*)file->private;
     if(tty->scratch.len) goto END;
     intptr_t e;
-    assert(tty->input_kind == TTY_OUTPUT_DISPLAY);
     for(;;) {
-        uint32_t code;
+        uint32_t code=0;
         switch(tty->input_kind) {
             case TTY_INPUT_KEYBOARD: {
                 Key key;
@@ -332,7 +331,10 @@ static intptr_t tty_dev_read(VfsFile* file, void* buf, size_t size, off_t offset
             goto END;
         default: {
             // NOTE: Non unicode keys are not yet supported cuz of reasons
-            if(code >= 256) return -UNSUPPORTED;
+            if(code >= 256) {
+                kinfo("This: %d", code);
+                return -UNSUPPORTED;
+            }
             if(!ttyscratch_push(&tty->scratch, code)) return -NOT_ENOUGH_MEM;
             tty_putch(tty, code);
         } break;
@@ -367,7 +369,7 @@ intptr_t create_tty_device(Device* device, int output_kind, void* output, int in
     device->init_inode = init_inode;
     if((e = new_tty_private(&device->private)) < 0) return e;
     TtyDevice* tty = device->private;
-    tty->output_kind = output_kind;
+    tty->input_kind = input_kind;
     switch(input_kind) {
     case TTY_INPUT_KEYBOARD:
         if((e=vfs_open_abs((const char*)input, &tty->input.as_kb.keyboard, MODE_READ | MODE_STREAM)) < 0) {
@@ -387,6 +389,7 @@ intptr_t create_tty_device(Device* device, int output_kind, void* output, int in
         goto err_input;
     }
 
+    tty->output_kind = output_kind;
     switch(output_kind) {
     case TTY_OUTPUT_DISPLAY:
         tty->output.as_framebuffer.fb = get_framebuffer_by_id((size_t)output);
