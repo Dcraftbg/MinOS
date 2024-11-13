@@ -18,30 +18,41 @@ void serial_init() {
     outb(COM_INT_ENABLE_PORT, 0x00); // Enable received data available interrupt
 }
 
-void serial_print_u8(uint8_t c) {
+static void serial_print_u8(uint8_t c) {
     while ((inb(COM_STATUS) & 0x20) == 0) {}
     outb(COM_PORT, c);
 }
-
+void serial_print_chr(uint32_t chr) {
+    switch(chr) {
+    case '\b':
+        serial_print_u8('\b');
+        serial_print_u8(' ');
+        serial_print_u8('\b');
+        break;
+    default:
+        serial_print_u8(chr);
+        break;
+    }
+}
 static inline bool data_avail() {
     return (inb(COM_STATUS) & 0x01) != 0; 
 }
 void serial_printstr(const char* str) {
     while(*str) {
         char c = *str++;
-        serial_print_u8(c);
+        serial_print_chr(c);
     }
 }
 void serial_print(const char* str, size_t len) {
     for(size_t i = 0; i < len; ++i) {
-        serial_print_u8(str[i]);
+        serial_print_chr(str[i]);
     }
 }
 
 
 static intptr_t serial_log_write_str(Logger* this, const char* str, size_t len) {
     for(size_t i = 0; i < len; ++i) {
-        serial_print_u8(str[i]);
+        serial_print_chr(str[i]);
     }
     return 0;
 }

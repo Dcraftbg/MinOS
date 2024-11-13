@@ -35,7 +35,7 @@ static intptr_t serial_dev_write(VfsFile* file, const void* buf, size_t size, of
     (void)file;
     (void)offset; 
     for(size_t i = 0; i < size; ++i) {
-        serial_print_u8(((const uint8_t*)buf)[i]);
+        serial_print_chr(((const uint8_t*)buf)[i]);
     }
     return size;
 }
