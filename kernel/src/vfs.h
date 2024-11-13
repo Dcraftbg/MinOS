@@ -6,18 +6,10 @@
 #include <collections/list.h>
 #include "utils.h"
 #include "page.h"
-typedef enum {
-    INODE_DIR,
-    INODE_FILE,
-    INODE_DEVICE,
-    INODE_COUNT,
-} InodeKind;
 typedef struct {
     page_t page_table;
     struct list* memlist;
 } MmapContext;
-typedef size_t inodeid_t;
-typedef int inodekind_t;
 typedef struct FsOps FsOps;
 typedef struct InodeOps InodeOps;
 typedef struct Inode Inode;
@@ -49,13 +41,6 @@ typedef struct VfsDir {
     FsOps* ops;
     void* private;
 } VfsDir;
-typedef struct {
-    size_t lba ; // lba is in 1<<lba bytes
-    union {
-        size_t size; // In lba
-        struct { uint32_t width; uint32_t height; };
-    };
-} VfsStats;
 typedef struct Inode {
     Superblock* superblock;
     _Atomic size_t shared;
@@ -150,7 +135,7 @@ struct Device {
     intptr_t (*init_inode)(Device* device, Inode* inode);
 };
 struct InodeOps {
-    intptr_t (*stat)(Inode* this, VfsStats* stats);
+    intptr_t (*stat)(Inode* this, Stats* stats);
     // NOTE: mode is only used for permission checks by the driver
     intptr_t (*open)(Inode* this, VfsFile* result, fmode_t mode);    // @check ops
     // NOTE: mode is only used for permission checks by the driver
@@ -265,12 +250,12 @@ intptr_t vfs_seek(VfsFile* file, off_t offset, seekfrom_t from);
 // Return value:
 // >= 0 Success
 // <  0 Error
-intptr_t vfs_stat(Inode* this, VfsStats* stats);
+intptr_t vfs_stat(Inode* this, Stats* stats);
 
 // Return value:
 // >= 0 Success
 // <  0 Error
-intptr_t vfs_stat_entry(VfsDirEntry* this, VfsStats* stats);
+intptr_t vfs_stat_entry(VfsDirEntry* this, Stats* stats);
 
 // Return value:
 // >= 0 Success (Implementation defined value)

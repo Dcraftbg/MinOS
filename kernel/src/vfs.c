@@ -128,7 +128,7 @@ static intptr_t _vfs_seek(VfsFile* file, off_t offset, seekfrom_t from) {
     return file->ops->seek(file,offset,from);
 }
 
-static intptr_t _vfs_stat(Inode* this, VfsStats* stats) {
+static intptr_t _vfs_stat(Inode* this, Stats* stats) {
     if(!this->ops->stat) return -UNSUPPORTED;
     return this->ops->stat(this, stats);
 }
@@ -142,10 +142,10 @@ intptr_t _vfs_mmap(VfsFile* file, MmapContext* context, void** addr, size_t size
     if(!file->ops->mmap) return -UNSUPPORTED;
     return file->ops->mmap(file, context, addr, size_pages);
 }
-intptr_t vfs_stat(Inode* inode, VfsStats* stats) {
+intptr_t vfs_stat(Inode* inode, Stats* stats) {
     return _vfs_stat(inode, stats);
 }
-intptr_t vfs_stat_entry(VfsDirEntry* this, VfsStats* stats) {
+intptr_t vfs_stat_entry(VfsDirEntry* this, Stats* stats) {
     intptr_t e;
     Inode* inode;
     if((e=fetch_inode(this->superblock, this->inodeid, &inode, MODE_READ)) < 0) return e;

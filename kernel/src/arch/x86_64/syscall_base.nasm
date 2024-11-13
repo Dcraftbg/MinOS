@@ -17,6 +17,11 @@ extern sys_heap_get
 extern sys_heap_extend
 extern sys_chdir
 extern sys_getcwd
+extern sys_diropen
+extern sys_diriter_open
+extern sys_diriter_next
+extern sys_identify
+extern sys_stat
 %define KERNEL_UNSUPPORTED 7
 section .text
 global syscall_base
@@ -39,6 +44,11 @@ syscall_table:
    dq sys_heap_extend
    dq sys_chdir
    dq sys_getcwd
+   dq sys_diropen
+   dq sys_diriter_open
+   dq sys_diriter_next
+   dq sys_identify
+   dq sys_stat
 syscall_table_end:
 section .text
 syscall_base:

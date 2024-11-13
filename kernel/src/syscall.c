@@ -377,3 +377,70 @@ intptr_t sys_getcwd(char* buf, size_t cap) {
     buf[amount] = '\0';
     return 0;
 }
+intptr_t sys_diropen(const char* path, fmode_t mode) {
+    Path p;
+    Process* current = current_process();
+    size_t id = 0;
+    intptr_t e = 0;
+    if((e=parse_path(current, &p, path)) < 0) return e;
+    Resource* resource = resource_add(current->resources, &id);
+    if(!resource) return -NOT_ENOUGH_MEM;
+    resource->kind = RESOURCE_DIR;
+    if((e=vfs_diropen(&p, &resource->data.dir, mode)) < 0) {
+        resource_remove(current->resources, id);
+        return e;
+    }
+    return id;
+}
+intptr_t sys_diriter_open(size_t dirfd) {
+    Process* current = current_process();
+    size_t id = 0;
+    intptr_t e = 0;
+    Resource* dirresource = resource_find_by_id(current->resources, dirfd); 
+    if(!dirresource) return -INVALID_HANDLE;
+    if(dirresource->kind != RESOURCE_DIR) return -IS_NOT_DIRECTORY;
+    Resource* resource = resource_add(current->resources, &id);
+    resource->kind = RESOURCE_DIRITER;
+    if((e=vfs_diriter_open(&dirresource->data.dir, &resource->data.iter.iter)) < 0) {
+        resource_remove(current->resources, id);
+        return e;
+    }
+    dirresource->shared++;
+    resource->data.iter.dirfd = dirfd;
+    return id;
+}
+intptr_t sys_diriter_next(size_t iterid) {
+    Process* current = current_process();
+    size_t id = 0;
+    intptr_t e = 0;
+    Resource* iterresource = resource_find_by_id(current->resources, iterid); 
+    if(!iterresource) return -INVALID_HANDLE;
+    if(iterresource->kind != RESOURCE_DIRITER) return -INVALID_TYPE;
+    Resource* resource = resource_add(current->resources, &id);
+    resource->kind = RESOURCE_DIRENTRY;
+    if((e=vfs_diriter_next(&iterresource->data.iter.iter, &resource->data.entry)) < 0) {
+        resource_remove(current->resources, id);
+        return e;
+    }
+    return id;
+}
+
+intptr_t sys_identify(size_t entry, char* namebuf, size_t namecap) {
+    Process* current = current_process();
+    Resource* res = resource_find_by_id(current->resources, entry);
+    if(!res) return -INVALID_HANDLE;
+    if(res->kind != RESOURCE_DIRENTRY) return -INVALID_TYPE;
+    return vfs_identify(&res->data.entry, namebuf, namecap);
+}
+
+intptr_t sys_stat(size_t entry, Stats* stats) {
+    Process* current = current_process();
+    Resource* res = resource_find_by_id(current->resources, entry);
+    if(!res) return -INVALID_HANDLE;
+    if(res->kind != RESOURCE_DIRENTRY) return -INVALID_TYPE;
+    intptr_t e = vfs_stat_entry(&res->data.entry, stats);
+    if(e < 0) return e;
+    stats->inodeid = res->data.entry.inodeid;
+    stats->kind = res->data.entry.kind;
+    return e;
+}

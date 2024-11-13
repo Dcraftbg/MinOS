@@ -202,7 +202,7 @@ void ls(const char* path) {
         return;
     }
 
-    VfsStats stats = {0};
+    Stats stats = {0};
     while((e = vfs_diriter_next(&iter, &entry)) == 0) {
         if((e=vfs_identify(&entry, namebuf, sizeof(namebuf))) < 0) {
             kerror("ls: Could not identify inode: %s",status_str(e));

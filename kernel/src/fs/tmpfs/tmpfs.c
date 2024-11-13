@@ -219,7 +219,7 @@ intptr_t tmpfs_identify(VfsDirEntry* this, char* namebuf, size_t namecap) {
     namebuf[namelen] = '\0'; // Null terminator
     return 0;
 }
-intptr_t tmpfs_stat(Inode* this, VfsStats* stats) {
+intptr_t tmpfs_stat(Inode* this, Stats* stats) {
     if(!this || !this->private) return -BAD_INODE;
     TmpfsInode* inode = (TmpfsInode*)this->private;
     switch(inode->kind) {
