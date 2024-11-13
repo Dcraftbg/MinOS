@@ -4,7 +4,6 @@ bool run(Build* build) {
         &cmd,
         "qemu-system-x86_64",
         //"-serial", "none",
-        "-serial", "stdio",
         "--no-reboot",
         "--no-shutdown",
         "-d", "int",
@@ -13,6 +12,17 @@ bool run(Build* build) {
         "-m", "128",
         "-cdrom", "./bin/OS.iso"
     );
+    if(build->nographic) {
+        nob_cmd_append(
+            &cmd, 
+            "-nographic"
+        );
+    } else {
+        nob_cmd_append(
+            &cmd, 
+            "-serial", "stdio",
+        );
+    }
     if(build->cpumax) {
         nob_cmd_append(
             &cmd,

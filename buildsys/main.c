@@ -28,6 +28,7 @@ typedef struct {
     bool gdb;
     bool cpumax;
     bool telmonitor;
+    bool nographic;
 } Build;
 #include "flags.h"
 #include "utils.h"
@@ -111,6 +112,10 @@ int main(int argc, char** argv) {
             strcmp(arg, "-telmonitor") == 0
         ) {
             build.telmonitor = true;
+        } else if (
+            strcmp(arg, "-nographic") == 0
+        ) {
+            build.nographic = true;
         } else {
             if(
                 strcmp(cmd, "build") == 0 ||
