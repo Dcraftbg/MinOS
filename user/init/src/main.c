@@ -33,7 +33,7 @@ int main() {
         if(e == NOT_FOUND) {
             printf("Could not find command `%s`\n", path);
         } else {
-            printf("Child exited with: %lu\n", e);
+            printf("Child exited with: %d\n", (int)e);
         }
         exit(1);
     } else {
