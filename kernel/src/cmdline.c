@@ -30,8 +30,8 @@ bool  cmdline_set(const char* name, char* value) {
 }
 void init_cmdline() {
     char* cmdline = get_kernel_cmdline();
-    char* endcmdline = cmdline+strlen(cmdline);
     if(!cmdline) return;
+    char* endcmdline = cmdline+strlen(cmdline);
     while(cmdline < endcmdline) {
         while(cmdline[0]==' ') cmdline++;
         char* end = strchr(cmdline, ' ');
