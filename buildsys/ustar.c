@@ -24,6 +24,7 @@ bool initrd_setup() {
         "./bin/user/shell/shell",
         "./bin/user/hello/hello",
         "./bin/user/cat/cat",
+        "./bin/user/ls/ls",
         "./bin/user/fbtest/fbtest",
     )) return false;
     const char* doom_path = "./user/doomgeneric/doomgeneric/doomgeneric";
