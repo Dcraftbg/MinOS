@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <string.h>
+#include <stdlib.h>
 #include <strinternal.h>
 typedef ssize_t (*PrintWriteFunc)(void* user, const char* data, size_t len);
 #include <minos/sysstd.h>
@@ -89,7 +90,9 @@ static ssize_t print_base(void* user, PrintWriteFunc func, const char* fmt, va_l
             bytes = va_arg(list, const char*);
             count = strlen(bytes);
         } break;
-        default: 
+        default:
+            fprintf(stderr, "Unknown formatter: %c\n", *fmt);
+            exit(1);
             return -INVALID_PARAM; // -(*fmt);
         }
         if (pad < 0) {
