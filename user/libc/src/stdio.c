@@ -10,6 +10,7 @@ typedef struct {
     char* head;
     char* end;
 } SWriter;
+FILE* stddbg = NULL;
 static ssize_t _fwrite_base_func(void* user, const char* data, size_t len);
 static ssize_t print_base(void* user, PrintWriteFunc func, const char* fmt, va_list list) {
 #define FUNC_CALL(user, data, len) \

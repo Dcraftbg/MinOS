@@ -11,6 +11,7 @@ typedef void FILE;
 #define stdout ((FILE*)STDOUT_FILENO)
 #define stdin  ((FILE*)STDIN_FILENO )
 #define stderr ((FILE*)STDERR_FILENO)
+extern FILE* stddbg;
 ssize_t printf  (const char* fmt, ...) __attribute__((format(printf,1,2)));
 ssize_t vprintf (const char* fmt, va_list va);
 ssize_t fprintf (FILE* f, const char* fmt, ...) __attribute__((format(printf,2,3)));
