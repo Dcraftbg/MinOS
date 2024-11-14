@@ -116,12 +116,15 @@ char* strdup(const char* str) {
 end:
     return res;
 }
-char* strncpy(char *restrict dest, const char *restrict src, size_t len) {
-    size_t src_len = strlen(src);
-    if(len > src_len) len = src_len;
-    memcpy(dest, src, len);
-    dest[len] = '\0';
-    return dest;
+// NOTE: Taken from the man page for strncpy
+char* strncpy(char* dest, const char* src, size_t n)
+{
+   size_t i;
+   for (i = 0; i < n && src[i] != '\0'; i++)
+        dest[i] = src[i];
+    for ( ; i < n; i++)
+        dest[i] = '\0';
+   return dest;
 }
 char* strstr (const char* str, const char* substr) {
     if(substr[0] == '\0') return (char*)str;
