@@ -79,12 +79,17 @@ static ssize_t print_base(void* user, PrintWriteFunc func, const char* fmt, va_l
         case 'X': {
             fmt++;
             bytes = ibuf;
-            count = utoha_internal(ibuf, sizeof(ibuf), va_arg(list, unsigned int));
+            count = utoha_internal(ibuf, sizeof(ibuf), va_arg(list, unsigned int), hex_upper_digits);
+        } break;
+        case 'x': {
+            fmt++;
+            bytes = ibuf;
+            count = utoha_internal(ibuf, sizeof(ibuf), va_arg(list, unsigned int), hex_lower_digits);
         } break;
         case 'p': {
             fmt++;
             bytes = ibuf;
-            count = uptrtoha_full_internal(ibuf, sizeof(ibuf), (uintptr_t)va_arg(list, void*));
+            count = uptrtoha_full_internal(ibuf, sizeof(ibuf), (uintptr_t)va_arg(list, void*), hex_upper_digits);
         } break;
         case 's': {
             fmt++;
