@@ -38,6 +38,11 @@ static ssize_t print_base(void* user, PrintWriteFunc func, const char* fmt, va_l
         size_t count=0;
         const char* end;
         fmt++;
+        char pad_with = ' ';
+        if(fmt[0] == '0') {
+            pad_with = '0';
+            fmt++;
+        }
         int pad = atoi_internal(fmt, &end);
         fmt=end;
         char ibuf[30];
@@ -106,16 +111,13 @@ static ssize_t print_base(void* user, PrintWriteFunc func, const char* fmt, va_l
         } else {
             pad = pad < count ? 0 : pad-count;
         }
-
         while(pad > 0) {
-            static const char c=' ';
-            FUNC_CALL(user, &c, 1);
+            FUNC_CALL(user, &pad_with, 1);
             pad--;
         }
         FUNC_CALL(user, bytes, count);
         while(pad < 0) {
-            static const char c=' ';
-            FUNC_CALL(user, &c, 1);
+            FUNC_CALL(user, &pad_with, 1);
             pad++;
         }
     }
