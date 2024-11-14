@@ -39,7 +39,9 @@ void serial_handler() {
     uint8_t key = inb(COM_PORT);
     uint8_t uni = charmap[key];
     if(!uni) {
-        kinfo("Key %d is unmapped", (int)key);
+        kwarn("[serial] Key %d is unmapped", (int)key);
+        pic_end(4);
+        return;
     }
     charqueue_push((CharQueue*)serial0_device->private, uni);
     pic_end(4);

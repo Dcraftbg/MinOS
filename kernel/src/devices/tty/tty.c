@@ -332,7 +332,7 @@ static intptr_t tty_dev_read(VfsFile* file, void* buf, size_t size, off_t offset
         default: {
             // NOTE: Non unicode keys are not yet supported cuz of reasons
             if(code >= 256) {
-                kinfo("This: %d", code);
+                kwarn("[tty] Unicode code: `%d` not supported", code);
                 return -UNSUPPORTED;
             }
             if(!ttyscratch_push(&tty->scratch, code)) return -NOT_ENOUGH_MEM;
