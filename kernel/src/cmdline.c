@@ -45,10 +45,9 @@ void init_cmdline() {
 
         const char* name = cmdline;
         char* value = split+1;
-        kinfo("Adding: %s, %s", name, value);
-        kinfo("HELLO???");
+        ktrace("[cmdline] Adding: %s=%s", name, value);
         if(!cmdline_set(name, value)) {
-            kwarn("Ignoring %s=%s because we have exceeded the max arguments", name, value);
+            kwarn("[cmdline] Ignoring %s=%s because we have exceeded the max arguments", name, value);
         }
     end_loop:
         cmdline=end+1;
