@@ -23,6 +23,12 @@ bool run(Build* build) {
             "-serial", "stdio",
         );
     }
+    if(build->kvm) {
+        nob_cmd_append(
+            &cmd,
+            "-accel", "kvm"
+        );
+    }
     if(build->cpumax) {
         nob_cmd_append(
             &cmd,

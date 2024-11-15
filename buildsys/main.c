@@ -29,6 +29,7 @@ typedef struct {
     bool cpumax;
     bool telmonitor;
     bool nographic;
+    bool kvm;
 } Build;
 #include "flags.h"
 #include "utils.h"
@@ -117,7 +118,11 @@ int main(int argc, char** argv) {
             strcmp(arg, "-nographic") == 0
         ) {
             build.nographic = true;
-        } else {
+        } else if (
+            strcmp(arg, "-kvm") == 0
+        ) {
+            build.kvm = true;
+        }else {
             if(
                 strcmp(cmd, "build") == 0 ||
                 strstarts(cmd, "bruh")
