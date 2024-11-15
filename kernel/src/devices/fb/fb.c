@@ -70,6 +70,7 @@ static intptr_t fb_mmap(VfsFile* file, MmapContext* context, void** addr, size_t
         e=-NOT_ENOUGH_MEM;
         goto mmap_fail;
     }
+    list_append(&list->list, &insert_into->list);
     return pages;
 mmap_fail:
     page_unmap(context->page_table, virt_to_phys(kernel.pml4, (uintptr_t)device->fb.addr), pages);
