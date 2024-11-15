@@ -418,6 +418,13 @@ void init_paging() {
     if(!page_alloc(kernel.pml4, KERNEL_STACK_ADDR, KERNEL_STACK_PAGES, KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_WRITE)) {
         kpanic("Failed to map/allocate the stack");
     }
+    asm volatile(
+    	"movl $0x277, %%ecx;"
+    	"rdmsr;"
+    	"movw $0x0401, %%dx;"
+    	"wrmsr;"
+    	::: "eax", "ecx", "edx", "memory"
+    );
 }
 
 
