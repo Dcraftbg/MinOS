@@ -43,7 +43,7 @@ static intptr_t fb_mmap(VfsFile* file, MmapContext* context, void** addr, size_t
     size_t pages = PAGE_ALIGN_UP(device->fb.height*device->fb.pitch_bytes)/PAGE_SIZE;
     if(size_pages > 0 && size_pages != pages) return -SIZE_MISMATCH;
     uint16_t rflags = 0;
-    pageflags_t pflags = KERNEL_PFLAG_USER | KERNEL_PTYPE_USER | KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_EXEC_DISABLE;
+    pageflags_t pflags = KERNEL_PFLAG_USER | KERNEL_PTYPE_USER | KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_EXEC_DISABLE | KERNEL_PFLAG_WRITE_COMBINE;
     if(file->mode & MODE_WRITE) {
         pflags |= KERNEL_PFLAG_WRITE;
         rflags |= MEMREG_WRITE;
