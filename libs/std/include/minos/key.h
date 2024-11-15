@@ -1,7 +1,7 @@
 #pragma once
 #include "keycodes.h"
 #include <stdint.h>
-#define KEY_ATTRIB_RELEASE BIT(1)
+#define KEY_ATTRIB_RELEASE 0b1
 typedef struct {
     uint16_t code : 12;
     uint8_t attribs : 4;
