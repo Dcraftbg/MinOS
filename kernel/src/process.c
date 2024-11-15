@@ -68,7 +68,7 @@ intptr_t process_heap_extend(Process* process, Heap* heap, size_t extra) {
     
     MemoryRegion* region = reglist->region;
     if(reglist->list.next != &task->image.memlist) {
-        MemoryRegion* next = (MemoryRegion*)reglist->list.next;
+        MemoryRegion* next = ((MemoryList*)reglist->list.next)->region;
         if(next->address < heap->address + (heap->pages+extra)*PAGE_SIZE) return -NOT_ENOUGH_MEM;
     }
     uintptr_t end = heap->address + (heap->pages)*PAGE_SIZE;
