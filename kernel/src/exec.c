@@ -247,9 +247,11 @@ intptr_t exec(Task* task, Path* path, Args* args, Args* envs) {
     char** envp;
     if((e=args_push(task, envs, &stack_head, &envp)) < 0) 
         return_defer_err(e);
+    stack_head = (char*)(((((uintptr_t)stack_head))/16)*16);
     char** argv;
     if((e=args_push(task, args, &stack_head, &argv)) < 0) 
         return_defer_err(e);
+    stack_head = (char*)(((((uintptr_t)stack_head))/16)*16);
     task->image.envc = envs->argc;
     task->image.envv = (const char**)envp;
     task->image.argc = args->argc;
