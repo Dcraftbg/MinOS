@@ -287,6 +287,7 @@ end:
 
 intptr_t sys_waitpid(size_t pid) {
     Process* cur_proc = current_process();
+    Task* cur_task = current_task();
     int child_index=-1;
     for(size_t i = 0; i < ARRAY_LEN(cur_proc->children); ++i) {
         if(child_process_get_id(cur_proc->children[i]) == pid) {
@@ -298,16 +299,7 @@ intptr_t sys_waitpid(size_t pid) {
         kwarn("waitpid on invalid process id: %zu", pid);
         return -NOT_FOUND;
     } 
-
-    for(;;) {
-        if(child_process_is_dead(cur_proc->children[child_index])) {
-            uint32_t exit_code = child_process_get_exit_code(cur_proc->children[child_index]);
-            child_process_set_id(cur_proc->children[child_index], INVALID_PROCESS_ID);
-            return exit_code;
-        }
-        // TODO: thread yield
-        asm volatile("hlt");
-    }
+    return block_waitpid(cur_task, child_index);
 }
 #define MIN_HEAP_PAGES 16
 #define MAX_HEAP_PAGES 64

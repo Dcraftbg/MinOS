@@ -3,6 +3,17 @@
 #include "page.h"
 #include "resource.h"
 #include <stddef.h>
+
+#define TASK_FLAG_PRESENT   0b1
+#define TASK_FLAG_RUNNING   0b10
+#define TASK_FLAG_FIRST_RUN 0b100
+#define TASK_FLAG_USER      0b1000
+// TODO: Remove this flag entirely.
+// Replace with "dead" list
+#define TASK_FLAG_DYING     0b10000
+#define TASK_FLAG_BLOCKING  0b100000
+#define INVALID_TASK_ID -1
+#include "thread_blocker.h"
 typedef struct {
     uint64_t flags;
     page_t cr3;
@@ -16,6 +27,7 @@ typedef struct {
     // By default it starts 0xFFFFFFFFFFFFF000 as defined in the TSS
     void* ts_rsp;
     uintptr_t rip;
+    ThreadBlocker blocker;
 } TaskImage;
 static inline void taskimage_move(TaskImage* to, TaskImage* from) {
     memcpy(to, from, sizeof(*to));
@@ -23,18 +35,16 @@ static inline void taskimage_move(TaskImage* to, TaskImage* from) {
     memset(from, 0, sizeof(*from));
     list_init(&from->memlist);
 }
-typedef struct {
+
+typedef struct Task Task;
+struct Task {
     struct list list;
     size_t id;
+    // TODO: We can and should probably just use a Process*
+    // For optimised lookup 
     size_t processid;
     TaskImage image;
-} Task;
-#define TASK_FLAG_PRESENT   0b1
-#define TASK_FLAG_RUNNING   0b10
-#define TASK_FLAG_FIRST_RUN 0b100
-#define TASK_FLAG_USER      0b1000
-#define TASK_FLAG_DYING     0b10000
-#define INVALID_TASK_ID -1
+};
 void init_tasks();
 void init_kernel_task();
 void init_task_switch();
