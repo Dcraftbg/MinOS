@@ -188,7 +188,7 @@ void _start() {
         printf("Failed to exec %s : %s\n",epath,status_str(e));
         kabort();
     }
-
+    kinfo("Spawning `%s` id=%zu", epath, (size_t)e);
     epath = "/user/init";
     const char* argv[] = {epath, "test_arg"};
     args = create_args(ARRAY_LEN(argv), argv);
@@ -198,6 +198,7 @@ void _start() {
         printf("Failed to exec %s : %s\n",epath,status_str(e));
         kabort();
     }
+    kinfo("Spawning `%s` id=%zu", epath, (size_t)e);
 
     pic_clear_mask(1);
     pic_clear_mask(0);

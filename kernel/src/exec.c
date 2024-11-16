@@ -80,7 +80,7 @@ intptr_t exec_new(const char* path, Args* args, Args* env) {
     if((e=exec(task, &p, args, env)) < 0)
         return_defer_err(e);
     task->image.flags |= TASK_FLAG_PRESENT;
-    return 0;
+    return process->id;
 DEFER_ERR:
     if(task) drop_task(task);
     if(process) process_drop(process);
