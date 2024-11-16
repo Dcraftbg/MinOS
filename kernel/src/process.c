@@ -16,6 +16,10 @@ Process* kernel_process_add() {
     Process* process = (Process*)cache_alloc(kernel.process_cache);
     if (process) {
          memset(process, 0, sizeof(*process));
+         for(size_t i = 0; i < ARRAY_LEN(process->children); ++i) {
+             child_process_set_id(process->children[i], INVALID_PROCESS_ID);
+         }
+         process->parentid = INVALID_PROCESS_ID;
          process->main_threadid = INVALID_TASK_ID;
          process->id = kernel.processid++;
          list_init(&process->heap_list);
@@ -38,7 +42,7 @@ void process_drop(Process* process) {
 
 
 Process* get_process_by_id(size_t id) {
-    debug_assert(id != INVALID_TASK_ID);
+    if(id == INVALID_TASK_ID) return NULL;
     Process* proc = (Process*)kernel.processes.next;
     while(proc != (Process*)&kernel.processes) {
         if(proc->id == id) return proc;

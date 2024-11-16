@@ -142,10 +142,23 @@ intptr_t sys_fork() {
 #endif
     intptr_t e;
     Process* current_proc = current_process();
+    int child_index = -1;
+    for(size_t i = 0; i < ARRAY_LEN(current_proc->children); ++i) {
+        if(child_process_get_id(current_proc->children[i]) == INVALID_PROCESS_ID) {
+            child_index = i;
+            break;
+        }
+    }
+    if(child_index < 0) {
+        kwarn("(%zu) is trying to spawn too many child processes.", current_proc->id);
+        return -LIMITS;
+    }
     // TODO: Maybe put in a separate function like:
     // process_clone_image()
     Process* process = kernel_process_add();
     if(!process) return -LIMITS; // Reached max tasks and/or we're out of memory
+    child_process_set_id(current_proc->children[child_index], process->id);
+    process->parentid = current_proc->id;
     process->resources = resourceblock_clone(current_proc->resources);
     if(!process->resources) {
         process_drop(process);
@@ -240,24 +253,58 @@ intptr_t sys_exec(const char* path, const char** argv, size_t argc, const char**
     return 0;
 }
 
-void sys_exit(int64_t code) {
+void sys_exit(int code) {
     Process* cur_proc = current_process();
     Task* cur_task = current_task();
+    Process* parent_proc = get_process_by_id(cur_proc->parentid);
     disable_interrupts();
     cur_task->image.flags &= ~(TASK_FLAG_PRESENT);
     cur_task->image.flags |= TASK_FLAG_DYING;
     cur_proc->flags |= PROC_FLAG_DYING;
-    cur_proc->exit_code = code;
+    if(!parent_proc) {
+        kwarn("Called exit on init process maybe? Thats kind of bad.");
+        if(cur_proc->parentid != INVALID_PROCESS_ID) 
+            kwarn(" parent_id : %zu", cur_proc->parentid);
+        else 
+            kwarn(" parent_id : INVALID");
+        kwarn(" process_id: %zu", cur_proc->id);
+        kwarn(" exit code : %d" , code);
+        goto end;
+    }
+    for(size_t i = 0; i < ARRAY_LEN(parent_proc->children); ++i) {
+        if(child_process_get_id(parent_proc->children[i]) == cur_proc->id) {
+            child_process_mark_dead(parent_proc->children[i]);
+            child_process_set_exit_code(parent_proc->children[i], code);
+            goto end;
+        }
+    }
+    kwarn("Hey. We couldn't find ourselves in the children list of the parent process. This is odd");
+end:
     enable_interrupts();
     // TODO: thread yield
     for(;;) asm volatile("hlt");
 }
 
 intptr_t sys_waitpid(size_t pid) {
+    Process* cur_proc = current_process();
+    int child_index=-1;
+    for(size_t i = 0; i < ARRAY_LEN(cur_proc->children); ++i) {
+        if(child_process_get_id(cur_proc->children[i]) == pid) {
+            child_index = i;
+            break;
+        }
+    }
+    if(child_index < 0) {
+        kwarn("waitpid on invalid process id: %zu", pid);
+        return -NOT_FOUND;
+    } 
+
     for(;;) {
-        Process* proc = get_process_by_id(pid);
-        if(!proc) return -NOT_FOUND;
-        if(proc->flags & PROC_FLAG_DYING) return proc->exit_code;
+        if(child_process_is_dead(cur_proc->children[child_index])) {
+            uint32_t exit_code = child_process_get_exit_code(cur_proc->children[child_index]);
+            child_process_set_id(cur_proc->children[child_index], INVALID_PROCESS_ID);
+            return exit_code;
+        }
         // TODO: thread yield
         asm volatile("hlt");
     }

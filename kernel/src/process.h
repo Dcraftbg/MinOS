@@ -21,18 +21,35 @@ static Args create_args(size_t argc, const char** argv) {
 
 #define PROC_FLAG_DYING 0b1
 #define INVALID_PROCESS_ID -1
+#define MAX_CHILD_PROCESSES 16
+// TODO: Introduce pid_t (taskid_t) and other process/task types under
+// proctypes.h
+typedef struct {
+    uint32_t exit_code;
+    uint32_t id;
+} ChildProcess;
+#define CHILD_EXITCODE_MASK 0b01111111111111111111111111111111
+#define CHILD_DEAD_MASK     0b10000000000000000000000000000000
+#define child_process_is_dead(cp)             ((cp).exit_code & CHILD_DEAD_MASK)
+#define child_process_mark_dead(cp)           ((cp).exit_code |= CHILD_DEAD_MASK)
+#define child_process_get_exit_code(cp)       ((cp).exit_code & CHILD_EXITCODE_MASK)
+#define child_process_set_exit_code(cp, code) ((cp).exit_code = ((cp).exit_code & (~CHILD_EXITCODE_MASK)) | ((code) & CHILD_EXITCODE_MASK))
+#define child_process_get_id(cp)              ((cp).id)
+#define child_process_set_id(cp, _id)         ((cp).id = (_id))
+
 typedef struct {
     struct list list;
+    size_t parentid;
     size_t id; 
     size_t main_threadid;
-    ResourceBlock* resources;
     uint64_t flags;
-    int64_t exit_code;
+    ResourceBlock* resources;
     size_t heapid; // Current heapid count
     struct list heap_list;
     inodeid_t curdir_id;
     Superblock* curdir_sb;
     char* curdir /*[PATH_MAX]*/;
+    ChildProcess children[MAX_CHILD_PROCESSES];
 } Process;
 
 void init_processes();
