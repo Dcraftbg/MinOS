@@ -335,8 +335,10 @@ static intptr_t tty_dev_read(VfsFile* file, void* buf, size_t size, off_t offset
                 kwarn("[tty] Unicode code: `%d` not supported", code);
                 return -UNSUPPORTED;
             }
-            if(!ttyscratch_push(&tty->scratch, code)) return -NOT_ENOUGH_MEM;
-            tty_putch(tty, code);
+            if(code) {
+                if(!ttyscratch_push(&tty->scratch, code)) return -NOT_ENOUGH_MEM;
+                tty_putch(tty, code);
+            }
         } break;
         }
     }
