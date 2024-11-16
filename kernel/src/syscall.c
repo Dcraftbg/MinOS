@@ -490,3 +490,8 @@ void sys_sleepfor(const MinOS_Duration* duration) {
     size_t until = kernel.pit_info.ticks + ms;
     return block_sleepuntil(current_task(), until); 
 }
+intptr_t sys_gettime(MinOS_Time* time) {
+    // TODO: Actual gettime with EPOCH (1/1/1970)
+    time->ms = kernel.pit_info.ticks;
+    return 0;
+}

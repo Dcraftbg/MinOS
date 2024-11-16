@@ -83,3 +83,6 @@ static intptr_t stat(size_t entry, Stats* stats) {
 static intptr_t sleepfor(const MinOS_Duration* duration) {
     return syscall1(SYS_SLEEPFOR, duration);
 } 
+static intptr_t gettime(MinOS_Time* time) {
+    return syscall1(SYS_GETTIME, time);
+}

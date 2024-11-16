@@ -23,4 +23,5 @@ enum {
     SYS_IDENTIFY,
     SYS_STAT,
     SYS_SLEEPFOR,
+    SYS_GETTIME,
 };
