@@ -12,6 +12,17 @@ bool try_resolve_waitpid(ThreadBlocker* blocker, Task* task) {
     return false;
 }
 
+bool try_resolve_sleep_until(ThreadBlocker* blocker, Task* task) {
+    return blocker->as.sleep.until <= kernel.pit_info.ticks;
+}
+
+void block_sleepuntil(Task* task, size_t until) {
+    task->image.flags |= TASK_FLAG_BLOCKING;
+    task->image.blocker.as.sleep.until = until;
+    task->image.blocker.try_resolve = try_resolve_sleep_until;
+    // TODO: thread yield
+    while(task->image.flags & TASK_FLAG_BLOCKING) asm volatile("hlt");
+}
 int block_waitpid(Task* task, size_t child_index) {
     task->image.flags |= TASK_FLAG_BLOCKING;
     task->image.blocker.as.waitpid.child_index = child_index;

@@ -21,5 +21,6 @@ enum {
     SYS_DIRITER_OPEN,
     SYS_DIRITER_NEXT,
     SYS_IDENTIFY,
-    SYS_STAT
+    SYS_STAT,
+    SYS_SLEEPFOR,
 };

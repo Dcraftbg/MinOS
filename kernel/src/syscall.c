@@ -8,6 +8,7 @@
 #include "benchmark.h"
 #include "arch/x86_64/idt.h"
 #include <minos/heap.h>
+#include <minos/time.h>
 
 void init_syscalls() {
     idt_register(0x80, syscall_base, IDT_SOFTWARE_TYPE);
@@ -482,4 +483,10 @@ intptr_t sys_stat(size_t entry, Stats* stats) {
     stats->inodeid = res->data.entry.inodeid;
     stats->kind = res->data.entry.kind;
     return e;
+}
+void sys_sleepfor(const MinOS_Duration* duration) {
+    size_t ms = duration->secs*1000 + duration->nano/1000000;
+    if(ms == 0) return;
+    size_t until = kernel.pit_info.ticks + ms;
+    return block_sleepuntil(current_task(), until); 
 }

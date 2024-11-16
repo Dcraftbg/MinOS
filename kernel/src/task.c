@@ -87,13 +87,13 @@ void irq_ret_user(uint64_t ts_rsp, uint64_t cr3, uint64_t argc, const char** arg
 
 __attribute__((optimize("O3")))
 void task_switch(ContextFrame* frame) {
-    kernel.pit_info.ticks++;
     Task* current = current_task();
     debug_assert(current);
     frame->cr3 = (uintptr_t)current->image.cr3 & ~KERNEL_MEMORY_MASK;
-    Task* select = NULL;
     current->image.ts_rsp = (void*)frame->rsp;
-    if((select = task_select(current))) {
+    Task* select = task_select(current);
+    kernel.pit_info.ticks++;
+    if(select) {
         current->image.flags &= ~TASK_FLAG_RUNNING;
         frame->cr3 = (uintptr_t)select->image.cr3 & ~KERNEL_MEMORY_MASK;
         frame->rsp = (uintptr_t)select->image.ts_rsp;

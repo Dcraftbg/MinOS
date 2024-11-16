@@ -3,6 +3,7 @@
 #include "syscodes.h"
 #include "fsdefs.h"
 #include "heap.h"
+#include "time.h"
 
 static intptr_t open(const char* path, fmode_t mode, oflags_t flags) {
     return syscall3(SYS_OPEN, path, mode, flags);
@@ -78,3 +79,7 @@ static intptr_t identify(size_t entryfd, char* namebuf, size_t namecap) {
 static intptr_t stat(size_t entry, Stats* stats) {
     return syscall2(SYS_STAT, entry, stats);
 }
+
+static intptr_t sleepfor(const MinOS_Duration* duration) {
+    return syscall1(SYS_SLEEPFOR, duration);
+} 

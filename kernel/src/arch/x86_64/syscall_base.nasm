@@ -22,6 +22,7 @@ extern sys_diriter_open
 extern sys_diriter_next
 extern sys_identify
 extern sys_stat
+extern sys_sleepfor
 %define KERNEL_UNSUPPORTED 7
 section .text
 global syscall_base
@@ -49,6 +50,7 @@ syscall_table:
    dq sys_diriter_next
    dq sys_identify
    dq sys_stat
+   dq sys_sleepfor
 syscall_table_end:
 section .text
 syscall_base:
