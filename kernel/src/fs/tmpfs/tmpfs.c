@@ -185,7 +185,7 @@ intptr_t tmpfs_identify(VfsDirEntry* this, char* namebuf, size_t namecap) {
     if(namecap < namelen) return -LIMITS;
     memcpy(namebuf, inode->name, namelen);
     namebuf[namelen] = '\0'; // Null terminator
-    return 0;
+    return namelen;
 }
 intptr_t tmpfs_stat(Inode* this, Stats* stats) {
     if(!this || !this->private) return -BAD_INODE;

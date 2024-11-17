@@ -35,3 +35,10 @@ typedef struct {
     size_t lba ; // lba is in 1<<lba bytes
     size_t size; // In lba
 } Stats;
+
+typedef struct {
+    size_t size;
+    inodeid_t inodeid;
+    inodekind_t kind;
+    char name[];
+} DirEntry;

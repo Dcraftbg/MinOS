@@ -76,8 +76,35 @@ intptr_t sys_read(uintptr_t handle, void* buf, size_t size) {
     Process* current = current_process();
     Resource* res = resource_find_by_id(current->resources, handle);
     if(!res) return -INVALID_HANDLE;
-    if(res->kind != RESOURCE_FILE) return -INVALID_TYPE;
-    return vfs_read(&res->data.file, buf, size);
+    switch(res->kind) {
+    case RESOURCE_FILE:
+        return vfs_read(&res->data.file, buf, size);
+    case RESOURCE_DIR: {
+        VfsDirEntry vfs_entry;
+        if(size < sizeof(DirEntry)) return -SIZE_MISMATCH;
+        size_t head = 0;
+        while(head+sizeof(DirEntry) < size) {
+            intptr_t e = vfs_get_dir_entries(&res->data.dir, &vfs_entry, 1);
+            if(e < 0) return e;
+            if(e == 0) return head;
+            DirEntry* entry = (DirEntry*)buf;
+            // TODO: vfs_direntry_cleanup
+            if((e=vfs_identify(&vfs_entry, entry->name, size-sizeof(DirEntry)-head)) < 0) {
+                if(e==-LIMITS) return head;
+                return e;
+            }
+            size_t s = sizeof(DirEntry)+e+1;
+            entry->size = s;
+            entry->inodeid = vfs_entry.inodeid;
+            entry->kind = vfs_entry.kind;
+            head += s;
+            buf += s;
+        }
+        return head;
+    } break;
+    default:
+        return -INVALID_TYPE;
+    }
 }
 
 intptr_t sys_ioctl(uintptr_t handle, Iop op, void* arg) {
@@ -431,6 +458,26 @@ intptr_t sys_diropen(const char* path, fmode_t mode) {
         return e;
     }
     return id;
+}
+intptr_t sys_stat(const char* path, Stats* stats) {
+    Path p;
+    Process* current = current_process();
+    intptr_t e = 0;
+    if((e=parse_path(current, &p, path)) < 0) return e;
+    inodeid_t id;
+    Superblock* sb;
+    if((e=vfs_find(&p, &sb, &id)) < 0) {
+        return e;
+    }
+    Inode* inode;
+    if((e=fetch_inode(sb, id, &inode, MODE_READ)) < 0)
+        return e;
+    if((e=vfs_stat(inode, stats)) < 0) {
+        idrop(inode);
+        return e;
+    }
+    idrop(inode);
+    return 0;
 }
 void sys_sleepfor(const MinOS_Duration* duration) {
     size_t ms = duration->secs*1000 + duration->nano/1000000;

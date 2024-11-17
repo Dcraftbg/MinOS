@@ -66,6 +66,12 @@ static intptr_t getcwd(char* buf, size_t cap) {
 static intptr_t diropen(const char* path, fmode_t mode) {
     return syscall2(SYS_DIROPEN, path, mode);
 }
+static intptr_t stat(const char* path, Stats* stats) {
+    return syscall2(SYS_STAT, path, stats);
+}
+static intptr_t get_dir_entries(uintptr_t dirfd, DirEntry* entries, size_t size) {
+    return read(dirfd, entries, size);
+}
 static intptr_t sleepfor(const MinOS_Duration* duration) {
     return syscall1(SYS_SLEEPFOR, duration);
 } 

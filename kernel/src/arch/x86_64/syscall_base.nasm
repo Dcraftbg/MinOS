@@ -18,6 +18,7 @@ extern sys_heap_extend
 extern sys_chdir
 extern sys_getcwd
 extern sys_diropen
+extern sys_stat
 extern sys_sleepfor
 extern sys_gettime
 %define KERNEL_UNSUPPORTED 7
@@ -43,6 +44,7 @@ syscall_table:
    dq sys_chdir
    dq sys_getcwd
    dq sys_diropen
+   dq sys_stat
    dq sys_sleepfor
    dq sys_gettime
 syscall_table_end:
