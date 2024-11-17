@@ -68,9 +68,10 @@ intptr_t ls(const char* path) {
                      , path, entry->name);
             if((e=stat(pathbuf, &stats)) < 0) {
                 fprintf(stderr, "ls: Could not get stats for `%s`: %s\n", entry->name, status_str(e));
-                return 0;
+                goto skip;
             }
             printf("%6s %15s %zu bytes\n", inode_kind_str(stats.kind), entry->name, stats.size * (1<<stats.lba));
+        skip:
             entry = (DirEntry*)(((char*)entry) + entry->size);
         }
     }
