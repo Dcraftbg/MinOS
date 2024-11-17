@@ -40,22 +40,36 @@ intptr_t sys_open(const char* path, fmode_t mode, oflags_t flags) {
     if((e=parse_path(current, &p, path)) < 0) return e;
     Resource* resource = resource_add(current->resources, &id);
     if(!resource) return -NOT_ENOUGH_MEM;
-    resource->kind = RESOURCE_FILE;
-    if((e=vfs_open(&p, &resource->data.file, mode)) < 0) {
-        if(flags & O_CREAT) {
-            if((e=vfs_create(&p)) < 0) {
-                resource_remove(current->resources, id);
-                return e;
+    if(flags & O_DIRECTORY) {
+        resource->kind = RESOURCE_DIR;
+        if((e=vfs_diropen(&p, &resource->data.dir, mode)) < 0) {
+            if(flags & O_CREAT) {
+                if((e=vfs_mkdir(&p)) < 0)
+                    goto err_dir;
+                // TODO: Is it defined behaviour if the directory is created but can't be opened?
+                if((e=vfs_diropen(&p, &resource->data.dir, mode)) < 0)
+                    goto err_dir;
+                return id;
             }
-            // TODO: Is it defined behaviour if the file is created but can't be opened?
-            if((e=vfs_open(&p, &resource->data.file, mode)) < 0) {
-                resource_remove(current->resources, id);
-                return e;
-            }
-            return id;
+        err_dir:
+            resource_remove(current->resources, id);
+            return e;
         }
-        resource_remove(current->resources, id);
-        return e;
+    } else {
+        resource->kind = RESOURCE_FILE;
+        if((e=vfs_open(&p, &resource->data.file, mode)) < 0) {
+            if(flags & O_CREAT) {
+                if((e=vfs_create(&p)) < 0)
+                    goto err_file;
+                // TODO: Is it defined behaviour if the file is created but can't be opened?
+                if((e=vfs_open(&p, &resource->data.file, mode)) < 0)
+                    goto err_file;
+                return id;
+            }
+        err_file:
+            resource_remove(current->resources, id);
+            return e;
+        }
     }
     return id;
 }
@@ -443,21 +457,6 @@ intptr_t sys_getcwd(char* buf, size_t cap) {
     memcpy(buf, cur_proc->curdir, amount);
     buf[amount] = '\0';
     return 0;
-}
-intptr_t sys_diropen(const char* path, fmode_t mode) {
-    Path p;
-    Process* current = current_process();
-    size_t id = 0;
-    intptr_t e = 0;
-    if((e=parse_path(current, &p, path)) < 0) return e;
-    Resource* resource = resource_add(current->resources, &id);
-    if(!resource) return -NOT_ENOUGH_MEM;
-    resource->kind = RESOURCE_DIR;
-    if((e=vfs_diropen(&p, &resource->data.dir, mode)) < 0) {
-        resource_remove(current->resources, id);
-        return e;
-    }
-    return id;
 }
 intptr_t sys_stat(const char* path, Stats* stats) {
     Path p;

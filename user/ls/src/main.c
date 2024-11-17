@@ -50,7 +50,7 @@ intptr_t ls(const char* path) {
         e=-NOT_ENOUGH_MEM;
         goto pathbuf_err;
     }
-    if((e=diropen(path, MODE_READ)) < 0) {
+    if((e=open(path, MODE_READ, O_DIRECTORY)) < 0) {
         fprintf(stderr, "ERROR: Could not open directory `%s`: %s\n", path, status_str(e));
         goto diropen_err;
     }

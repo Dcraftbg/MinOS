@@ -17,7 +17,6 @@ enum {
     SYS_HEAP_EXTEND,
     SYS_CHDIR,
     SYS_GETCWD,
-    SYS_DIROPEN,
     SYS_STAT,
     SYS_SLEEPFOR,
     SYS_GETTIME,

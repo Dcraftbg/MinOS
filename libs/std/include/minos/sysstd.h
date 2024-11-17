@@ -63,9 +63,6 @@ static intptr_t chdir(const char* path) {
 static intptr_t getcwd(char* buf, size_t cap) {
     return syscall2(SYS_GETCWD, buf, cap);
 }
-static intptr_t diropen(const char* path, fmode_t mode) {
-    return syscall2(SYS_DIROPEN, path, mode);
-}
 static intptr_t stat(const char* path, Stats* stats) {
     return syscall2(SYS_STAT, path, stats);
 }

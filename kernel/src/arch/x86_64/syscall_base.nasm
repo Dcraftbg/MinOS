@@ -43,7 +43,6 @@ syscall_table:
    dq sys_heap_extend
    dq sys_chdir
    dq sys_getcwd
-   dq sys_diropen
    dq sys_stat
    dq sys_sleepfor
    dq sys_gettime
