@@ -63,23 +63,9 @@ static intptr_t chdir(const char* path) {
 static intptr_t getcwd(char* buf, size_t cap) {
     return syscall2(SYS_GETCWD, buf, cap);
 }
-
 static intptr_t diropen(const char* path, fmode_t mode) {
     return syscall2(SYS_DIROPEN, path, mode);
 }
-static intptr_t diriter_open(size_t dirfd) {
-    return syscall1(SYS_DIRITER_OPEN, dirfd);
-}
-static intptr_t diriter_next(size_t iterfd) {
-    return syscall1(SYS_DIRITER_NEXT, iterfd);
-}
-static intptr_t identify(size_t entryfd, char* namebuf, size_t namecap) {
-    return syscall3(SYS_IDENTIFY, entryfd, namebuf, namecap);
-}
-static intptr_t stat(size_t entry, Stats* stats) {
-    return syscall2(SYS_STAT, entry, stats);
-}
-
 static intptr_t sleepfor(const MinOS_Duration* duration) {
     return syscall1(SYS_SLEEPFOR, duration);
 } 

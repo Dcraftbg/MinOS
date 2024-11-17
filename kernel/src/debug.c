@@ -143,7 +143,6 @@ static_assert(ARRAY_LEN(inode_kind_map) == INODE_COUNT, "Update inode_kind_map")
 void ls(const char* path) {
     kinfo("%s:",path);
     VfsDir dir = {0};
-    VfsDirIter iter = {0};
     VfsDirEntry entry = {0};
     intptr_t e = 0;
     char namebuf[MAX_INODE_NAME];
@@ -151,17 +150,10 @@ void ls(const char* path) {
         kerror("ls: Could not open directory: %s", status_str(e));
         return;
     }
-    if ((e=vfs_diriter_open(&dir, &iter)) < 0) {
-        kerror("ls: Could not open iter: %s", status_str(e));
-        vfs_dirclose(&dir);
-        return;
-    }
-
     Stats stats = {0};
-    while((e = vfs_diriter_next(&iter, &entry)) == 0) {
+    while((e = vfs_get_dir_entries(&dir, &entry, 1)) == 1) {
         if((e=vfs_identify(&entry, namebuf, sizeof(namebuf))) < 0) {
             kerror("ls: Could not identify inode: %s",status_str(e));
-            vfs_diriter_close(&iter);
             vfs_dirclose(&dir);
             return;
         }
@@ -171,14 +163,11 @@ void ls(const char* path) {
         }
         kinfo("%6s %15s %zu bytes", inode_kind_map[entry.kind], namebuf, stats.size * (1<<stats.lba));
     }
-    if(e != -NOT_FOUND) {
+    vfs_dirclose(&dir);
+    if(e != 0) {
         kerror("ls: Failed to iterate: %ld",e);
-        vfs_diriter_close(&iter);
-        vfs_dirclose(&dir);
         return;
     }
-    vfs_diriter_close(&iter);
-    vfs_dirclose(&dir);
 }
 
 

@@ -16,11 +16,6 @@ typedef struct Inode Inode;
 typedef struct VfsDir VfsDir;
 typedef struct Superblock Superblock;
 typedef struct {
-    VfsDir* dir;
-    FsOps* ops;
-    void* private; // (State) FS defined
-} VfsDirIter;
-typedef struct {
     Inode* inode;
     FsOps* ops;
     off_t cursor;
@@ -40,6 +35,7 @@ typedef struct VfsDir {
     Inode* inode;
     FsOps* ops;
     void* private;
+    off_t cursor;
 } VfsDir;
 typedef struct Inode {
     Superblock* superblock;
@@ -70,12 +66,7 @@ struct FsOps {
     // Ops for directories
     intptr_t (*create)(VfsDir* parent, VfsDirEntry* result);         // @check ops
     intptr_t (*mkdir)(VfsDir* parent, VfsDirEntry* result);          // @check ops
-
-    intptr_t (*diriter_open)(VfsDir* dir, VfsDirIter* result); // @check ops
-
-    // Ops for diriters
-    intptr_t (*diriter_next)(VfsDirIter* iter, VfsDirEntry* result); // @check ops
-    intptr_t (*diriter_close)(VfsDirIter* iter);
+    intptr_t (*get_dir_entries)(VfsDir* dir, VfsDirEntry* entries, size_t count, off_t offset); // @check ops
 
     // Ops for direntries
     intptr_t (*identify)(VfsDirEntry* this, char* namebuf, size_t namecap);
@@ -195,12 +186,6 @@ intptr_t vfs_mkdir(Path* path);
 // < 0 Error
 intptr_t vfs_diropen(Path* path, VfsDir* result, fmode_t mode);
 
-
-// Return value:
-//   0 Success
-// < 0 Error
-intptr_t vfs_diriter_open(VfsDir* dir, VfsDirIter* result);
-
 // Return value:
 // >=0 Amount of bytes written
 // < 0 Error
@@ -217,20 +202,14 @@ intptr_t vfs_read(VfsFile* result, void* buf, size_t size);
 intptr_t vfs_close(VfsFile* result);
 
 // Return value:
+// >=0 Number of entries read
+// < 0 Error
+intptr_t vfs_get_dir_entries(VfsDir* dir, VfsDirEntry* entries, size_t count);
+
+// Return value:
 //   0 Success
 // < 0 Error
 intptr_t vfs_dirclose(VfsDir* result);
-
-// Return value:
-//   0 Success
-// < 0 Error
-intptr_t vfs_diriter_next(VfsDirIter* iter, VfsDirEntry* result);
-
-// Return value:
-//   0 Success
-// < 0 Error
-intptr_t vfs_diriter_close(VfsDirIter* result);
-
 
 // Return value:
 //   0 Success

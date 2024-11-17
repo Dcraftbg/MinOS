@@ -14,6 +14,7 @@ typedef struct {
     size_t size;
     struct TmpfsFileBlock* first;
 } TmpfsFile;
+
 typedef struct {
     size_t size;
     struct TmpfsNodeBlock* first;
@@ -33,47 +34,17 @@ typedef struct {
     } data;
 } TmpfsInode;
 
-typedef struct {
-    size_t at;
-    size_t left;
-    struct TmpfsNodeBlock* block;
-} TmpfsDirIter;
 typedef struct TmpfsNodeBlock {
     TmpfsInode inodes[TMPFS_DIR_NODES];
     struct TmpfsNodeBlock* next;
     struct TmpfsNodeBlock* previous;
 } TmpfsNodeBlock;
+
 typedef struct TmpfsFileBlock {
     struct TmpfsFileBlock* next;
     char data[PAGE_SIZE-sizeof(struct TmpfsFileBlock*)];
 } TmpfsFileBlock;
-#if 0
-static void delete_tmpfs_node_block(TmpfsNodeBlock* block) {
-    TMPFS_DEALLOC(block, sizeof(*block));
-}
-void tmpfs_dump_file(VfsFile* file) {
-    TmpfsFile* f = (TmpfsFile*)file->private;
-    TmpfsFileBlock* block = f->first;
-    printf("File size: %zu\n",f->size);
-    while(block) {
-        printf("Block: %p\n",block);
-        for(size_t i = 0; i < sizeof(block->data); ++i) {
-            printf("%02X",block->data[i]);
-        }
-        printf("\n");
-        block = block->next;
-    }
-}
-#endif
-static TmpfsDirIter* new_tmpfs_diriter() {
-    TmpfsDirIter* buf = (TmpfsDirIter*)TMPFS_MALLOC(sizeof(*buf));
-    if(buf) memset(buf, 0, sizeof(*buf));
-    return buf;
-}
 
-static void delete_tmpfs_diriter(TmpfsDirIter* buf) {
-    TMPFS_DEALLOC(buf, sizeof(*buf));
-}
 static TmpfsInode* new_tmpfs_inode() {
     TmpfsInode* buf = (TmpfsInode*)TMPFS_MALLOC(sizeof(*buf));
     if(buf) memset(buf, 0, sizeof(*buf));
@@ -144,10 +115,6 @@ static void inode_constr(Inode* inode) {
 }
 static void direntry_constr(VfsDirEntry* entry, TmpfsInode* private, Superblock* superblock) {
     vfsdirentry_constr(entry, superblock, (&tmpfs_fsops), private->kind, ((inodeid_t)private), private);
-    // entry->superblock = superblock;
-    // entry->private = private;
-    // entry->ops = &tmpfs_fsops;
-    // entry->inodeid = (inodeid_t)private;
 }
 // Special function for creating a device
 intptr_t tmpfs_register_device(VfsDir* dir, Device* device, VfsDirEntry* result) {
@@ -195,6 +162,7 @@ intptr_t tmpfs_diropen(Inode* this, VfsDir* result, fmode_t mode) {
     TmpfsInode* tmpfs_inode = (TmpfsInode*)this->private;
     assert(tmpfs_inode->kind == INODE_DIR);
     result->ops = &tmpfs_fsops;
+    
     result->private = &tmpfs_inode->data.dir;
     result->inode = this;
     return 0;
@@ -263,54 +231,31 @@ intptr_t tmpfs_mkdir(VfsDir* parent, VfsDirEntry* this) {
     direntry_constr(this, inode, parent->inode->superblock);
     return 0;
 }
-intptr_t tmpfs_diriter_open(VfsDir* dir, VfsDirIter* result) {
-    if(!dir || !dir->private) return -BAD_INODE;
-    TmpfsDir* tmpfsdir = (TmpfsDir*)dir->private;
-    TmpfsDirIter* iter = new_tmpfs_diriter();
-    if(!iter) return -NOT_ENOUGH_MEM;
-    iter->at = 0;
-    iter->left = tmpfsdir->size;
-    iter->block = tmpfsdir->first;
-    result->private = iter;
-    result->ops = &tmpfs_fsops;
-    result->dir = dir;
-    return 0;
-}
-intptr_t tmpfs_diriter_next(VfsDirIter* iter, VfsDirEntry* result) {
-    if(!iter || !iter->private || !result) return -INVALID_PARAM;
-    TmpfsDirIter* tmpfs_iter = (TmpfsDirIter*)iter->private;
-    if(tmpfs_iter->left == 0) return -NOT_FOUND;
-    if(tmpfs_iter->block == NULL) return -BAD_INODE;
-    TmpfsInode* node = &tmpfs_iter->block->inodes[tmpfs_iter->at];
-    direntry_constr(result, node, iter->dir->inode->superblock);
-    tmpfs_iter->left--;
-    tmpfs_iter->at++;
-    if(tmpfs_iter->at == TMPFS_DIR_NODES) {
-        tmpfs_iter->at=0;
-        tmpfs_iter->block = tmpfs_iter->block->next;
+intptr_t tmpfs_get_dir_entries(VfsDir* dir, VfsDirEntry* entries, size_t count, off_t off) {
+    if(!dir || !dir->private || !entries) return -INVALID_PARAM;
+    TmpfsDir* tmpfs_dir = dir->private;
+    if(off >= tmpfs_dir->size) return 0;
+    size_t i = 0;
+    size_t left = tmpfs_dir->size-off;
+    TmpfsNodeBlock* block = tmpfs_dir->first;
+    while(off >= TMPFS_DIR_NODES && block) {
+        block = block->next;
+        off -= TMPFS_DIR_NODES;
+        left -= TMPFS_DIR_NODES;
     }
-#if 0
-    inode_constr(result);
-    switch(node->kind) {
-    case INODE_FILE:
-       result->size = node->data.file.size;
-       break;
+    if(!block) return -INVALID_OFFSET;
+    if(count > left) count = left;
+    while(i < count) {
+        direntry_constr(&entries[i], &block->inodes[off], dir->inode->superblock);
+        off++;
+        i++;
+        if(off == TMPFS_DIR_NODES) {
+            block = block->next;
+            if(!block) return i;
+            off = 0;
+        }
     }
-    result->kind = node->kind;
-    result->private = node;
-    tmpfs_iter->left--;
-    tmpfs_iter->at++;
-    if(tmpfs_iter->at == TMPFS_DIR_NODES) {
-        tmpfs_iter->at=0;
-        tmpfs_iter->block = tmpfs_iter->block->next;
-    }
-#endif
-    return 0;
-}
-intptr_t tmpfs_diriter_close(VfsDirIter* iter) {
-    delete_tmpfs_diriter(iter->private);
-    iter->private = NULL;
-    return 0;
+    return i;
 }
 intptr_t tmpfs_read(VfsFile* vfsfile, void* buf, size_t size, off_t offset) {
     if(!vfsfile || !vfsfile->private) return -BAD_INODE;
@@ -423,12 +368,6 @@ void tmpfs_close(VfsFile* file) {
 void tmpfs_dirclose(VfsDir* dir) {
     dir->private = NULL;
 }
-#if 0
-intptr_t tmpfs_device_open(Inode* this, VfsFile* result) {
-    if(!this || !this->private || this->kind != INODE_DEVICE) return -INVALID_PARAM;
-    TmpfsInode* inode = this->private;
-}
-#endif
 // Initialization
 intptr_t init_tmpfs(Superblock* sb) {
     memset(&tmpfs_inodeops, 0, sizeof(tmpfs_inodeops));
@@ -441,9 +380,7 @@ intptr_t init_tmpfs(Superblock* sb) {
 
     tmpfs_fsops.create = tmpfs_create;
     tmpfs_fsops.mkdir = tmpfs_mkdir;
-    tmpfs_fsops.diriter_open = tmpfs_diriter_open;
-    tmpfs_fsops.diriter_next = tmpfs_diriter_next;
-    tmpfs_fsops.diriter_close = tmpfs_diriter_close;
+    tmpfs_fsops.get_dir_entries = tmpfs_get_dir_entries;
 
     tmpfs_fsops.identify = tmpfs_identify;
     tmpfs_fsops.rename = tmpfs_rename;
@@ -467,27 +404,3 @@ intptr_t deinit_tmpfs(Superblock* sb) {
     (void)sb;
     return 0;
 }
-#if 1
-#define PAD() for(size_t i=0; i < pad; ++i) printf(" ");
-void tmpfs_log_file(TmpfsFile* file, size_t pad) {
-    PAD() printf("size: %zu\n",file->size);
-    PAD() printf("first: %p\n",file->first);
-}
-
-void tmpfs_log_dir(TmpfsDir* dir, size_t pad) {
-    PAD() printf("size: %zu\n",dir->size);
-    PAD() printf("first: %p\n",dir->first);
-    PAD() printf("last: %p\n",dir->last);
-}
-
-void tmpfs_log(Inode* inode, size_t pad) {
-    TmpfsInode* i = (TmpfsInode*)inode->private;
-    PAD() printf("Kind: %u\n",i->kind);
-    PAD() printf("Name: %s\n",i->name);
-    if(i->kind == INODE_FILE) {
-        tmpfs_log_file(&i->data.file, pad);
-    } else if (i->kind == INODE_DIR) {
-        tmpfs_log_dir(&i->data.dir, pad);
-    }
-}
-#endif

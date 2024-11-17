@@ -81,19 +81,9 @@ static intptr_t _vfs_close(VfsFile* file) {
     idrop(file->inode);
     return 0;
 }
-// TODO: shared counter for directories
-static intptr_t _vfs_diriter_open(VfsDir* dir, VfsDirIter* result) {
-    if(!dir->ops->diriter_open) return -UNSUPPORTED;
-    return dir->ops->diriter_open(dir, result);
-}
-static intptr_t _vfs_diriter_next(VfsDirIter* iter, VfsDirEntry* result) {
-    if(!iter->ops->diriter_next) return -UNSUPPORTED;
-    return iter->ops->diriter_next(iter, result);
-}
-// TODO: shared counter for directories
-static intptr_t _vfs_diriter_close(VfsDirIter* iter) {
-    if(!iter->ops->diriter_close) return -UNSUPPORTED;
-    return iter->ops->diriter_close(iter);
+static intptr_t _vfs_get_dir_entries(VfsDir* dir, VfsDirEntry* entries, size_t count, off_t offset) {
+    if(!dir->ops->get_dir_entries) return -UNSUPPORTED;
+    return dir->ops->get_dir_entries(dir, entries, count, offset);
 }
 static intptr_t _vfs_identify(VfsDirEntry* this, char* namebuf, size_t namecap) {
     if(!this->ops->identify) return -UNSUPPORTED;
@@ -218,25 +208,15 @@ static const char* path_dir_next(const char* path) {
 }
 static intptr_t _vfs_find_within(VfsDir* dir, char* namebuf, size_t namecap, const char* what, size_t whatlen, VfsDirEntry* result) {
     intptr_t e = 0;
-    VfsDirIter iter = {0};
-    if((e=_vfs_diriter_open(dir, &iter)) < 0) {
-        return e;
-    }
-    while((e = _vfs_diriter_next(&iter, result)) == 0) {
-        if((e = _vfs_identify(result, namebuf, namecap)) < 0) {
-            _vfs_diriter_close(&iter);
+    while((e = vfs_get_dir_entries(dir, result, 1)) == 1) {
+        if((e = _vfs_identify(result, namebuf, namecap)) < 0)
             return e;
-        }
+
         size_t namelen = strlen(namebuf);
-        if(namelen == whatlen) {
-            if(strncmp(namebuf, what, namelen) == 0) {
-                 _vfs_diriter_close(&iter);
-                 return 0;
-            } 
-        }
+        if(namelen == whatlen && memcmp(namebuf, what, namelen) == 0)
+            return 0;
     }
-    _vfs_diriter_close(&iter);
-    return e;
+    return e == 0 ? -NOT_FOUND : e;
 }
 
 intptr_t vfs_find_parent(Path* path, const char** pathend, Superblock** sb, inodeid_t* id) {
@@ -445,29 +425,18 @@ intptr_t vfs_dirclose(VfsDir* result) {
     return _vfs_dirclose(result);
 }
 
-
-intptr_t vfs_diriter_open(VfsDir* dir, VfsDirIter* result) {
-    return _vfs_diriter_open(dir, result);
-}
-
-
-intptr_t vfs_diriter_next(VfsDirIter* iter, VfsDirEntry* result) {
-    return _vfs_diriter_next(iter, result);
-}
-
-
-
-intptr_t vfs_diriter_close(VfsDirIter* result) {
-    return _vfs_diriter_close(result);
-}
-
-
 intptr_t vfs_identify(VfsDirEntry* entry, char* namebuf, size_t namecap) {
     return _vfs_identify(entry, namebuf, namecap);
 }
 
 intptr_t vfs_seek(VfsFile* file, off_t offset, seekfrom_t from) {
     return _vfs_seek(file, offset, from);
+}
+
+intptr_t vfs_get_dir_entries(VfsDir* dir, VfsDirEntry* entries, size_t count) {
+    intptr_t e = _vfs_get_dir_entries(dir, entries, count, dir->cursor);
+    if(e >= 0) dir->cursor += e;
+    return e;
 }
 
 intptr_t vfs_register_device(const char* name, Device* device) {

@@ -34,6 +34,9 @@ const char* inode_kind_str(inodekind_t kind) {
     return inode_kind_map[kind];
 }
 intptr_t ls(const char* path) {
+    fprintf(stderr, "TODO: Implement ls back (`%s`)\n", path);
+    return -UNSUPPORTED;
+    /*
     intptr_t e;
     char namebuf[128];
     if((e=diropen(path, MODE_READ)) < 0) {
@@ -75,6 +78,7 @@ intptr_t ls(const char* path) {
 err:
     close(iterid);
     return e;
+    */
 }
 int main(int argc, const char** argv) {
     const char* arg;

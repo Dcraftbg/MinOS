@@ -18,10 +18,6 @@ extern sys_heap_extend
 extern sys_chdir
 extern sys_getcwd
 extern sys_diropen
-extern sys_diriter_open
-extern sys_diriter_next
-extern sys_identify
-extern sys_stat
 extern sys_sleepfor
 extern sys_gettime
 %define KERNEL_UNSUPPORTED 7
@@ -47,10 +43,6 @@ syscall_table:
    dq sys_chdir
    dq sys_getcwd
    dq sys_diropen
-   dq sys_diriter_open
-   dq sys_diriter_next
-   dq sys_identify
-   dq sys_stat
    dq sys_sleepfor
    dq sys_gettime
 syscall_table_end:

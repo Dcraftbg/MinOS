@@ -9,8 +9,6 @@
 enum {
    RESOURCE_FILE=1,
    RESOURCE_DIR,
-   RESOURCE_DIRITER,
-   RESOURCE_DIRENTRY,
 };
 typedef uint32_t resourcekind_t;
 typedef struct {
@@ -19,11 +17,6 @@ typedef struct {
    union {
        VfsFile file;
        VfsDir dir;
-       struct {
-           VfsDirIter iter;
-           size_t dirfd;
-       } iter;
-       VfsDirEntry entry;
    } data;
 } Resource;
 #define RESOURCES_PER_BLOCK 1022
