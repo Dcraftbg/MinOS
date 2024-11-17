@@ -11,51 +11,6 @@ void dump_bitmap(Bitmap* map) {
         if((i+1) % 32 == 0) printf("\n");
     }
 }
-// @DEBUG
-void log_slab(void* p) {
-    Slab* slab = p;
-    kdebug("  Cache: %p"       ,slab->cache);
-    kdebug("  memory: %p"      ,slab->memory);
-    kdebug("  Objects:");
-    for(size_t i = 0; i < slab->free; i++) {
-        size_t obj_index = slab_bufctl(slab)[i];
-        void* obj = slab->memory + obj_index*slab->cache->objsize;
-        // NOTE: We expect its an inode
-        Inode* inode = obj;
-        kdebug("  -  %p",inode);
-        kdebug("     Shared: %zu",inode->shared);
-        kdebug("     Kind: %s",inode->kind == INODE_FILE ? "file" : "dir");
-        kdebug("     Private: %p",inode->private);
-        tmpfs_log(inode, 7);
-    }
-}
-// @DEBUG
-void log_list(struct list* list, void (*log_obj)(void* obj)) {
-    struct list* first = list;
-    list = list->next; // Always skip the first one in this case, since cache.full/partial/free is not a valid Slab
-    while(first != list) {
-        kdebug("- %p:",list);
-        if(log_obj) log_obj(list);
-        list = list->next;
-    }
-}
-// @DEBUG
-void log_cache(Cache* cache) {
-    kdebug("Cache:");
-    kdebug("Objects: %zu/%zu",cache->inuse,cache->totalobjs);
-    kdebug("Object Size: %zu",cache->objsize);
-    kdebug("Object Per Slab: %zu",cache->objs_per_slab);
-    kdebug("Full:");
-    log_list(&cache->full, log_slab);
-    kdebug("Partial:");
-    log_list(&cache->partial, log_slab);
-    kdebug("Free:");
-    log_list(&cache->free, log_slab);
-}
-
-
-
-
 void cat(const char* path) {
     VfsFile file = {0};
     intptr_t e = 0;

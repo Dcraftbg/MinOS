@@ -9,9 +9,6 @@
 #include "fileutils.h"
 
 void dump_bitmap(Bitmap* map);
-void log_slab(void* p);
-void log_list(struct list* list, void (*log_obj)(void* obj));
-void log_cache(Cache* cache);
 
 void cat(const char* path);
 void hexdump_mem(uint8_t* buf, size_t size);

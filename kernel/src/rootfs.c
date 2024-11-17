@@ -63,7 +63,6 @@ void init_rootfs() {
         VfsFile file = {0};
         if((e = vfs_open_abs(path, &file, MODE_WRITE)) < 0) {
             printf("WARN: init_rootfs: Could not open %s : %s\n",path,status_str(e));
-            log_cache(kernel.inode_cache);
             kabort();
         } else {
             if((e = write_exact(&file, msg, strlen(msg))) < 0) {
