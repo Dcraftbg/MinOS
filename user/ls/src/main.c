@@ -51,7 +51,7 @@ intptr_t ls(const char* path) {
         goto pathbuf_err;
     }
     if((e=diropen(path, MODE_READ)) < 0) {
-        fprintf(stderr, "ERROR: Could not open directory: %s\n", path);
+        fprintf(stderr, "ERROR: Could not open directory `%s`: %s\n", path, status_str(e));
         goto diropen_err;
     }
     uintptr_t dirfd = e;
