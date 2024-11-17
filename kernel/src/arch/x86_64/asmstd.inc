@@ -1,6 +1,6 @@
 ; -- General macros for EOU for irqs --
 PTR_SIZE equ 8
-IRQ_REGS_SIZE equ PTR_SIZE*15
+IRQ_REGS_SIZE equ PTR_SIZE*15+512
 KERNEL_CS equ 8
 KERNEL_SS equ 16
 %macro irq_push_regs 0
@@ -19,6 +19,8 @@ KERNEL_SS equ 16
  push r13
  push r14
  push r15
+ sub rsp, 512
+ FXSAVE64 [rsp]
 %endmacro
 
 %macro xor_regs 0
@@ -39,6 +41,8 @@ KERNEL_SS equ 16
  xor rax, rax
 %endmacro
 %macro irq_pop_regs 0
+ FXRSTOR64 [rsp]
+ add rsp, 512
  pop r15
  pop r14
  pop r13
