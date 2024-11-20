@@ -26,6 +26,7 @@ const char* gpf_table[] = {
      "IDT"
 };
 void exception_handler(IDTEFrame* frame) {
+    kernel.logger = &serial_logger;
     if(frame->type == EXCEPTION_PAGE_FAULT) {
         kerror("Page fault at virtual address %p",(void*)frame->cr2);
     }
