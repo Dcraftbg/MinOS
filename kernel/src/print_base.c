@@ -24,8 +24,13 @@ int print_base(void* user, PrintWriteFunc func, const char* fmt, va_list list) {
         int precision = -1;
         if(fmt[0] == '.') {
             fmt++;
-            precision = atoi(fmt, &end);
-            fmt=end;
+            if(fmt[0] == '*') {
+                precision = va_arg(list, int);
+                fmt++;
+            } else {
+                precision = atoi(fmt, &end);
+                fmt=end;
+            }
         }
         char ibuf[30];
 
