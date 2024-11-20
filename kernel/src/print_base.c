@@ -21,6 +21,12 @@ int print_base(void* user, PrintWriteFunc func, const char* fmt, va_list list) {
         }
         int pad = atoi(fmt, &end);
         fmt=end;
+        int precision = -1;
+        if(fmt[0] == '.') {
+            fmt++;
+            precision = atoi(fmt, &end);
+            fmt=end;
+        }
         char ibuf[30];
 
         switch(*fmt) {
@@ -76,7 +82,9 @@ int print_base(void* user, PrintWriteFunc func, const char* fmt, va_list list) {
             fmt++;
             bytes = va_arg(list, const char*);
             if(bytes == NULL) bytes = "NULL";
-            count = strlen(bytes);
+            size_t len = strlen(bytes);
+            if(precision < len) len = precision;
+            count = len;
         } break;
         default: 
             return *fmt;
