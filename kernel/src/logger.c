@@ -75,7 +75,9 @@ const char* get_ansi_color_from_log(uint32_t color) {
 
 #include "kernel.h"
 #include "serial.h"
+#include "filelog.h"
 void init_loggers() {
     assert(logger_init(&serial_logger) == 0);
+    assert(logger_init(&file_logger) == 0);
     kernel.logger = &serial_logger;
 }
