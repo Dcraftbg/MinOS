@@ -59,3 +59,4 @@ const char* page_type_str(pageflags_t flags);
 
 // Invalidating stuff
 extern void invalidate_full_page_table();
+void invalidate_pages(void* address, size_t pages);

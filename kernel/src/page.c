@@ -499,3 +499,9 @@ const char* page_type_str(pageflags_t flags) {
     }
     return "Unknown";
 }
+#include "cache.h"
+void invalidate_pages(void* address, size_t pages) {
+    for(size_t i = 0; i < pages; ++i) {
+        __invlpg(address+pages*PAGE_SIZE);
+    }
+}
