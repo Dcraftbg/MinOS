@@ -6,6 +6,46 @@
 #include "log.h"
 #define PAGE_MASK 0xFFFF000000000000
 
+uintptr_t page_find_available(page_t pml4_addr, uintptr_t from, size_t pages, size_t max) {
+    if(pages > max) return 0;
+    if(pages == 0 || max == 0) return 0;
+    uint16_t pml1 = (from >> (12   )) & 0x1ff;
+    uint16_t pml2 = (from >> (12+9 )) & 0x1ff;
+    uint16_t pml3 = (from >> (12+18)) & 0x1ff;
+    uint16_t pml4 = (from >> (12+27)) & 0x1ff;
+    uintptr_t start = from;
+    size_t left = pages;
+    for(; pml4 < KERNEL_PAGE_ENTRIES; pml4++) {
+        if(!pml4_addr[pml4]) continue;
+        page_t pml3_addr = (page_t)PAGE_ALIGN_DOWN(pml4_addr[pml4] | KERNEL_MEMORY_MASK);
+        for(; pml3 < KERNEL_PAGE_ENTRIES; pml3++) {
+            if(!pml3_addr[pml3]) continue;
+            page_t pml2_addr = (page_t)PAGE_ALIGN_DOWN(pml3_addr[pml3] | KERNEL_MEMORY_MASK);
+            for(; pml2 < KERNEL_PAGE_ENTRIES; pml2++) {
+                if(!pml2_addr[pml2]) continue;
+                page_t pml1_addr = (page_t)PAGE_ALIGN_DOWN(pml2_addr[pml2] | KERNEL_MEMORY_MASK);
+                for(; pml1 < KERNEL_PAGE_ENTRIES; pml1++) {
+                    if(--max == 0) return 0;
+                    if(pml1_addr[pml1]) {
+                        left = pages;
+                        start = 
+                            (from & PAGE_MASK)
+                            | ((((uintptr_t)pml4  ) & 0x1ff) << (12+27))
+                            | ((((uintptr_t)pml3  ) & 0x1ff) << (12+18))
+                            | ((((uintptr_t)pml2  ) & 0x1ff) << (12+9 ))
+                            | ((((uintptr_t)pml1+1) & 0x1ff) << (12   ));
+                        continue;
+                    }
+                    if(--left == 0) return start;
+                }
+                pml1 = 0;
+            }
+            pml2 = 0;
+        }
+        pml3 = 0;
+    }
+    return 0;
+}
 // TODO: Fix XD. XD may not be supported always so checks to remove it are necessary
 bool page_mmap(page_t pml4_addr, uintptr_t phys, uintptr_t virt, size_t pages_count, pageflags_t flags) {
     // printf("Called page_mmap(/*pml4*/ 0x%p, /*phys*/ 0x%p, /*virt*/ 0x%p, /*pages*/ %zu, /*flags*/, %02X)\n",pml4_addr, phys,virt,pages_count,flags);

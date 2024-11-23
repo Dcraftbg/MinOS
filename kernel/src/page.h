@@ -47,6 +47,7 @@ void page_join(page_t parent, page_t child);
 void page_unmap(page_t pml4_addr, uintptr_t virt, size_t pages_count);
 void page_unalloc(page_t pml4_addr, uintptr_t virt, size_t pages_count);
 void page_destruct(page_t pml4, uint16_t type);
+uintptr_t page_find_available(page_t pml4, uintptr_t from, size_t pages, size_t max);
 uintptr_t virt_to_phys(page_t pml4_addr, uintptr_t addr);
 void init_paging(); // Called to initialse
 
