@@ -21,6 +21,11 @@ void fbwriter_draw_sized_str(FbTextWriter* fbt, const char* msg, size_t len, uin
     }
 }
 intptr_t fbwriter_draw_codepoint(FbTextWriter* fbt, int codepoint, uint32_t fg, uint32_t bg) {
+    if((fbt->y+16) > fbt->fb.height) {
+        size_t to_scroll = (fbt->y+16) - fbt->fb.height;
+        fmbuf_scroll_up(&fbt->fb, to_scroll, bg);
+        fbt->y -= to_scroll;
+    }
     if(fbt->y >= fbt->fb.height) return 0;
     switch(codepoint) {
        case '\n':
