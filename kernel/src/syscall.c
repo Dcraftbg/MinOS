@@ -144,8 +144,7 @@ intptr_t sys_mmap(uintptr_t handle, void** addr, size_t size) {
     };
     intptr_t e = vfs_mmap(&res->data.file, &context, addr, size);
     if(e < 0) return e;
-    // TODO: invlp the pages instead of this
-    invalidate_full_page_table();
+    invalidate_pages(*addr, PAGE_ALIGN_UP(size)/PAGE_SIZE);
     return e;
 }
 intptr_t sys_seek(uintptr_t handle, off_t offset, seekfrom_t from) {
@@ -377,7 +376,7 @@ intptr_t sys_heap_create(uint64_t flags) {
         memlist_dealloc(list, NULL);
         return -NOT_ENOUGH_MEM;
     }
-    invalidate_full_page_table();
+    invalidate_pages((void*)heap->address, heap->pages);
     list_append(&heap->list, cur_proc->heap_list.prev);
     list_append(&list->list, &insert_into->list);
     return heap->id;
