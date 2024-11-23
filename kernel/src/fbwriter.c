@@ -41,6 +41,12 @@ intptr_t fbwriter_draw_codepoint(FbTextWriter* fbt, int codepoint, uint32_t fg, 
          }
          fbt->x += w;
        } break;
+       case '\b': {
+         if(fbt->x >= 8) {
+             fbt->x -= 8;
+             fmbuf_draw_rect(&fbt->fb, fbt->x, fbt->y, fbt->x+8, fbt->y+16, bg);
+         }
+       } break;
        case '\r':
          fbt->x = 0;
          break;
