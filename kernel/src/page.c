@@ -25,7 +25,6 @@ uintptr_t page_find_available(page_t pml4_addr, uintptr_t from, size_t pages, si
                 if(!pml2_addr[pml2]) continue;
                 page_t pml1_addr = (page_t)PAGE_ALIGN_DOWN(pml2_addr[pml2] | KERNEL_MEMORY_MASK);
                 for(; pml1 < KERNEL_PAGE_ENTRIES; pml1++) {
-                    if(--max == 0) return 0;
                     if(pml1_addr[pml1]) {
                         left = pages;
                         start = 
@@ -34,9 +33,11 @@ uintptr_t page_find_available(page_t pml4_addr, uintptr_t from, size_t pages, si
                             | ((((uintptr_t)pml3  ) & 0x1ff) << (12+18))
                             | ((((uintptr_t)pml2  ) & 0x1ff) << (12+9 ))
                             | ((((uintptr_t)pml1+1) & 0x1ff) << (12   ));
-                        continue;
+                        goto end;
                     }
                     if(--left == 0) return start;
+                end:
+                    if(--max == 0) return 0;
                 }
                 pml1 = 0;
             }
