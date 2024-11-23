@@ -30,6 +30,7 @@ typedef struct {
     bool telmonitor;
     bool nographic;
     bool kvm;
+    bool uefi;
 } Build;
 #include "flags.h"
 #include "utils.h"
@@ -122,6 +123,10 @@ int main(int argc, char** argv) {
             strcmp(arg, "-kvm") == 0
         ) {
             build.kvm = true;
+        } else if (
+            strcmp(arg, "-uefi") == 0
+        ) {
+            build.uefi = true;
         }else {
             if(
                 strcmp(cmd, "build") == 0 ||

@@ -12,6 +12,18 @@ bool run(Build* build) {
         "-m", "128",
         "-cdrom", "./bin/OS.iso"
     );
+    if(build->uefi) {
+        const char* ovmf = getenv("OVMF");
+        nob_log(NOB_INFO, "OVMF: %s", ovmf);
+        if(!ovmf) {
+            nob_log(NOB_WARNING, "Missing ovmf. Please specify the environmental variable OVMF=<path to OVMF>");
+        } else {
+            nob_cmd_append(
+                &cmd,
+                "-bios", ovmf 
+            );
+        }
+    }
     if(build->nographic) {
         nob_cmd_append(
             &cmd, 
