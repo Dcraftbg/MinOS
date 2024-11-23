@@ -19,10 +19,18 @@ uintptr_t page_find_available(page_t pml4_addr, uintptr_t from, size_t pages, si
         if(!pml4_addr[pml4]) continue;
         page_t pml3_addr = (page_t)PAGE_ALIGN_DOWN(pml4_addr[pml4] | KERNEL_MEMORY_MASK);
         for(; pml3 < KERNEL_PAGE_ENTRIES; pml3++) {
-            if(!pml3_addr[pml3]) continue;
+            if(!pml3_addr[pml3]) {
+                if(left < KERNEL_PAGE_ENTRIES*KERNEL_PAGE_ENTRIES)
+                    return start;
+                left -= KERNEL_PAGE_ENTRIES*KERNEL_PAGE_ENTRIES;
+            }
             page_t pml2_addr = (page_t)PAGE_ALIGN_DOWN(pml3_addr[pml3] | KERNEL_MEMORY_MASK);
             for(; pml2 < KERNEL_PAGE_ENTRIES; pml2++) {
-                if(!pml2_addr[pml2]) continue;
+                if(!pml2_addr[pml2]) {
+                    if(left < KERNEL_PAGE_ENTRIES)
+                        return start;
+                    left -= KERNEL_PAGE_ENTRIES;
+                }
                 page_t pml1_addr = (page_t)PAGE_ALIGN_DOWN(pml2_addr[pml2] | KERNEL_MEMORY_MASK);
                 for(; pml1 < KERNEL_PAGE_ENTRIES; pml1++) {
                     if(pml1_addr[pml1]) {
