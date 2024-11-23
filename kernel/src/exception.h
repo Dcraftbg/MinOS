@@ -26,6 +26,7 @@ void idt_exception_control_protection();
 void idt_exception_hypervisor_injection();
 void idt_exception_vmm_comm();
 void idt_exception_security();
+void idt_unknown_handler();
 void idt_spurious_interrupt();
 
 #define EXCEPTION_GPF 13

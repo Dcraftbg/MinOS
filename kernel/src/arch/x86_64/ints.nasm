@@ -4,6 +4,7 @@ section .text
 extern exception_handler
 extern ps2_keyboard_handler
 extern serial_handler
+extern unknown_handler
 
 global idt_exception_division
 global idt_exception_debug
@@ -31,7 +32,6 @@ global idt_exception_security
 global idt_spurious_interrupt
 
 
-
 %macro register_irq 1
 global idt_%1
 align 0x08, db 0x00
@@ -44,6 +44,7 @@ idt_%1:
 
 register_irq ps2_keyboard_handler
 register_irq serial_handler
+register_irq unknown_handler
 
 
 idt_spurious_interrupt:

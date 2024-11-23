@@ -7,7 +7,9 @@ typedef struct StackFrame {
     struct StackFrame* rbp;
     uintptr_t rip;
 } StackFrame;
-
+void unknown_handler() {
+    kwarn("Unhandled interrupt");
+}
 static void unwind_stack(IDTEFrame* frame) {
     //printf("+=== Stack Trace ===+\n");
     //printf("|%p   |\n",(void*)frame->rip);
@@ -48,15 +50,20 @@ void exception_handler(IDTEFrame* frame) {
     kinfo ("r8 =%p    rbp =%p    rdi=%p    rsi=%p    rdx  =%p    rcx=%p    rbx=%p", (void*)frame->r8 , (void*)frame->rbp , (void*)frame->rdi, (void*)frame->rsi, (void*)frame->rdx  , (void*)frame->rcx, (void*)frame->rbx);
     kinfo ("rax=%p\n"                                                               , (void*)frame->rax);
     kerror("Gotten exception (%zu) with code %zu at rip: %p at virtual: %p",frame->type, (size_t)frame->code,(void*)frame->rip,(void*)frame->cr2);
+    /*
     if(!kernel.unwinding) {
         kernel.unwinding = true;
         unwind_stack(frame);
         kernel.unwinding = false;
     }
+    */
     kabort();
 }
 
 void init_exceptions() {
+    for(size_t i = 0; i < 256; ++i) {
+        idt_register(i, idt_unknown_handler, IDT_INTERRUPT_TYPE);
+    }
     idt_register(0 , idt_exception_division            , IDT_INTERRUPT_TYPE);
     idt_register(1 , idt_exception_debug               , IDT_INTERRUPT_TYPE);
     idt_register(3 , idt_exception_breakpoint          , IDT_INTERRUPT_TYPE);
