@@ -69,12 +69,12 @@ void boot_map_phys_memory() {
                  flags
                )
             ) {
-                kpanic("Failed to map region %zu of type %s. (%p -> %p) %zu pages. Available memory in bitmap: %zu pages", i, limine_memmap_str[entry->type], (void*)PAGE_ALIGN_DOWN(entry->base), (void*)PAGE_ALIGN_DOWN(entry->base | KERNEL_MEMORY_MASK), entry->length/PAGE_SIZE, kernel.map.page_available);
+                kpanic("Failed to map region %zu of type %s. (%p -> %p) %zu pages. Available memory in bitmap: %zu pages", i, limine_memmap_str[entry->type], (void*)PAGE_ALIGN_DOWN(entry->base), (void*)PAGE_ALIGN_DOWN(entry->base | KERNEL_MEMORY_MASK), pages, kernel.map.page_available);
             }
-            kinfo("Mapping   %-22s (%p -> %p) %zu pages", limine_memmap_str[entry->type], (void*)PAGE_ALIGN_DOWN(entry->base), (void*)PAGE_ALIGN_DOWN(entry->base | KERNEL_MEMORY_MASK), entry->length/PAGE_SIZE);
+            kinfo("Mapping   %-22s (%p -> %p) %zu pages", limine_memmap_str[entry->type], (void*)PAGE_ALIGN_DOWN(entry->base), (void*)PAGE_ALIGN_DOWN(entry->base | KERNEL_MEMORY_MASK), (size_t)pages);
             break;
         default:
-            ktrace("Skipping %-22s (%p -> %p) %zu pages", limine_memmap_str[entry->type], (void*)PAGE_ALIGN_DOWN(entry->base), (void*)PAGE_ALIGN_DOWN(entry->base | KERNEL_MEMORY_MASK), entry->length/PAGE_SIZE);
+            ktrace("Skipping %-22s (%p -> %p) %zu pages", limine_memmap_str[entry->type], (void*)PAGE_ALIGN_DOWN(entry->base), (void*)PAGE_ALIGN_DOWN(entry->base | KERNEL_MEMORY_MASK), (size_t)pages);
         }
     }
 }

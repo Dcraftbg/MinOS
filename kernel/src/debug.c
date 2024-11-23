@@ -200,7 +200,7 @@ void dump_caches() {
         printf("  Objects: %zu/%zu\n",cache->inuse,cache->totalobjs);
         printf("  Object Size: %zu\n",cache->objsize);
         printf("  Object Per Slab: %zu\n",cache->objs_per_slab);
-        printf("  Bytes per slab: %zu\n",PAGE_ALIGN_UP(cache->objs_per_slab * (cache->objsize + sizeof(uint32_t)) + sizeof(Slab)));
+        printf("  Bytes per slab: %zu\n", (size_t)PAGE_ALIGN_UP(cache->objs_per_slab * (cache->objsize + sizeof(uint32_t)) + sizeof(Slab)));
         list = list->next;
     }
 }

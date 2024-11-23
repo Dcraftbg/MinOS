@@ -84,7 +84,7 @@ void init_bitmap() {
         } else {
             printf("Unknown(%lu)",(uint64_t)entry->type);
         }
-        printf(" %zu pages\n", entry->length / PAGE_SIZE);
+        printf(" %zu pages\n", (size_t)(entry->length / PAGE_SIZE));
 #endif
         if(entry->type == LIMINE_MEMMAP_USABLE && entry->base < PHYS_RAM_MIRROR_SIZE) {
              size_t pages = entry->length/PAGE_SIZE;
@@ -110,7 +110,7 @@ void init_bitmap() {
             "Could not fit memory map all in one place. Probably due to fragmentation\n"
             "The biggest chunk we found was %zu bytes and the whole memory map requires %zu bytes\n",
             biggest->length,
-            kernel.map.page_count*PAGE_SIZE
+            (size_t)(kernel.map.page_count*PAGE_SIZE)
         );
     }
     memset(kernel.map.addr, 0xFF, (kernel.map.page_count+7)/8);
