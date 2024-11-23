@@ -25,7 +25,7 @@ static void logger_default_write_func(void* logger_void, const char* str, size_t
     Logger* logger = (Logger*)logger_void;
     logger->write_str(logger, str, len);
 }
-static intptr_t logger_log_default(Logger* logger, uint32_t level, const char* fmt, va_list args) {
+intptr_t logger_log_default(Logger* logger, uint32_t level, const char* fmt, va_list args) {
     if(level >= LOG_COUNT) {
         logger_log(logger, LOG_WARN, "Invalid log level %u >= %u", level, LOG_COUNT);
         return -UNSUPPORTED;

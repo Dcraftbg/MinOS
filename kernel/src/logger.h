@@ -53,5 +53,5 @@ extern int logger_color_map[LOG_COUNT];
 extern const char* logger_str_map[LOG_COUNT];
 const char* get_ansi_color_from_log(uint32_t color);
 intptr_t logger_init(Logger* logger);
-
+intptr_t logger_log_default(Logger* logger, uint32_t level, const char* fmt, va_list args);
 void init_loggers();
