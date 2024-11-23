@@ -28,6 +28,14 @@ intptr_t fbwriter_draw_codepoint(FbTextWriter* fbt, int codepoint, uint32_t fg, 
     }
     if(fbt->y >= fbt->fb.height) return 0;
     switch(codepoint) {
+       case CODE_BLOCK:
+         fmbuf_draw_rect(&fbt->fb, fbt->x, fbt->y, fbt->x+8, fbt->y+16, fg);
+         if(fbt->x+8 >= fbt->fb.width) {
+            fbt->y += 16;
+            fbt->x = 0;
+         }
+         fbt->x += 8;
+         break;
        case '\n':
          fbt->x=0;
          fbt->y+=16;

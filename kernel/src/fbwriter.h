@@ -9,6 +9,7 @@ typedef struct {
     Framebuffer fb;
     size_t x, y;
 } FbTextWriter;
+#define CODE_BLOCK 9608
 #define FBWRITER_DEFAULT_FG 0xdedede
 #define FBWRITER_DEFAULT_BG 0
 intptr_t fb_draw_codepoint_at(Framebuffer* fm, size_t x, size_t y, int codepoint, uint32_t fg, uint32_t bg);
