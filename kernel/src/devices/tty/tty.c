@@ -2,10 +2,10 @@
 #include "../../log.h"
 #include "../../debug.h"
 #include "../../kernel.h"
-#include "../../fonts/zap-light16.h"
 #include <minos/keycodes.h>
 #include <minos/key.h>
 #include "../../cmdline.h"
+#include "../../fbwriter.h"
 
 static FsOps ttyOps = {0};
 static InodeOps inodeOps = {0};
@@ -85,8 +85,7 @@ enum {
     TTY_OUTPUT_COUNT
 };
 typedef struct {
-    Framebuffer fb;
-    size_t x, y;
+    FbTextWriter fbt;
     bool blink;
     size_t blink_time;
 } TtyFb;
@@ -155,72 +154,7 @@ typedef struct {
 
     TtyScratch scratch;
 } TtyDevice;
-intptr_t tty_draw_codepoint_at(Framebuffer* fm, size_t x, size_t y, int codepoint, uint32_t fg, uint32_t bg) {
-    if(codepoint > 127) return -UNSUPPORTED; // Unsupported
-    if(fm->bpp != 32) return -UNSUPPORTED; // Because of optimisations we don't support anything besides 32 bits per pixel
-    uint8_t* fontPtr = fontGlythBuffer + (codepoint*fontHeader.charsize);
-    debug_assert(fontPtr + 16 < fontGlythBuffer+ARRAY_LEN(fontGlythBuffer));
-    uint32_t* strip = (uint32_t*)(((uint8_t*)fm->addr) + fm->pitch_bytes*y);
-    for(size_t cy = y; cy < y+16 && cy < fm->height; ++cy) {
-        for(size_t cx = x; cx < x+8 && cx < fm->width; ++cx) {
-            strip[cx] = ((*fontPtr & (0b10000000 >> (cx-x))) > 0) ? fg : bg;
-        }
-        fontPtr++;
-        strip = (uint32_t*)((uint8_t*)strip + fm->pitch_bytes);
-    }
-    return 0;
-}
 
-static intptr_t tty_draw_codepoint(TtyFb* fb, int codepoint, uint32_t fg, uint32_t bg) {
-    if((fb->y+16) > fb->fb.height) {
-        size_t to_scroll = (fb->y+16) - fb->fb.height;
-        fmbuf_scroll_up(&fb->fb, to_scroll, bg);
-        fb->y -= to_scroll;
-    }
-    if(fb->y >= fb->fb.height) return 0;
-    switch(codepoint) {
-       case '\n':
-         fb->x=0;
-         fb->y+=16;
-         break;
-       case '\t': {
-         size_t w = 8 * 4;
-         fmbuf_draw_rect(&fb->fb, fb->x, fb->y, fb->x+w, fb->y+16, bg);
-         if(fb->x+w >= fb->fb.width) {
-            fb->y += 16;
-            fb->x = 0;
-         }
-         fb->x += w;
-       } break;
-       case '\b': {
-         if(fb->x >= 8) {
-             fb->x -= 8;
-             fmbuf_draw_rect(&fb->fb, fb->x, fb->y, fb->x+8, fb->y+16, bg);
-         }
-       } break;
-       case '\r':
-         fb->x = 0;
-         break;
-       case ' ':
-         fmbuf_draw_rect(&fb->fb, fb->x, fb->y, fb->x+8, fb->y+16, bg);
-         if (fb->x+8 >= fb->fb.width) {
-             fb->y += 16;
-             fb->x = 0;
-         }
-         fb->x += 8;
-         break;
-       default: {
-         if(fb->x+8 >= fb->fb.width) {
-             fb->y += 16;
-             fb->x = 0;
-         }
-         intptr_t e = tty_draw_codepoint_at(&fb->fb, fb->x, fb->y, codepoint, fg, bg);
-         if(e >= 0) fb->x += 8;
-         return e;
-       }
-    }
-    return 0;
-}
 static Cache* tty_cache = NULL;
 static intptr_t tty_open(struct Inode* this, VfsFile* file, fmode_t mode) {
     file->private = this->private;
@@ -233,15 +167,11 @@ static void tty_close(VfsFile* file) {
 }
 
 #define TTY_MILISECOND_BLINK 500
-#define TTY_BLINK_WIDTH 8
-#define TTY_BLINK_HEIGHT 16
 static void ttyfb_fill_blink(TtyFb* fb, uint32_t color) {
-    if((fb->y+TTY_BLINK_HEIGHT) > fb->fb.height) {
-        size_t to_scroll = (fb->y+TTY_BLINK_HEIGHT) - fb->fb.height;
-        fmbuf_scroll_up(&fb->fb, to_scroll, VGA_BG);
-        fb->y -= to_scroll;
-    }
-    fmbuf_draw_rect(&fb->fb, fb->x, fb->y, fb->x+TTY_BLINK_WIDTH, fb->y+TTY_BLINK_HEIGHT, color);
+    size_t x=fb->fbt.x, y=fb->fbt.y;
+    fbwriter_draw_codepoint(&fb->fbt, CODE_BLOCK, color, VGA_BG);
+    fb->fbt.x = x; 
+    fb->fbt.y = y;
 }
 
 static const uint32_t blink_color[2] = {
@@ -256,7 +186,7 @@ static intptr_t tty_dev_write(VfsFile* file, const void* buf, size_t size, off_t
             TtyFb* fb = &tty->output.as_framebuffer;
             if(fb->blink) ttyfb_fill_blink(fb, VGA_BG);
             for(size_t i = 0; i < size; ++i) {
-               tty_draw_codepoint(fb, ((uint8_t*)buf)[i], VGA_FG, VGA_BG);
+               fbwriter_draw_codepoint(&fb->fbt, ((uint8_t*)buf)[i], VGA_FG, VGA_BG);
             }
         } break;
         case TTY_OUTPUT_CHAR: {
@@ -268,7 +198,7 @@ static intptr_t tty_dev_write(VfsFile* file, const void* buf, size_t size, off_t
 }
 static void ttyfb_putch(TtyFb* fb, int code) {
     if(fb->blink) ttyfb_fill_blink(fb, VGA_BG);
-    tty_draw_codepoint(fb, code, VGA_FG, VGA_BG);
+    fbwriter_draw_codepoint(&fb->fbt, code, VGA_FG, VGA_BG);
     ttyfb_fill_blink(fb, blink_color[fb->blink]);
 }
 static void tty_putch(TtyDevice* tty, int code) {
@@ -394,11 +324,11 @@ intptr_t create_tty_device(Device* device, int output_kind, void* output, int in
     tty->output_kind = output_kind;
     switch(output_kind) {
     case TTY_OUTPUT_DISPLAY:
-        tty->output.as_framebuffer.fb = get_framebuffer_by_id((size_t)output);
-        tty->output.as_framebuffer.x = 0;
-        tty->output.as_framebuffer.y = 0;
+        tty->output.as_framebuffer.fbt.fb = get_framebuffer_by_id((size_t)output);
+        tty->output.as_framebuffer.fbt.x = 0;
+        tty->output.as_framebuffer.fbt.y = 0;
 
-        if(!tty->output.as_framebuffer.fb.addr) {
+        if(!tty->output.as_framebuffer.fbt.fb.addr) {
             e=-NOT_FOUND;
             goto err_output;
         }
