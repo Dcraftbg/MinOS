@@ -2,28 +2,29 @@
 #include "kernel.h"
 #include "debug.h"
 #include "log.h"
+#include "fblogger.h"
 typedef struct StackFrame {
-     struct StackFrame* rbp;
-     uintptr_t rip;
+    struct StackFrame* rbp;
+    uintptr_t rip;
 } StackFrame;
 
 static void unwind_stack(IDTEFrame* frame) {
-     //printf("+=== Stack Trace ===+\n");
-     //printf("|%p   |\n",(void*)frame->rip);
-     printf(" %p\n",(void*)frame->rip);
-     StackFrame* stack = (StackFrame*)frame->rbp; 
-     while(stack) {
-        printf(" %p\n",(void*)stack->rip);
-        //printf("|%p   |\n",(void*)stack->rip);
-        stack = stack->rbp;
-     }
-     //printf("+======= End =======+\n");
+    //printf("+=== Stack Trace ===+\n");
+    //printf("|%p   |\n",(void*)frame->rip);
+    printf(" %p\n",(void*)frame->rip);
+    StackFrame* stack = (StackFrame*)frame->rbp; 
+    while(stack) {
+       printf(" %p\n",(void*)stack->rip);
+       //printf("|%p   |\n",(void*)stack->rip);
+       stack = stack->rbp;
+    }
+    //printf("+======= End =======+\n");
 }
 const char* gpf_table[] = {
-     "GDT",
-     "IDT",
-     "LDT",
-     "IDT"
+    "GDT",
+    "IDT",
+    "LDT",
+    "IDT"
 };
 void exception_handler(IDTEFrame* frame) {
     kernel.logger = &serial_logger;
