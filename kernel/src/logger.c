@@ -76,8 +76,23 @@ const char* get_ansi_color_from_log(uint32_t color) {
 #include "kernel.h"
 #include "serial.h"
 #include "filelog.h"
+#include "fblogger.h"
+#include "cmdline.h"
+#include "log.h"
 void init_loggers() {
+    intptr_t e;
+    const char* log = cmdline_get("klogger");
+    if(!log) log = "serial";
     assert(logger_init(&serial_logger) == 0);
+    if(strcmp(log, "fb") == 0 || strcmp(log, "framebuffer") == 0) {
+        if((e=init_fb_logger()) < 0) {
+            kernel.logger = &serial_logger;
+            kwarn("Failed to initialise fb logger. Defaulting back to serial");
+            return;
+        }
+        kernel.logger = &fb_logger;
+        return;
+    } 
     assert(logger_init(&file_logger) == 0);
     kernel.logger = &serial_logger;
 }
