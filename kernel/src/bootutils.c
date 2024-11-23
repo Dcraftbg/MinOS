@@ -3,6 +3,7 @@
 #include "assert.h"
 #include "kernel.h"
 #include "utils.h"
+#include "log.h"
 #include <limine.h>
 extern volatile struct limine_memmap_request limine_memmap_request;
 
@@ -47,6 +48,11 @@ void boot_map_phys_memory() {
     for(size_t i = 0; i < limine_memmap_request.response->entry_count; ++i) {
         struct limine_memmap_entry* entry = limine_memmap_request.response->entries[i];
         pageflags_t flags = KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_WRITE | KERNEL_PFLAG_EXEC_DISABLE;
+        if(entry->base >= PHYS_RAM_MIRROR_SIZE) continue;
+        size_t pages = entry->length/PAGE_SIZE;
+        if(entry->base+(pages*PAGE_SIZE) > PHYS_RAM_MIRROR_SIZE)  {
+            pages = (PHYS_RAM_MIRROR_SIZE-entry->base)/PAGE_SIZE;
+        }
         switch(entry->type) {
         case LIMINE_MEMMAP_FRAMEBUFFER:
             flags |= KERNEL_PFLAG_WRITE_COMBINE;
@@ -59,14 +65,16 @@ void boot_map_phys_memory() {
                  kernel.pml4,
                  PAGE_ALIGN_DOWN(entry->base),
                  PAGE_ALIGN_DOWN(entry->base | KERNEL_MEMORY_MASK),
-                 entry->length/PAGE_SIZE,
+                 pages,
                  flags
                )
             ) {
                 kpanic("Failed to map region %zu of type %s. (%p -> %p) %zu pages. Available memory in bitmap: %zu pages", i, limine_memmap_str[entry->type], (void*)PAGE_ALIGN_DOWN(entry->base), (void*)PAGE_ALIGN_DOWN(entry->base | KERNEL_MEMORY_MASK), entry->length/PAGE_SIZE, kernel.map.page_available);
             }
+            kinfo("Mapping   %-22s (%p -> %p) %zu pages", limine_memmap_str[entry->type], (void*)PAGE_ALIGN_DOWN(entry->base), (void*)PAGE_ALIGN_DOWN(entry->base | KERNEL_MEMORY_MASK), entry->length/PAGE_SIZE);
             break;
         default:
+            ktrace("Skipping %-22s (%p -> %p) %zu pages", limine_memmap_str[entry->type], (void*)PAGE_ALIGN_DOWN(entry->base), (void*)PAGE_ALIGN_DOWN(entry->base | KERNEL_MEMORY_MASK), entry->length/PAGE_SIZE);
         }
     }
 }
