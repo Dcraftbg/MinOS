@@ -36,7 +36,9 @@
 #include "heap.h"
 #include "cmdline.h"
 #include "charqueue.h"
-
+#include "filelog.h"
+#include "iomem.h"
+#include "acpi.h"
 // TODO: create a symlink "/devices/keyboard" which will be a link to the currently selected keyboard
 // Like for example PS1 or USB or anything like that
 static void fbt() {
@@ -72,12 +74,16 @@ static void do_probe() {
     fmbuf_fill(&fb, 0x00ff00);
 }
 #endif
+
 void _start() {
     disable_interrupts();
     BREAKPOINT();
 
     update_bar(step++, "serial_init");
     serial_init();
+    kernel.logger = &serial_logger;
+    update_bar(step++, "init_cmdline");
+    init_cmdline();
 
     update_bar(step++, "init_loggers");
     init_loggers();
@@ -99,9 +105,6 @@ void _start() {
 
     enable_interrupts();
 #endif
-
-    update_bar(step++, "init_cmdline");
-    init_cmdline();
 
     update_bar(step++, "init_bitmap");
     init_bitmap();
@@ -173,9 +176,12 @@ void _start() {
     update_bar(step++, "pit_set_count");
     pit_set_count(1000);
 
+    init_acpi();
+
     update_bar(step++, "fbt test");
     fbt();
     init_tty();
+
     // dev_test();
     intptr_t e = 0;
     const char* epath = NULL;
@@ -199,7 +205,6 @@ void _start() {
         kabort();
     }
     kinfo("Spawning `%s` id=%zu", epath, (size_t)e);
-
     pic_clear_mask(1);
     pic_clear_mask(0);
     for(;;) {
