@@ -22,4 +22,6 @@ size_t get_bootmodules_count();
 bool get_bootmodule(size_t i, BootModule* module);
 bool find_bootmodule(const char* path, BootModule* module);
 char* get_kernel_cmdline();
+#include "page.h"
+paddr_t get_rsdp_addr();
 #define PHYS_RAM_MIRROR_SIZE (4LLU * 1024LLU * 1024LLU * 1024LLU) 

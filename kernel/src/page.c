@@ -4,6 +4,7 @@
 #include "elf.h"
 #include "string.h"
 #include "log.h"
+#include "bootutils.h"
 #define PAGE_MASK 0xFFFF000000000000
 
 uintptr_t page_find_available(page_t pml4_addr, uintptr_t from, size_t pages, size_t max) {

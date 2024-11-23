@@ -4,6 +4,8 @@
 #endif
 #include "fs/ustar/ustar.h"
 #include "log.h"
+#include "bootutils.h"
+
 void init_rootfs() {
     intptr_t e = 0;
     const char* path = NULL;

@@ -23,6 +23,11 @@ static volatile struct limine_module_request limine_module_request = {
     .id = LIMINE_MODULE_REQUEST,
     .revision = 0,
 };
+
+static volatile struct limine_rsdp_request limine_rsdp_request = {
+    .id = LIMINE_RSDP_REQUEST,
+    .revision = 0,
+};
 void kernel_file_data(void** data, size_t* size) {
     assert(limine_kernel_file_request.response && limine_kernel_file_request.response->kernel_file);
     *data = limine_kernel_file_request.response->kernel_file->address;
@@ -130,4 +135,9 @@ bool find_bootmodule(const char* path, BootModule* module) {
 char* get_kernel_cmdline() {
     if(!limine_kernel_file_request.response || !limine_kernel_file_request.response->kernel_file) return NULL;
     return limine_kernel_file_request.response->kernel_file->cmdline;
+}
+
+paddr_t get_rsdp_addr() {
+    if(!limine_rsdp_request.response) return 0;
+    return ((uintptr_t)limine_rsdp_request.response->address)-KERNEL_MEMORY_MASK;
 }

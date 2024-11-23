@@ -3,7 +3,6 @@
 #include <stdint.h>
 #include <stddef.h>
 #include "utils.h"
-#include "bootutils.h"
 #define KERNEL_PAGE_ENTRIES 512
 #define KERNEL_PAGE_ENTRY_SIZE sizeof(uint64_t)
 #include "vmm.h"
