@@ -158,7 +158,7 @@ intptr_t tmpfs_open(Inode* this, VfsFile* result, fmode_t mode) {
 intptr_t tmpfs_diropen(Inode* this, VfsDir* result, fmode_t mode) {
     (void)mode;
     if(!this || !this->private) return -BAD_INODE;
-    if(this->kind != INODE_DIR) return -INVALID_PARAM;
+    if(this->kind != INODE_DIR) return -IS_NOT_DIRECTORY;
     TmpfsInode* tmpfs_inode = (TmpfsInode*)this->private;
     assert(tmpfs_inode->kind == INODE_DIR);
     result->ops = &tmpfs_fsops;
