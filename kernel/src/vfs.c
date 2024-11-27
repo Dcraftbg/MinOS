@@ -128,7 +128,7 @@ static intptr_t _vfs_ioctl(VfsFile* file, Iop op, void* arg) {
     return file->ops->ioctl(file, op, arg);
 }
 
-intptr_t _vfs_mmap(VfsFile* file, MmapContext* context, void** addr, size_t size_pages) {
+static intptr_t _vfs_mmap(VfsFile* file, MmapContext* context, void** addr, size_t size_pages) {
     if(!file->ops->mmap) return -UNSUPPORTED;
     return file->ops->mmap(file, context, addr, size_pages);
 }
