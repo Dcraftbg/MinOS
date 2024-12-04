@@ -193,6 +193,7 @@ intptr_t tmpfs_stat(Inode* this, Stats* stats) {
     switch(inode->kind) {
     case INODE_DIR: {
         memset(stats, 0, sizeof(*stats));
+        stats->kind = inode->kind;
         // Explicit declarations
         stats->lba = PAGE_SHIFT;
         stats->size = (inode->data.dir.size+(TMPFS_DIR_NODES-1))/TMPFS_DIR_NODES;
@@ -200,6 +201,7 @@ intptr_t tmpfs_stat(Inode* this, Stats* stats) {
     } break;
     case INODE_FILE: {
         memset(stats, 0, sizeof(*stats));
+        stats->kind = inode->kind;
         // Explicit declarations
         stats->lba = 0;
         stats->size = inode->data.file.size;
