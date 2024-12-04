@@ -203,3 +203,40 @@ long int strtol (const char* str, char** endptr, int base) {
     fprintf(stderr, "I need to implement strtol. I'm too lazy rn: %s %p %d\n", str, endptr, base);
     exit(1);
 }
+
+static void qsort_swap(void* p1, void* p2, size_t size) {
+    uint8_t* p1_b = p1;
+    uint8_t* p2_b = p2;
+    for(size_t i = 0; i < size; ++i) {
+        uint8_t t = p1_b[i];
+        p1_b[i] = p2_b[i];
+        p2_b[i] = t;
+    }
+}
+static void* qsort_part(void* ptr, void* low, void* high, size_t size, int (*comp)(const void*, const void*)) {
+    void* pivot = high;
+    if(high == ptr)
+        return pivot;
+
+    void* i = low;
+    for(void* j = low; j < high; j += size) {
+        if (comp(j, pivot) <= 0) {
+            qsort_swap(i, j, size);
+            i += size;
+        }
+    }
+    qsort_swap(i, high, size);
+    return i;
+}
+static void qsort_impl(void* ptr, void* low, void* high, size_t size, int (*comp)(const void*, const void*)) {
+    if (low >= high)
+        return;
+    void* p = qsort_part(ptr, low, high, size, comp);
+    qsort_impl(ptr, low     , p - size, size, comp);
+    qsort_impl(ptr, p + size, high    , size, comp);
+}
+void qsort(void* ptr, size_t count, size_t size, int (*comp)(const void*, const void*)) {
+    if(count == 0) 
+        return;
+    qsort_impl(ptr, ptr, ptr+(count-1)*size, size, comp);
+}

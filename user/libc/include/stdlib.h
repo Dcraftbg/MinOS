@@ -12,3 +12,4 @@ long int strtol (const char* str, char** endptr, int base);
 int atoi(const char *str);
 float atof(const char *str);
 int abs(int num);
+void qsort(void* ptr, size_t count, size_t size, int (*comp)(const void*, const void*));
