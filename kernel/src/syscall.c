@@ -396,7 +396,10 @@ intptr_t sys_heap_extend(uintptr_t id, size_t extra_bytes) {
     Process* cur_proc = current_process();
     Heap* heap = get_heap_by_id(cur_proc, id);
     if(!heap) return -INVALID_HANDLE;
-    return process_heap_extend(cur_proc, heap, extra_pages);
+    intptr_t e = process_heap_extend(cur_proc, heap, extra_pages);
+    if(e < 0) return e;
+    invalidate_pages((void*)heap->address, heap->pages);
+    return e;
 }
 intptr_t sys_chdir(const char* path) {
     size_t pathlen = strlen(path);
