@@ -52,7 +52,7 @@ void* libc_heap_allocate_within(_LibcInternalHeap* heap, size_t size) {
                 _HeapNode* next = (_HeapNode*)(node->data+size);
                 list_init(&next->list);
                 next->free = true;
-                next->size = left;
+                next->size = left-sizeof(_HeapNode);
                 list_append(&next->list, &node->list);
                 node->size = size;
             }
@@ -98,6 +98,7 @@ void libc_heap_deallocate(_LibcInternalHeap* heap, void* address) {
             assert((!node->free) && "Double free");
             node->free = true;
             _HeapNode* next = (_HeapNode*)node->list.next;
+            assert((char*)next == node->data+node->size);
             if(&next->list != &heap->alloc_list && next->free) {
                 list_remove(&next->list);
                 node->size+=next->size+sizeof(_HeapNode);
