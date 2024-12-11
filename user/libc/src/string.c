@@ -126,12 +126,12 @@ char* strncpy(char* dest, const char* src, size_t n)
         dest[i] = '\0';
    return dest;
 }
-char* strstr (const char* str, const char* substr) {
+char* strstr(const char* str, const char* substr) {
     if(substr[0] == '\0') return (char*)str;
     size_t str_len = strlen(str);
     size_t substr_len = strlen(substr);
     while(str[0] && str_len > substr_len) {
-        if(strcmp(str, substr) == 0) return (char*)str;
+        if(memcmp(str, substr, substr_len) == 0) return (char*)str;
         str++;
         str_len--;
     }
