@@ -95,7 +95,7 @@ BuildFuncs kernel_funcs = {
 };
 BuildFuncs user_funcs = {
     .cc=cc_user,
-    .nasm=NULL,
+    .nasm=nasm,
 };
 
 bool _build_dir(BuildFuncs* funcs, const char* rootdir, const char* build_dir, const char* srcdir, bool forced) {
