@@ -97,7 +97,7 @@ size_t strlen(const char* cstr) {
 
 char* strchr(const char* str, int chr) {
     while(str[0] && str[0] != (char)chr) str++;
-    return (char*)str;
+    return str[0] ? (char*)str : NULL;
 }
 
 char* strrchr(const char* str, int chr) {
@@ -107,6 +107,15 @@ char* strrchr(const char* str, int chr) {
         str++;
     }
     return head;
+}
+char* strpbrk(const char* str, const char* breakset) {
+    while(str[0]) {
+        for(const char* bs=breakset; bs[0]; bs++) {
+            if(str[0] == bs[0]) return (char*)str;
+        }
+        str++;
+    }
+    return NULL;
 }
 char* strdup(const char* str) {
     size_t len = strlen(str);
@@ -137,3 +146,4 @@ char* strstr(const char* str, const char* substr) {
     }
     return NULL;
 }
+

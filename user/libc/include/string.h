@@ -13,6 +13,11 @@ int strcasecmp(const char* s1, const char* s2);
 int strncasecmp(const char* s1, const char* s2, size_t n);
 char* strdup (const char* str);
 char* strrchr(const char* str, int ch);
+char* strpbrk(const char* str, const char* breakset);
 char* strstr (const char* str, const char* substr);
 char* strncpy(char *restrict dest, const char *restrict src, size_t count);
+char* strcat (char *restrict dest, const char *restrict src);
+static char* strcpy (char *restrict dest, const char *restrict src) {
+    return memcpy(dest, src, strlen(src)+1);
+}
 

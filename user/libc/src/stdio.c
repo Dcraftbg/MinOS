@@ -213,8 +213,8 @@ FILE* fopen(const char* path, const char* mode) {
     return (FILE*)e;
 }
 
-void fclose(FILE* f) {
-    if(f) close((uintptr_t)f);
+int fclose(FILE* f) {
+    return f ? close((uintptr_t)f) : EOF;
 }
 
 int fflush(FILE* f) {
@@ -281,7 +281,15 @@ int fputs(const char* restrict str, FILE* restrict stream) {
     fwrite(str, strlen(str), 1, stream);
     return 0;
 }
+int fputc(int c, FILE* f) {
+    fwrite(&c, 1, 1, f);
+    return 0;
+}
 int sscanf(const char *restrict buffer, const char *restrict fmt, ...) {
     fprintf(stderr, "ERROR: Unimplemented `sscanf` (%s, %s)", buffer, fmt);
     return -1;
+}
+FILE *fdopen(int fd, const char *mode) {
+    fprintf(stderr, "ERROR: fdopen is a stub (%d, %s)\n", fd, mode);
+    return NULL;
 }
