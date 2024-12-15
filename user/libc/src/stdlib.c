@@ -7,6 +7,9 @@ void exit(int64_t code) {
     _exit(code);
     for(;;);
 }
+void abort() {
+    exit(-1);
+}
 
 #include <minos/heap.h>
 typedef struct {
