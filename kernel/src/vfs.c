@@ -156,26 +156,9 @@ intptr_t fetch_inode(Superblock* sb, inodeid_t id, Inode** result, fmode_t mode)
     Inode** ref = NULL;
     mutex_lock(&sb->inodemap_lock);
     if((ref=inodemap_get(&sb->inodemap, id))) {
-        *result = *ref;
-        if ((*result)->mode & MODE_STREAM && mode & MODE_STREAM) {
-            iget(*result);
-            mutex_unlock(&sb->inodemap_lock);
-            return 0;
-        }
-        if ((*result)->mode & MODE_WRITE /*&& !((*result)->mode & MODE_STREAM)*/) {
-            mutex_unlock(&sb->inodemap_lock);
-            return -RESOURCE_BUSY;
-        }
-        if ((*result)->mode & MODE_READ && !((*result)->mode & MODE_WRITE)) {
-            if(mode & MODE_WRITE) {
-                mutex_unlock(&sb->inodemap_lock);
-                return -RESOURCE_BUSY;
-            }
-            iget(*result);
-            mutex_unlock(&sb->inodemap_lock);
-            return 0;
-        }
-        return -INVALID_PARAM;
+        *result = iget(*ref);
+        mutex_unlock(&sb->inodemap_lock);
+        return 0;
     }
     if((e=_vfs_get_inode(sb, id, result)) < 0) return e;
     (*result)->mode = mode;
