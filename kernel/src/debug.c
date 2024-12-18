@@ -12,33 +12,28 @@ void dump_bitmap(Bitmap* map) {
     }
 }
 void cat(const char* path) {
-    VfsFile file = {0};
+    Inode* file;
     intptr_t e = 0;
-    if((e=vfs_open_abs(path, &file, MODE_READ)) < 0) {
+    if((e=vfs_find_abs(path, &file)) < 0) {
         kwarn("cat: Failed to open %s : %s", path, status_str(e));
         return;
     }
-    if((e=vfs_seek(&file, 0, SEEK_EOF)) < 0) {
+    if((e=inode_size(file)) < 0) {
         kwarn("cat: Could not seek to file end : %s", status_str(e));
-        vfs_close(&file);
+        idrop(file);
         return;
     }
     size_t size = e;
-    if((e=vfs_seek(&file, 0, SEEK_START) < 0)) {
-        kwarn("cat: Could not seek to file start : %s", status_str(e));
-        vfs_close(&file);
-        return;
-    }
     char* buf = (char*)kernel_malloc(size+1);
-    if((e=read_exact(&file, buf, size)) < 0) {
+    if((e=read_exact(file, buf, size, 0)) < 0) {
         kwarn("cat: Could not read file contents : %s", status_str(e));
-        vfs_close(&file);
+        idrop(file);
         return;
     }
     buf[size] = '\0';
     kinfo("%s",buf);
     kernel_dealloc(buf,size+1);
-    vfs_close(&file);
+    idrop(file);
 }
 
 
@@ -104,32 +99,27 @@ void hexdump_mem(uint8_t* buf, size_t size) {
 }
 
 void hexdump(const char* path) {
-    VfsFile file = {0};
+    Inode* file;
     intptr_t e = 0;
-    if((e=vfs_open_abs(path, &file, MODE_READ)) < 0) {
+    if((e=vfs_find_abs(path, &file)) < 0) {
         kerror("hexdump: Failed to open %s : %ld",path,e);
         return;
     }
-    if((e=vfs_seek(&file, 0, SEEK_EOF)) < 0) {
+    if((e=inode_size(file)) < 0) {
         kerror("hexdump: Could not seek to file end : %ld",e);
-        vfs_close(&file);
+        idrop(file);
         return;
     }
     size_t size = e;
-    if((e=vfs_seek(&file, 0, SEEK_START) < 0)) {
-        kerror("hexdump: Could not seek to file start : %ld",e);
-        vfs_close(&file);
-        return;
-    }
     uint8_t* buf = (uint8_t*)kernel_malloc(size);
-    if((e=read_exact(&file, buf, size)) < 0) {
+    if((e=read_exact(file, buf, size, 0)) < 0) {
         kerror("hexdump: Could not read file contents : %ld",e);
-        vfs_close(&file);
+        idrop(file);
         return;
     }
     hexdump_mem(buf, size);
     kernel_dealloc(buf,size);
-    vfs_close(&file);
+    idrop(file);
 }
 
 
@@ -140,36 +130,8 @@ static const char* inode_kind_map[] = {
 };
 static_assert(ARRAY_LEN(inode_kind_map) == INODE_COUNT, "Update inode_kind_map");
 
-void ls(const char* path) {
-    kinfo("%s:",path);
-    VfsDir dir = {0};
-    VfsDirEntry entry = {0};
-    intptr_t e = 0;
-    char namebuf[MAX_INODE_NAME];
-    if ((e=vfs_diropen_abs(path, &dir, MODE_READ)) < 0) {
-        kerror("ls: Could not open directory: %s", status_str(e));
-        return;
-    }
-    Stats stats = {0};
-    while((e = vfs_get_dir_entries(&dir, &entry, 1)) == 1) {
-        if((e=vfs_identify(&entry, namebuf, sizeof(namebuf))) < 0) {
-            kerror("ls: Could not identify inode: %s",status_str(e));
-            vfs_dirclose(&dir);
-            return;
-        }
-        if((e=vfs_stat_entry(&entry, &stats)) < 0) {
-            kwarn("ls: Could not get stats for %s: %s",namebuf,status_str(e));
-            continue;
-        }
-        kinfo("%6s %15s %zu bytes", inode_kind_map[entry.kind], namebuf, stats.size * (1<<stats.lba));
-    }
-    vfs_dirclose(&dir);
-    if(e != 0) {
-        kerror("ls: Failed to iterate: %ld",e);
-        return;
-    }
-}
-
+// TODO: If you need it, you'll need to rewrite ls in the kernel.
+// Its stupid tho I don't use it anymore
 
 void dump_inodes(Superblock* superblock) {
     // debug_assert(file->inode);
@@ -181,7 +143,7 @@ void dump_inodes(Superblock* superblock) {
         while(pair) {
             kdebug("%zu:", pair->key);
             Inode* inode = pair->value;
-            kdebug(" inodeid = %zu",inode->inodeid);
+            kdebug(" inodeid = %zu",inode->id);
             kdebug(" shared = %zu",inode->shared);
             kdebug(" mode = %d",inode->mode);
             pair = pair->next;

@@ -2,7 +2,7 @@
 #include "../../vfs.h"
 #include "../../utils.h"
 #include <minos/status.h>
-extern FsDriver tmpfs_driver;
-void tmpfs_log(Inode* inode, size_t pad);
-intptr_t tmpfs_register_device(VfsDir* dir, Device* device, VfsDirEntry* result);
+#define TMPFS_NAME_LIMIT 128
+extern Fs tmpfs;
+intptr_t tmpfs_register_device(Inode* dir, Device* device, const char* name, size_t namelen);
 // void tmpfs_dump_file(VfsFile* file);

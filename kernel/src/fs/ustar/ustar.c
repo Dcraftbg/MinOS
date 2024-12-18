@@ -46,7 +46,7 @@ intptr_t ustar_unpack(const char* into, const char* ustar_data, size_t ustar_siz
     if(!path) return -NOT_ENOUGH_MEM;
     while(memcmp(ustar_data+USTAR_MAGIC_OFF, "ustar", 5)==0 && ustar_data < ustar_end) {
         int size=octtoi(ustar_data+USTAR_FILESIZE_OFF, 11);
-        if(ustar_end-ustar_data < size) return -BUFFER_OVEWFLOW;
+        if(ustar_end-ustar_data < size) return -BUFFER_TOO_SMALL;
         uint8_t type = *(((uint8_t*)ustar_data)+USTAR_TYPE_OFF);
         size_t name_len=0;
         const char* name = ustar_data;
@@ -63,28 +63,28 @@ intptr_t ustar_unpack(const char* into, const char* ustar_data, size_t ustar_siz
 
         ktrace("ustar: %s of type %c size %zu", path, type, size);
         if(type == '5') {
-            if((e = vfs_mkdir_abs(path)) < 0) {
+            if((e = vfs_creat_abs(path, O_DIRECTORY)) < 0) {
                 if(e != -ALREADY_EXISTS) {
                     kerror("ERROR: ustar: Could not mkdir %s : %s", path, status_str(e));
                     goto err; 
                 }
             }
         } else {
-            if((e = vfs_create_abs(path)) < 0) {
+            if((e = vfs_creat_abs(path, 0)) < 0) {
                 kerror("ERROR: ustar: Could not create %s : %s", path, status_str(e));
                 goto err;
             }
-            VfsFile file = {0};
-            if((e = vfs_open_abs(path, &file, MODE_WRITE)) < 0) {
+            Inode* file;
+            if((e = vfs_find_abs(path, &file)) < 0) {
                 kerror("ERROR: ustar: Could not open %s : %s", path, status_str(e));
                 goto err;
             }
-            if((e = write_exact(&file, ustar_data+512, size)) < 0) {
+            if((e = write_exact(file, ustar_data+512, size, 0)) < 0) {
                 kerror("ERROR: ustar: Could not write data: %s : %s", path, status_str(e));
-                vfs_close(&file);
+                idrop(file);
                 goto err;
             }
-            vfs_close(&file);
+            idrop(file);
         }
         ustar_data += (((size+511)/512) + 1)*512;
     }

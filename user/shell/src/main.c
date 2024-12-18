@@ -16,7 +16,7 @@ intptr_t readline(char* buf, size_t bufmax) {
         }
         if(buf[i++] == '\n') return i;
     }
-    return -BUFFER_OVEWFLOW;
+    return -BUFFER_TOO_SMALL;
 }
 static bool isspace(char c) {
     return c == ' ' || c == '\n' || c == '\t';

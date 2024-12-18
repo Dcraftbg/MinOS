@@ -11,7 +11,7 @@ intptr_t readline(char* buf, size_t bufmax) {
     if((e = read(STDIN_FILENO, buf, bufmax)) < 0) {
         return e;
     }
-    if(e > bufmax || buf[e-1] != '\n') return -BUFFER_OVEWFLOW;
+    if(e > bufmax || buf[e-1] != '\n') return -BUFFER_TOO_SMALL;
     return e;
 }
 #define LINEBUF_MAX 1024

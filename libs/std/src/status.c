@@ -21,17 +21,17 @@ static const char* status_map[STATUS_COUNT] = {
     [SIZE_MISMATCH]      = "Size Mismatch",
     [WOULD_SEGFAULT]     = "Would Segfault",
     [RESOURCE_BUSY]      = "Resource Busy",
-    [BUFFER_OVEWFLOW]    = "Buffer Overflow",
     [YOU_ARE_CHILD]      = "You are child",
     [INVALID_PATH]       = "Invalid Path",
     [IS_NOT_DIRECTORY]   = "Is not Directory",
+    [BUFFER_TOO_SMALL]   = "Buffer too small",
 };
 // static_assert(STATUS_COUNT==ARRAY_LEN(status_map), "You need to update the status map!");
 const char* status_str(intptr_t status) {
     if(status >= 0) return "OK";
     status = -status;
     if(status >= STATUS_COUNT) {
-       return NULL;
+       return "Undefined Error";
     }
     return status_map[status];
 }

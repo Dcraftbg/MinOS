@@ -16,6 +16,7 @@ void kpanic(const char* fmt, ...) {
     va_list va_display;
     va_start(va_fatal, fmt);
     va_copy(va_display, va_fatal);
+    kernel.logger = &serial_logger;
     kfatal_va(fmt, va_fatal);
     va_end(va_fatal);
     Framebuffer fb = get_framebuffer_by_id(0);

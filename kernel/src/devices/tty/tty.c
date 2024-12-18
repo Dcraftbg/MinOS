@@ -7,8 +7,6 @@
 #include "../../cmdline.h"
 #include "../../fbwriter.h"
 
-static FsOps ttyOps = {0};
-static InodeOps inodeOps = {0};
 #define KEY_BYTES ((MINOS_KEY_COUNT+7)/8)
 typedef struct {
     // Is key down?
@@ -141,31 +139,21 @@ typedef struct {
     uint8_t input_kind;
     union {
         struct { 
-            VfsFile keyboard;
+            Inode* keyboard;
             Keyboard keystate;
         } as_kb;
-        VfsFile chardevice;
+        Inode* chardevice;
     } input;
     uint8_t output_kind;
     union {
         TtyFb as_framebuffer;
-        VfsFile as_chardevice;
+        Inode* as_chardevice;
     } output;
 
     TtyScratch scratch;
 } TtyDevice;
 
 static Cache* tty_cache = NULL;
-static intptr_t tty_open(struct Inode* this, VfsFile* file, fmode_t mode) {
-    file->private = this->private;
-    file->ops = &ttyOps;
-    return 0;
-}
-
-static void tty_close(VfsFile* file) {
-    file->private = NULL;
-}
-
 #define TTY_MILISECOND_BLINK 500
 static void ttyfb_fill_blink(TtyFb* fb, uint32_t color) {
     size_t x=fb->fbt.x, y=fb->fbt.y;
@@ -178,9 +166,9 @@ static const uint32_t blink_color[2] = {
     VGA_BG,
     VGA_FG
 };
-static intptr_t tty_dev_write(VfsFile* file, const void* buf, size_t size, off_t offset) {
+static intptr_t tty_dev_write(Inode* file, const void* buf, size_t size, off_t offset) {
     (void)offset;
-    TtyDevice* tty = (TtyDevice*)file->private;
+    TtyDevice* tty = (TtyDevice*)file->priv;
     switch(tty->output_kind) {
         case TTY_OUTPUT_DISPLAY: {
             TtyFb* fb = &tty->output.as_framebuffer;
@@ -190,7 +178,7 @@ static intptr_t tty_dev_write(VfsFile* file, const void* buf, size_t size, off_t
             }
         } break;
         case TTY_OUTPUT_CHAR: {
-            return vfs_write(&tty->output.as_chardevice, buf, size);
+            return inode_write(tty->output.as_chardevice, buf, size, 0);
         } break;
     }
     
@@ -205,13 +193,13 @@ static void tty_putch(TtyDevice* tty, int code) {
     if(tty->input_kind == TTY_OUTPUT_DISPLAY) {
         ttyfb_putch(&tty->output.as_framebuffer, code);
     } else {
-        vfs_write(&tty->output.as_chardevice, &code, 1);
+        inode_write(tty->output.as_chardevice, &code, 1, 0);
     }
 }
 // TODO: Unicode support
-static intptr_t tty_dev_read(VfsFile* file, void* buf, size_t size, off_t offset) {
+static intptr_t tty_dev_read(Inode* file, void* buf, size_t size, off_t offset) {
     (void)offset;
-    TtyDevice* tty = (TtyDevice*)file->private;
+    TtyDevice* tty = (TtyDevice*)file->priv;
     if(tty->scratch.len) goto END;
     intptr_t e;
     for(;;) {
@@ -220,7 +208,7 @@ static intptr_t tty_dev_read(VfsFile* file, void* buf, size_t size, off_t offset
             case TTY_INPUT_KEYBOARD: {
                 Key key;
                 for(;;) {
-                    if((e=vfs_read(&tty->input.as_kb.keyboard, &key, sizeof(key))) < 0) {
+                    if((e=inode_read(tty->input.as_kb.keyboard, &key, sizeof(key), 0)) < 0) {
                         if(tty->output_kind == TTY_OUTPUT_DISPLAY && tty->output.as_framebuffer.blink) ttyfb_fill_blink(&tty->output.as_framebuffer, VGA_BG);
                         return e;
                     } else if (e > 0) break;
@@ -240,7 +228,7 @@ static intptr_t tty_dev_read(VfsFile* file, void* buf, size_t size, off_t offset
             } break; 
             case TTY_INPUT_CHAR:
                 for(;;) {
-                    if((e=vfs_read(&tty->input.as_kb.keyboard, &code, sizeof(char))) < 0) {
+                    if((e=inode_read(tty->input.as_kb.keyboard, &code, sizeof(char), 0)) < 0) {
                         return e;
                     } else if (e > 0) break;
                 }
@@ -280,38 +268,39 @@ END:
     ttyscratch_shrink(&tty->scratch);
     return to_copy;
 }
-
-
-static intptr_t new_tty_private(void** private) {
+static InodeOps inodeOps = {
+    .write = tty_dev_write,
+    .read = tty_dev_read,
+};
+static intptr_t new_tty_priv(void** priv) {
     TtyDevice* tty = cache_alloc(tty_cache);
     if(tty == NULL) return -NOT_ENOUGH_MEM;
     memset(tty, 0, sizeof(*tty));
     ttyscratch_init(&tty->scratch);
-    *private = tty;
+    *priv = tty;
     return 0;
 }
 static intptr_t init_inode(Device* this, Inode* inode) {
     inode->ops = &inodeOps;
-    inode->private = this->private;
+    inode->priv = this->priv;
     return 0;
 }
 intptr_t create_tty_device(Device* device, int output_kind, void* output, int input_kind, void* input) {
     intptr_t e = 0;
-    device->ops = &inodeOps;
     device->init_inode = init_inode;
-    if((e = new_tty_private(&device->private)) < 0) return e;
-    TtyDevice* tty = device->private;
+    if((e = new_tty_priv(&device->priv)) < 0) return e;
+    TtyDevice* tty = device->priv;
     tty->input_kind = input_kind;
     switch(input_kind) {
     case TTY_INPUT_KEYBOARD:
-        if((e=vfs_open_abs((const char*)input, &tty->input.as_kb.keyboard, MODE_READ | MODE_STREAM)) < 0) {
-            kwarn("[new_tty_private] (vfs_open) Keyboard Error: %s", status_str(e));
+        if((e=vfs_find_abs((const char*)input, &tty->input.as_kb.keyboard)) < 0) {
+            kwarn("[new_tty_priv] (vfs_open) Keyboard Error: %s", status_str(e));
             goto err_input;
         }
         break;
     case TTY_INPUT_CHAR:
-        if((e=vfs_open_abs((const char*)input, &tty->input.chardevice, MODE_READ | MODE_STREAM)) < 0) {
-            kwarn("[new_tty_private] (vfs_open) Chardevice Error: %s", status_str(e));
+        if((e=vfs_find_abs((const char*)input, &tty->input.chardevice)) < 0) {
+            kwarn("[new_tty_priv] (vfs_open) Chardevice Error: %s", status_str(e));
             goto err_input;
         }
         break;
@@ -327,15 +316,14 @@ intptr_t create_tty_device(Device* device, int output_kind, void* output, int in
         tty->output.as_framebuffer.fbt.fb = get_framebuffer_by_id((size_t)output);
         tty->output.as_framebuffer.fbt.x = 0;
         tty->output.as_framebuffer.fbt.y = 0;
-
         if(!tty->output.as_framebuffer.fbt.fb.addr) {
             e=-NOT_FOUND;
             goto err_output;
         }
         break;
     case TTY_OUTPUT_CHAR:
-        if((e=vfs_open_abs((const char*)output, &tty->output.as_chardevice, MODE_WRITE | MODE_STREAM)) < 0) {
-            kwarn("[new_tty_private] (vfs_open) Chardevice Error: %s", status_str(e));
+        if((e=vfs_find_abs((const char*)output, &tty->output.as_chardevice)) < 0) {
+            kwarn("[new_tty_priv] (vfs_open) Chardevice Error: %s", status_str(e));
             goto err_output;
         }
         break;
@@ -348,10 +336,10 @@ intptr_t create_tty_device(Device* device, int output_kind, void* output, int in
 err_output:
     switch(tty->output_kind) {
     case TTY_INPUT_KEYBOARD:
-        vfs_close(&tty->input.as_kb.keyboard);
+        idrop(tty->input.as_kb.keyboard);
         break;
     case TTY_INPUT_CHAR:
-        vfs_close(&tty->input.chardevice);
+        idrop(tty->input.chardevice);
         break;
     }
 err_input:
@@ -360,18 +348,14 @@ err_input:
 }
 
 void destroy_tty_device(Device* device) {
-    if(!device || !device->private) return;
-    TtyDevice* tty = device->private;
-    vfs_close(&tty->input.as_kb.keyboard);
+    if(!device || !device->priv) return;
+    TtyDevice* tty = device->priv;
+    (void)tty;
+    // TODO: Close keyboard, chardevice etc.
     // FIXME: Maybe cache_dealloc?
 }
 
 static intptr_t tty_init() {
-    memset(&ttyOps, 0, sizeof(ttyOps));
-    inodeOps.open = tty_open;
-    ttyOps.write = tty_dev_write;
-    ttyOps.read = tty_dev_read;
-    ttyOps.close = tty_close;
     tty_cache = create_new_cache(sizeof(TtyDevice), "TtyDevice");
     if(!tty_cache) return -NOT_ENOUGH_MEM;
     return 0;

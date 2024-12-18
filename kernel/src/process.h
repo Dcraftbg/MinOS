@@ -46,8 +46,7 @@ typedef struct {
     ResourceBlock* resources;
     size_t heapid; // Current heapid count
     struct list heap_list;
-    inodeid_t curdir_id;
-    Superblock* curdir_sb;
+    Inode* curdir_inode;
     char* curdir /*[PATH_MAX]*/;
     ChildProcess children[MAX_CHILD_PROCESSES];
 } Process;

@@ -64,8 +64,7 @@ intptr_t exec_new(const char* path, Args* args, Args* env) {
     if(!process->resources) return_defer_err(-NOT_ENOUGH_MEM);
     task = kernel_task_add();
     if(!task) return_defer_err(-LIMITS); // Reached max tasks and/or we're out of memory
-    process->curdir_id = kernel.rootBlock.root;
-    process->curdir_sb = &kernel.rootBlock;
+    if((e=fetch_inode(&kernel.rootBlock, kernel.rootBlock.root, &process->curdir_inode)) < 0) return_defer_err(e); 
     process->main_threadid = task->id;
     
     task->processid = process->id;
@@ -116,8 +115,7 @@ static intptr_t args_push(Task* task, Args* args, char** stack_head, char*** arg
 // TODO: Fix XD. XD may not be supported always so checks to remove it are necessary
 intptr_t exec(Task* task, Path* path, Args* args, Args* envs) {
     intptr_t e=0;
-    VfsFile file={0};
-    bool fopened=false;
+    Inode* file=NULL;
     MemoryList* kstack_region = NULL;
     MemoryList* ustack_region = NULL;
     Elf64ProgHeader* pheaders = NULL;
@@ -139,12 +137,11 @@ intptr_t exec(Task* task, Path* path, Args* args, Args* envs) {
     task->image.rip = 0;
     task->image.flags = TASK_FLAG_FIRST_RUN;
 
-    if((e=vfs_open(path, &file, MODE_READ)) < 0) {
+    if((e=vfs_find(path, &file)) < 0) {
         return_defer_err(e);
     }
-    fopened = true;
 
-    if((e=read_exact(&file, &header, sizeof(header))) < 0) return_defer_err(e);
+    if((e=read_exact(file, &header, sizeof(header), 0)) < 0) return_defer_err(e);
     
     if(!elf_header_verify(&header)) return_defer_err(-INVALID_MAGIC);
     
@@ -161,15 +158,14 @@ intptr_t exec(Task* task, Path* path, Args* args, Args* envs) {
     size_t prog_header_size = header.phnum * sizeof(Elf64ProgHeader);
     pheaders = kernel_malloc(prog_header_size);
     if(!pheaders) {
-      return_defer_err(-NOT_ENOUGH_MEM);
+        return_defer_err(-NOT_ENOUGH_MEM);
     }
     memset(pheaders, 0, prog_header_size);    
 
     if(
-      (e=vfs_seek(&file, header.phoff, SEEK_START)) < 0 ||
-      (e=read_exact(&file, pheaders, prog_header_size)) < 0
+      (e=read_exact(file, pheaders, prog_header_size, header.phoff)) < 0
     )
-      return_defer_err(e);
+        return_defer_err(e);
     
     for(size_t i = 0; i < header.phnum; ++i) {
         Elf64ProgHeader* pheader = &pheaders[i];
@@ -200,8 +196,7 @@ intptr_t exec(Task* task, Path* path, Args* args, Args* envs) {
         
         memset(memory, 0, segment_pages * PAGE_SIZE);
         if (
-          (e = vfs_seek(&file, pheader->offset, SEEK_START)) < 0 ||
-          (e = read_exact(&file, memory+virt_off, pheader->filesize)) < 0
+          (e = read_exact(file, memory+virt_off, pheader->filesize, pheader->offset)) < 0
         ) {
            kernel_dealloc(memory, segment_pages * PAGE_SIZE);
            return_defer_err(e);
@@ -265,14 +260,14 @@ intptr_t exec(Task* task, Path* path, Args* args, Args* envs) {
     task->image.ts_rsp = (void*)(KERNEL_STACK_PTR+sizeof(IRQFrame));
     task->image.rip    = header.entry;
     page_join(kernel.pml4, task->image.cr3);
-    vfs_close(&file);
-    fopened = false;
+    idrop(file);
+    file = NULL;
     return 0;
 DEFER_ERR:
     if(pheaders) kernel_dealloc(pheaders, prog_header_size);
     if(kstack_region) memlist_dealloc(kstack_region, NULL);
     if(ustack_region) memlist_dealloc(ustack_region, NULL);
-    if(fopened) vfs_close(&file);
+    if(file) idrop(file);
     if(task->image.cr3) page_destruct(task->image.cr3, KERNEL_PTYPE_USER);
     return e;
 }

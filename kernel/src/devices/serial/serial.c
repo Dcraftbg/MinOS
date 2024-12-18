@@ -5,8 +5,6 @@
 #include "../../arch/x86_64/idt.h"
 #include "../../kernel.h"
 #include "../../log.h"
-static FsOps serialOps = {0};
-static InodeOps inodeOps = {0};
 static Device* serial0_device=NULL;
 extern void idt_serial_handler();
 #define COM_PORT   0x3f8
@@ -43,20 +41,10 @@ void serial_handler() {
         pic_end(4);
         return;
     }
-    charqueue_push((CharQueue*)serial0_device->private, uni);
+    charqueue_push((CharQueue*)serial0_device->priv, uni);
     pic_end(4);
 }
-static intptr_t serial_open(struct Inode* this, VfsFile* file, fmode_t mode) {
-    file->ops = &serialOps;
-    file->private = this->private;
-    return 0;
-}
-static intptr_t init_inode(struct Device* this, struct Inode* inode) {
-    inode->ops = &inodeOps;
-    inode->private = this->private;
-    return 0;
-}
-static intptr_t serial_dev_write(VfsFile* file, const void* buf, size_t size, off_t offset) {
+static intptr_t serial_dev_write(Inode* file, const void* buf, size_t size, off_t offset) {
     (void)file;
     (void)offset; 
     for(size_t i = 0; i < size; ++i) {
@@ -64,33 +52,37 @@ static intptr_t serial_dev_write(VfsFile* file, const void* buf, size_t size, of
     }
     return size;
 }
-static intptr_t serial_dev_read(VfsFile* file, void* buf, size_t size, off_t offset) {
+static intptr_t serial_dev_read(Inode* file, void* buf, size_t size, off_t offset) {
     (void)offset;
     for(size_t i = 0; i < size; ++i, ++buf) {
         uint32_t key;
-        if(!charqueue_pop((CharQueue*)file->private, &key)) return i;
+        if(!charqueue_pop((CharQueue*)file->priv, &key)) return i;
         assert(key < 256 && "UTF8 support for serial");
         ((uint8_t*)buf)[0] = key;
     }
     return size;
 }
+static InodeOps inodeOps = {
+    .read = serial_dev_read,
+    .write = serial_dev_write
+};
+static intptr_t init_inode(Device* this, Inode* inode) {
+    inode->ops = &inodeOps;
+    inode->priv = this->priv;
+    return 0;
+}
 intptr_t serial_dev_init() {
-    memset(&serialOps, 0, sizeof(serialOps));
-    inodeOps.open = serial_open;
-    serialOps.write = serial_dev_write;
-    serialOps.read  = serial_dev_read;
     idt_register(0x24, idt_serial_handler, IDT_TRAP_TYPE);
     outb(COM_INT_ENABLE_PORT, 0x01); // Enable received data available interrupt
     pic_clear_mask(4);
     return 0;
 }
 intptr_t serial_device_create(Device* device) {
-    device->ops = &inodeOps;
     device->init_inode = init_inode;
     uint32_t* addr = (uint32_t*)kernel_malloc(PAGE_SIZE);
     if(!addr) return -NOT_ENOUGH_MEM;
-    device->private = charqueue_new(addr, (PAGE_SIZE/sizeof(uint32_t))-1);
-    if(!device->private) {
+    device->priv = charqueue_new(addr, (PAGE_SIZE/sizeof(uint32_t))-1);
+    if(!device->priv) {
         kernel_dealloc(addr, PAGE_SIZE);
         return -NOT_ENOUGH_MEM;
     }

@@ -21,9 +21,8 @@ static intptr_t parse_path(Process* process, Path* res, const char* path) {
         path++;
         if(path[0] != '/') return -INVALID_PATH;
         path++;
-    default:
-        res->from.id         = process->curdir_id;
-        res->from.superblock = process->curdir_sb;
+    default: 
+        res->from = process->curdir_inode; 
         res->path = path;
         return 0;
     }
@@ -40,37 +39,23 @@ intptr_t sys_open(const char* path, fmode_t mode, oflags_t flags) {
     if((e=parse_path(current, &p, path)) < 0) return e;
     Resource* resource = resource_add(current->resources, &id);
     if(!resource) return -NOT_ENOUGH_MEM;
-    if(flags & O_DIRECTORY) {
-        resource->kind = RESOURCE_DIR;
-        if((e=vfs_diropen(&p, &resource->data.dir, mode)) < 0) {
-            if(flags & O_CREAT) {
-                if((e=vfs_mkdir(&p)) < 0)
-                    goto err_dir;
-                // TODO: Is it defined behaviour if the directory is created but can't be opened?
-                if((e=vfs_diropen(&p, &resource->data.dir, mode)) < 0)
-                    goto err_dir;
-                return id;
-            }
-        err_dir:
-            resource_remove(current->resources, id);
-            return e;
+    Inode* inode;
+    if((e=vfs_find(&p, &inode)) < 0) {
+        if(e == -NOT_FOUND && flags & O_CREAT) {
+            // TODO: Consider maybe adding Inode** to creat
+            if((e=vfs_creat(&p, flags & O_DIRECTORY)) < 0) return e;
+            if((e=vfs_find(&p, &inode)) < 0) return e;
+            resource->kind = RESOURCE_INODE;
+            resource->inode = inode;
+            resource->offset = 0;
+            return id;
         }
-    } else {
-        resource->kind = RESOURCE_FILE;
-        if((e=vfs_open(&p, &resource->data.file, mode)) < 0) {
-            if(flags & O_CREAT) {
-                if((e=vfs_create(&p)) < 0)
-                    goto err_file;
-                // TODO: Is it defined behaviour if the file is created but can't be opened?
-                if((e=vfs_open(&p, &resource->data.file, mode)) < 0)
-                    goto err_file;
-                return id;
-            }
-        err_file:
-            resource_remove(current->resources, id);
-            return e;
-        }
+        resource_remove(current->resources, id);
+        return e;
     }
+    resource->kind = RESOURCE_INODE;
+    resource->inode = inode;
+    resource->offset = 0;
     return id;
 }
 intptr_t sys_write(uintptr_t handle, const void* buf, size_t size) {
@@ -80,8 +65,11 @@ intptr_t sys_write(uintptr_t handle, const void* buf, size_t size) {
     Process* current = current_process();
     Resource* res = resource_find_by_id(current->resources, handle);
     if(!res) return -INVALID_HANDLE;
-    if(res->kind != RESOURCE_FILE) return -INVALID_TYPE;
-    return vfs_write(&res->data.file, buf, size);
+    if(res->kind != RESOURCE_INODE) return -INVALID_TYPE;
+    intptr_t e;
+    if((e=inode_write(res->inode, buf, size, res->offset)) < 0) return e;
+    res->offset += e;
+    return e;
 }
 intptr_t sys_read(uintptr_t handle, void* buf, size_t size) {
 #ifdef CONFIG_LOG_SYSCALLS
@@ -90,31 +78,27 @@ intptr_t sys_read(uintptr_t handle, void* buf, size_t size) {
     Process* current = current_process();
     Resource* res = resource_find_by_id(current->resources, handle);
     if(!res) return -INVALID_HANDLE;
-    switch(res->kind) {
-    case RESOURCE_FILE:
-        return vfs_read(&res->data.file, buf, size);
-    case RESOURCE_DIR: {
-        VfsDirEntry vfs_entry;
-        if(size < sizeof(DirEntry)) return -SIZE_MISMATCH;
-        size_t head = 0;
-        while(head+sizeof(DirEntry) < size) {
-            intptr_t e = vfs_get_dir_entries(&res->data.dir, &vfs_entry, 1);
-            if(e < 0) return e;
-            if(e == 0) return head;
-            DirEntry* entry = (DirEntry*)buf;
-            // TODO: vfs_direntry_cleanup
-            if((e=vfs_identify(&vfs_entry, entry->name, size-sizeof(DirEntry)-head)) < 0) {
-                if(e==-LIMITS) return head;
-                return e;
-            }
-            size_t s = sizeof(DirEntry)+e+1;
-            entry->size = s;
-            entry->inodeid = vfs_entry.inodeid;
-            entry->kind = vfs_entry.kind;
-            head += s;
-            buf += s;
+    if(res->kind != RESOURCE_INODE) {
+        return -INVALID_TYPE;
+    }
+    intptr_t e;
+    // TODO: its now redily apparent that we should have a separate syscall for
+    // get_dir_entries
+    switch(res->inode->kind) {
+    case INODE_DEVICE:
+    case INODE_FILE:
+        if((e=inode_read(res->inode, buf, size, res->offset)) < 0) {
+            return e;
         }
-        return head;
+        res->offset += e;
+        return e;
+    case INODE_DIR: {
+        size_t read_bytes;
+        if((e=inode_get_dir_entries(res->inode, buf, size, res->offset, &read_bytes)) < 0) {
+            return e;
+        }
+        res->offset += e;
+        return read_bytes;
     } break;
     default:
         return -INVALID_TYPE;
@@ -128,8 +112,8 @@ intptr_t sys_ioctl(uintptr_t handle, Iop op, void* arg) {
     Process* current = current_process();
     Resource* res = resource_find_by_id(current->resources, handle);
     if(!res) return -INVALID_HANDLE;
-    if(res->kind != RESOURCE_FILE) return -INVALID_TYPE;
-    return vfs_ioctl(&res->data.file, op, arg);
+    if(res->kind != RESOURCE_INODE) return -INVALID_TYPE;
+    return inode_ioctl(res->inode, op, arg);
 }
 
 intptr_t sys_mmap(uintptr_t handle, void** addr, size_t size) {
@@ -137,12 +121,12 @@ intptr_t sys_mmap(uintptr_t handle, void** addr, size_t size) {
     Task* task = current_task();
     Resource* res = resource_find_by_id(current->resources, handle);
     if(!res) return -INVALID_HANDLE;
-    if(res->kind != RESOURCE_FILE) return -INVALID_TYPE;
+    if(res->kind != RESOURCE_INODE) return -INVALID_TYPE;
     MmapContext context = {
         .page_table = task->image.cr3,
         .memlist = &task->image.memlist
     };
-    intptr_t e = vfs_mmap(&res->data.file, &context, addr, size);
+    intptr_t e = inode_mmap(res->inode, &context, addr, size);
     if(e < 0) return e;
     invalidate_pages(*addr, PAGE_ALIGN_UP(size)/PAGE_SIZE);
     return e;
@@ -151,17 +135,36 @@ intptr_t sys_seek(uintptr_t handle, off_t offset, seekfrom_t from) {
     Process* current = current_process();
     Resource* res = resource_find_by_id(current->resources, handle);
     if(!res) return -INVALID_HANDLE;
-    if(res->kind != RESOURCE_FILE) return -INVALID_TYPE;
-    return vfs_seek(&res->data.file, offset, from);
+    if(res->kind != RESOURCE_INODE) return -INVALID_TYPE;
+    if(res->inode->kind != INODE_FILE) return -INODE_IS_DIRECTORY;
+    // TODO: Convertions with lba
+    switch(from) {
+    case SEEK_START:
+        res->offset = offset;
+        return res->offset;
+    case SEEK_CURSOR:
+        res->offset += offset;
+        return res->offset;
+    case SEEK_EOF: {
+        intptr_t e;
+        if((e=inode_size(res->inode)) < 0) return e;
+        res->offset = e+offset;
+        return res->offset;
+    } break;
+    default:
+        return -INVALID_PARAM;
+    }
 }
 intptr_t sys_tell(uintptr_t handle) {
     Process* current = current_process();
     Resource* res = resource_find_by_id(current->resources, handle);
     if(!res) return -INVALID_HANDLE;
-    if(res->kind != RESOURCE_FILE) return -INVALID_TYPE;
-    return res->data.file.cursor;
+    if(res->kind != RESOURCE_INODE) return -INVALID_TYPE;
+    if(res->inode->kind != INODE_FILE) return -INODE_IS_DIRECTORY;
+    return res->offset;
 }
-// TODO: More generic close for everything including directories, networking sockets, etc. etc.
+// TODO: Smarter resource sharing logic. No longer sharing Resource itself but the Inode+offset.
+// The res->shared check is entirely useless
 intptr_t sys_close(uintptr_t handle) {
 #ifdef CONFIG_LOG_SYSCALLS
     printf("sys_close(%lu)\n",handle);
@@ -169,10 +172,10 @@ intptr_t sys_close(uintptr_t handle) {
     Process* current = current_process();
     Resource* res = resource_find_by_id(current->resources, handle);
     if(!res) return -INVALID_HANDLE;
-    if(res->kind != RESOURCE_FILE) return -INVALID_TYPE;
     intptr_t e = 0;
     if(res->shared == 1) {
-        e = vfs_close(&res->data.file);
+        e=0;
+        if(res->kind == RESOURCE_INODE) idrop(res->inode);
     }
     resource_remove(current->resources, handle);
     return e;
@@ -222,8 +225,7 @@ intptr_t sys_fork() {
         heap = (Heap*)heap->list.next;
     }
     process->heapid = current_proc->heapid;
-    process->curdir_id = current_proc->curdir_id;
-    process->curdir_sb = current_proc->curdir_sb;
+    process->curdir_inode = iget(current_proc->curdir_inode);
 
     Task* current = current_task();
     disable_interrupts();
@@ -407,17 +409,13 @@ intptr_t sys_chdir(const char* path) {
     intptr_t e;
     Process* cur_proc = current_process();
     Path p;
-    inodeid_t curdir_id = cur_proc->curdir_id;
-    Superblock* curdir_sb = cur_proc->curdir_sb;
     if((e=parse_path(cur_proc, &p, path)) < 0) return e;
-    if((e=vfs_find(&p, &cur_proc->curdir_sb, &cur_proc->curdir_id)) < 0) return e;
     Inode* inode;
-    if((e=fetch_inode(cur_proc->curdir_sb, cur_proc->curdir_id, &inode, MODE_READ)) < 0) return e;
+    if((e=vfs_find(&p, &inode)) < 0) return e;
     if(inode->kind != INODE_DIR) {
         idrop(inode);
         return -IS_NOT_DIRECTORY;
     }
-    idrop(inode);
     switch(path[0]) {
     case '/':
          if(pathlen >= PATH_MAX) {
@@ -445,10 +443,10 @@ intptr_t sys_chdir(const char* path) {
          memcpy(cur_proc->curdir+cwdlen+1, path, pathlen+1);
     } break;
     }
+    idrop(cur_proc->curdir_inode);
+    cur_proc->curdir_inode = inode;
     return 0;
 str_path_resolve_err:
-    cur_proc->curdir_id = curdir_id;
-    cur_proc->curdir_sb = curdir_sb;
     return e;
 }
 intptr_t sys_getcwd(char* buf, size_t cap) {
@@ -465,20 +463,11 @@ intptr_t sys_stat(const char* path, Stats* stats) {
     Process* current = current_process();
     intptr_t e = 0;
     if((e=parse_path(current, &p, path)) < 0) return e;
-    inodeid_t id;
-    Superblock* sb;
-    if((e=vfs_find(&p, &sb, &id)) < 0) {
-        return e;
-    }
     Inode* inode;
-    if((e=fetch_inode(sb, id, &inode, MODE_READ)) < 0)
-        return e;
-    if((e=vfs_stat(inode, stats)) < 0) {
-        idrop(inode);
-        return e;
-    }
+    if((e=vfs_find(&p, &inode)) < 0) return e;
+    e=inode_stat(inode, stats);
     idrop(inode);
-    return 0;
+    return e;
 }
 void sys_sleepfor(const MinOS_Duration* duration) {
     size_t ms = duration->secs*1000 + duration->nano/1000000;

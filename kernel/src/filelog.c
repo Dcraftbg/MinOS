@@ -1,26 +1,26 @@
 #include "filelog.h"
 #include "vfs.h"
 #include "print.h"
+#include "fileutils.h"
 intptr_t file_write_str(Logger* logger, const char* str, size_t len) {
     intptr_t e;
-    VfsFile file;
-    if((e = vfs_open_abs((const char*)logger->private, &file, MODE_WRITE | MODE_STREAM)) < 0) {
+    Inode* file;
+    const char* path=(const char*)logger->private;
+    if((e = vfs_find_abs(path, &file)) < 0) {
         if(e != -NOT_FOUND) 
             goto open_err;
-        if((e=vfs_create_abs((const char*)logger->private)) < 0)
+        if((e=vfs_creat_abs(path, 0)) < 0)
             goto open_err;
-        if((e = vfs_open_abs((const char*)logger->private, &file, MODE_WRITE | MODE_STREAM)) < 0)
+        if((e = vfs_find_abs(path, &file)) < 0)
             goto open_err;
     }
-    if((e = vfs_seek(&file, 0, SEEK_EOF)) < 0)
-        goto seek_err;
-    if((e = vfs_write(&file, str, len)) < 0)
-        goto write_err;
-    vfs_close(&file);
+    intptr_t size = inode_size(file);
+    if(size < 0) goto size_err;
+    e=write_exact(file, str, len, size);
+    idrop(file);
     return e;
-write_err:
-seek_err:
-    vfs_close(&file);
+size_err:
+    idrop(file);
 open_err:
     return e;
 }

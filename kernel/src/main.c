@@ -47,22 +47,32 @@ static void fbt() {
     if(buf.bpp != 32) return;
     fmbuf_fill(&buf, 0xFF212121);
 }
-
-static void dev_test() {
-    const char* path = "/devices/tty0";
-    const char* msg = "This is a test message to test if devices work :D\nHello!";
-    intptr_t e = 0;
-    VfsFile file={0};
-    if((e = vfs_open_abs(path, &file, MODE_WRITE)) < 0) {
-        printf("ERROR: Failed to open %s: %s\n",path,status_str(e));
-        kabort();
+static void fstest() {
+    intptr_t e;
+    Inode* file;
+    const char* path = "/foo.txt";
+    if((e=vfs_find_abs(path, &file)) < 0) {
+        kpanic("Could not open `%s`: %s", path, status_str(e));
     }
-    if((e = write_exact(&file, msg, strlen(msg))) < 0) {
-        vfs_close(&file);
-        printf("ERROR: Could not write test dev message : %s\n",status_str(e));
-        kabort();
+    off_t offset=0;
+    for(size_t i = 0; i < 10; ++i) {
+        char a;
+        if((e=inode_read(file, &a, 1, offset)) < 0) {
+            kpanic("Failed to read: %s", status_str(e));
+        }
+        kinfo("%s: %c", path, a);
+        offset+=e;
     }
-    vfs_close(&file);
+    offset=4088;
+    for(size_t i = 0; i < 10; ++i) {
+        char a;
+        if((e=inode_read(file, &a, 1, offset)) < 0) {
+            kpanic("Failed to read: %s", status_str(e));
+        }
+        kinfo("2> %s: %c", path, a);
+        offset+=e;
+    }
+    idrop(file);
 }
 #if 0
 #include "probe.h"
@@ -74,7 +84,6 @@ static void do_probe() {
     fmbuf_fill(&fb, 0x00ff00);
 }
 #endif
-
 void _start() {
     disable_interrupts();
     BREAKPOINT();
@@ -205,6 +214,7 @@ void _start() {
         kabort();
     }
     kinfo("Spawning `%s` id=%zu", epath, (size_t)e);
+    // fstest();
     pic_clear_mask(1);
     pic_clear_mask(0);
     for(;;) {
