@@ -32,6 +32,8 @@
     "-Wall", \
     "-fno-stack-protector", \
     "-mno-mmx",\
+    "-MMD",\
+    "-MP",\
     /*"-mno-sse", "-mno-sse2",*/\
     "-mno-3dnow",\
     "-fPIC",\

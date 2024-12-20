@@ -15,24 +15,9 @@ bool cc(const char* ipath, const char* opath) {
     return true;
 }
 
-bool simple_link(const char* obj, const char* result, const char* link_script) {
-    nob_log(NOB_INFO, "Linking %s",obj);
-    Nob_Cmd cmd = {0};
-    nob_cmd_append(&cmd, LD);
-#ifdef LDFLAGS
-    nob_cmd_append(&cmd, LDFLAGS);
-#endif
-    nob_cmd_append(&cmd, "-T", link_script, "-o", result);
-    nob_cmd_append(&cmd, obj);
-    if(!nob_cmd_run_sync(cmd)) {
-        nob_cmd_free(cmd);
-        return false;
-    }
-    nob_cmd_free(cmd);
-    nob_log(NOB_INFO, "Linked %s",result);
-    return true;
-}
 bool ld(Nob_File_Paths* paths, const char* opath, const char* ldscript) {
+    if(!nob_needs_rebuild1(opath, ldscript) && !nob_needs_rebuild(opath, paths->items, paths->count))
+        return true;
     nob_log(NOB_INFO, "Linking %s",opath);
     Nob_Cmd cmd = {0};
     nob_cmd_append(&cmd, LD);

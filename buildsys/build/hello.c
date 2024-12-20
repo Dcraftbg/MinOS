@@ -2,10 +2,9 @@ bool build_hello() {
     #define BINDIR "./bin/user/hello/"
     #define SRCDIR "./user/hello/src/"
     #define LIBDIR "./bin/std/"
-    if(!cc_user    (SRCDIR "main.c"        , BINDIR "hello.o")) return false;
+    if(!build_user_dir(SRCDIR, BINDIR, false)) return false; 
     Nob_File_Paths paths = {0};
-    nob_da_append(&paths, BINDIR "hello.o");
-    if(!find_objs(LIBDIR, &paths)) {
+    if(!find_objs(BINDIR, &paths)) {
         nob_da_free(paths);
         return false;
     }

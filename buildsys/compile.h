@@ -18,4 +18,3 @@ static bool build_user_dir(const char* rootdir, const char* build_dir, bool forc
     return _build_dir(&user_funcs, rootdir, build_dir, rootdir, forced); 
 }
 bool ld(Nob_File_Paths* paths, const char* opath, const char* ldscript);
-bool simple_link(const char* obj, const char* result, const char* link_script);
