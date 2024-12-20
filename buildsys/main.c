@@ -34,6 +34,7 @@ typedef struct {
 } Build;
 #include "flags.h"
 #include "utils.h"
+#include "depan.h"
 #include "compile.h"
 #include "libc.h"
 #include "embed.h"
@@ -152,6 +153,7 @@ int main(int argc, char** argv) {
 #include "utils.c"
 #include "embed.c"
 #include "ustar.c"
+#include "depan.c"
 #include "compile.c"
 #include "libc.c"
 #include "build/make_dirs.c"

@@ -11,6 +11,8 @@
     "-fno-stack-protector", \
     "-fcf-protection=none", \
     "-O2",\
+    "-MMD",\
+    "-MP",\
     /*"-fomit-frame-pointer", "-fno-builtin", */\
     /*"-mno-red-zone",*/\
     "-mno-mmx",\
