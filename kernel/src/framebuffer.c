@@ -39,12 +39,13 @@ void fmbuf_draw_rect(Framebuffer* this, size_t left, size_t top, size_t right, s
 void fmbuf_scroll_up(Framebuffer* this, size_t rows, uint32_t bg) {
     debug_assert(this->height >= rows);
     uint8_t* addr=this->addr;
-    size_t bytes =this->bpp/8;
+    uint8_t* head=this->addr+rows*this->pitch_bytes;
     size_t from  =this->height-rows;
+    size_t row_bytes = this->width*(this->bpp/8);
     for(size_t y = 0; y < from; ++y) {
-        memmove(addr, addr+rows*this->pitch_bytes, this->width*bytes);
+        memmove(addr, head, row_bytes);
         addr+=this->pitch_bytes;
+        head+=this->pitch_bytes;
     }
-    // kinfo("fmbuf_scroll_up. rows=%zu, %zu, to=%zu", rows, this->height-rows, this->height);
     fmbuf_draw_rect(this, 0, from, this->width, this->height, bg);
 }
