@@ -163,8 +163,10 @@ static intptr_t tmpfs_write(Inode* file, const void* buf, size_t size, off_t off
     if(inode->kind != INODE_FILE) return -INODE_IS_DIRECTORY;
     if((size_t)offset > inode->size) return -INVALID_OFFSET;
     TmpfsData *head = inode->data, *prev=(TmpfsData*)(&inode->data);
+    size_t left = inode->size;
     while(head && (size_t)offset >= TMPFS_DATABLOCK_BYTES) {
         offset -= TMPFS_DATABLOCK_BYTES;
+        left -= TMPFS_DATABLOCK_BYTES;
         prev = head;
         head = head->next;
     }
@@ -179,13 +181,15 @@ static intptr_t tmpfs_write(Inode* file, const void* buf, size_t size, off_t off
             prev->next = datablock_new();
             if(!prev->next) return written;
             head = prev->next;
-            inode->size += to_write;
         }
+        if(to_write > left-offset) inode->size += to_write-(left-offset);
         memcpy(head->data+offset, bytes+written, to_write);
         written += to_write;
         prev = head;
         head = head->next;
         offset = 0;
+        if(left < TMPFS_DATABLOCK_BYTES) left=0;
+        else left-=TMPFS_DATABLOCK_BYTES;
     }
     return written;
 }
@@ -194,7 +198,7 @@ static intptr_t tmpfs_find(Inode* dir, const char* name, size_t namelen, inodeid
     if(inode->kind != INODE_DIR) return -IS_NOT_DIRECTORY;
     TmpfsData* head = inode->data;
     size_t size = inode->size;
-    while(size) {
+    while(size && head) {
         size_t to_read = size > TMPFS_DATABLOCK_DENTS ? TMPFS_DATABLOCK_DENTS : size;
         for(size_t i = 0; i < to_read; ++i) {
             TmpfsInode* entry = ((TmpfsInode**)head->data)[i];
@@ -203,10 +207,10 @@ static intptr_t tmpfs_find(Inode* dir, const char* name, size_t namelen, inodeid
                 return 0;
             }
         }
-        if(!(head = head->next)) return -FILE_CORRUPTION;
+        head = head->next;
         size -= to_read;
     }
-    return -NOT_FOUND;
+    return size > 0 ? -FILE_CORRUPTION : -NOT_FOUND;
 }
 static intptr_t tmpfs_stat(Inode* me, Stats* stats) {
     if(!me || !me->priv) return -BAD_INODE;
