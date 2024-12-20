@@ -1,6 +1,3 @@
-// TODO: Dependency system, where the buildsys analyses the code and figures out the dependencies of a file and caches them in a .dep file
-// .d does NOT work for me rn. I mean I can try to use them but seems a bit of a hassle to parse the Makefile rules
-
 // TODO: church
 // A sort of C search project, that will document things inside the project and if ran natively will open an html page
 // Served using something like curl. Otherwise if it couldn't open the web page itself, it will open a CLI you can use for searching
