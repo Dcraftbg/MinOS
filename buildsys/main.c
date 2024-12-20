@@ -89,8 +89,53 @@ bool strstarts(const char* str, const char* needle) {
     // Because str is null terminated and it will complain about it if its less
     return memcmp(str, needle, strlen(needle)) == 0;
 }
+bool nob_read_entire_dir_recursively(const char* path, Nob_File_Paths* paths) {
+    DIR *dir = opendir(path);
+    if(!dir) {
+        nob_log(NOB_ERROR, "Could not open directory `%s`", path);
+        return false;
+    }
+    struct dirent* ent;
+    while((ent=readdir(dir))) {
+        nob_da_append(paths, nob_temp_sprintf("%s/%s", path, ent->d_name));
+    }
+    if(dir) closedir(dir);
+    return true;
+}
+bool rebuild_urself(int argc, char** argv) {
+    Nob_File_Paths paths={0};
+    if(!nob_read_entire_dir_recursively("./buildsys", &paths)) return false;
+    #ifdef _WIN32
+        char binary_path[MAX_PATH];
+        NOB_ASSERT(GetModuleFileNameA(NULL, binary_path, MAX_PATH));
+    #else
+        const char *binary_path = argv[0];                                                   
+    #endif                                                                                     
+    if(nob_needs_rebuild(binary_path, paths.items, paths.count)) {
+        Nob_String_Builder sb = {0};                                                     
+        nob_sb_append_cstr(&sb, binary_path);                                            
+        nob_sb_append_cstr(&sb, ".old");                                                 
+        nob_sb_append_null(&sb);                                                         
+                                                                                         
+        if (!nob_rename(binary_path, sb.items)) exit(1);                                 
+        Nob_Cmd rebuild = {0};                                                           
+        nob_cmd_append(&rebuild, NOB_REBUILD_URSELF(binary_path, __FILE__));          
+        bool rebuild_succeeded = nob_cmd_run_sync(rebuild);                              
+        nob_cmd_free(rebuild);                                                           
+        if (!rebuild_succeeded) {                                                        
+            nob_rename(sb.items, binary_path);                                           
+            exit(1);                                                                     
+        }                                                                                
+                                                                                         
+        Nob_Cmd cmd = {0};                                                               
+        nob_da_append_many(&cmd, argv, argc);                                            
+        if (!nob_cmd_run_sync(cmd)) exit(1);                                             
+        exit(0);                                                                         
+    }
+    return true;
+}
 int main(int argc, char** argv) {
-    NOB_GO_REBUILD_URSELF(argc,argv);
+    assert(rebuild_urself(argc,argv));
     Build build = {0};
     build.exe = shift_args(&argc, &argv);
     assert(build.exe && "First argument should be program itself");
