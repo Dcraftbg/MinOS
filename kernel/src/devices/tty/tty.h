@@ -7,8 +7,19 @@
 #include "../../framebuffer.h"
 #include "../../bootutils.h"
 #include <stdint.h>
-#define VGA_FG 0xececec
-#define VGA_BG 0x212121
-intptr_t create_tty_device_display(size_t display, const char* keyboard, Device* device);
-void destroy_tty_device(Device* device);
-void init_tty();
+typedef struct {
+    char* data;
+    size_t len, cap;
+    char small_inline[128];
+} TtyScratch;
+typedef struct Tty Tty;
+struct Tty {
+    TtyScratch scratch;
+    void* priv;
+    uint32_t (*getchar)(Tty* device);
+    void     (*putchar)(Tty* device, uint32_t code);
+    intptr_t (*deinit )(Tty* device);
+};
+void init_tty(void);
+Tty* tty_new(void);
+Device* create_tty_device(Tty* tty);
