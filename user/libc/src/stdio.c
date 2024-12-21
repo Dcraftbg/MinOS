@@ -19,9 +19,6 @@ static ssize_t print_base(void* user, PrintWriteFunc func, const char* fmt, va_l
         ssize_t _res = func(user, data, __len);\
         if(_res < 0) return _res;\
         else if(_res != __len) {\
-            char some_buf[30];\
-            size_t _size = sztoa_internal(some_buf, sizeof(some_buf), _res);\
-            write(STDOUT_FILENO, some_buf, _size);\
             return (fmt+_res)-fmt_start;\
         }\
     } while(0)
