@@ -7,7 +7,7 @@
 #include "vfs.h"
 #include "pit.h"
 struct Logger;
-struct Cache;
+typedef struct Cache Cache;
 #include <sync/mutex.h>
 typedef struct {
     Bitmap map;
@@ -29,17 +29,20 @@ typedef struct {
     size_t processid;
     struct list tasks;
     struct list processes;
-    struct Cache* cache_cache;
-    struct Cache* inode_cache;
-    struct Cache* task_cache;
-    struct Cache* resource_cache;
-    struct Cache* device_cache;
-    struct Cache* memregion_cache;
-    struct Cache* memlist_cache;
-    struct Cache* process_cache;
-    struct Cache* allocation_cache;
-    struct Cache* heap_cache;
-    struct Cache* charqueue_cache;
+    Cache *cache_cache;
+    Cache *inode_cache;
+    Cache *task_cache;
+    Cache *resource_cache;
+    Cache *device_cache;
+    Cache *memregion_cache;
+    Cache *memlist_cache;
+    Cache *process_cache;
+    Cache *allocation_cache;
+    Cache *heap_cache;
+    Cache *charqueue_cache;
+    Cache *pci_device_cache;
+    Cache *cache64, *cache256;
+
     struct list cache_list;
     struct Logger* logger;
     PitInfo pit_info;

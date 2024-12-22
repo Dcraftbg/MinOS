@@ -39,6 +39,8 @@
 #include "filelog.h"
 #include "iomem.h"
 #include "acpi.h"
+#include "pci.h"
+#include "general_caches.h"
 // TODO: create a symlink "/devices/keyboard" which will be a link to the currently selected keyboard
 // Like for example PS1 or USB or anything like that
 static void fbt() {
@@ -57,6 +59,7 @@ static void do_probe() {
     fmbuf_fill(&fb, 0x00ff00);
 }
 #endif
+
 void _start() {
     disable_interrupts();
     BREAKPOINT();
@@ -125,6 +128,8 @@ void _start() {
     update_bar(step++, "device cache");
     assert(kernel.device_cache = create_new_cache(sizeof(Device), "Device"));
 
+    init_general_caches();
+
     update_bar(step++, "init_charqueue");
     init_charqueue();
 
@@ -164,7 +169,8 @@ void _start() {
     fbt();
     init_tty();
 
-    // dev_test();
+    init_pci();
+
     intptr_t e = 0;
     const char* epath = NULL;
     Args args;
