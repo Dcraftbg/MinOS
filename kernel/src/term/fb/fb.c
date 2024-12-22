@@ -130,6 +130,10 @@ static uint32_t fbtty_getchar(Tty* device) {
         code = key_unicode(&fbtty->keystate, key.code);
         if(!(key.attribs & KEY_ATTRIB_RELEASE)) break; 
     }
+    if(code == '\n') {
+        fbtty->blink = false;
+        fbtty_fill_blink(fbtty, blink_color[fbtty->blink]);
+    }
     return code;
 }
 static void fbtty_putchar(Tty* device, uint32_t code) {
