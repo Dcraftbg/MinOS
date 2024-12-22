@@ -25,7 +25,7 @@ open_err:
     return e;
 }
 Logger file_logger = {
-    .log = NULL,
+    .log = logger_log_default,
     .write_str=file_write_str,
     .draw_color = NULL,
     .level = LOG_ALL,

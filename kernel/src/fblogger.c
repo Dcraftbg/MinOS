@@ -6,7 +6,7 @@ intptr_t fb_write_str(Logger* logger, const char* str, size_t len) {
 }
 FbTextWriter fbt0={0};
 Logger fb_logger = {
-    .log = NULL,
+    .log = logger_log_default,
     .write_str = fb_write_str,
     .draw_color = NULL,
     .level = LOG_ALL,
