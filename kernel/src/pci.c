@@ -137,6 +137,9 @@ intptr_t pci_scan(Pci* pci) {
 
     return 0;
 }
+
+
+#include <usb/usb.h>
 void init_pci() {
     assert(kernel.pci_device_cache = create_new_cache(sizeof(PciDevice), "PciDevice"));
     intptr_t e;
@@ -159,15 +162,12 @@ void init_pci() {
                     const char* oldpath = file_logger.private;
                     file_logger.private = "/pci/usb.log";
                     kernel.logger = &file_logger;
+                    intptr_t e;
                     kinfo("usb (bus=%03d slot=%02d device=%d). (pi=0x%02X)", busi, sloti, devi, dev->prog_inferface);
-                    if(dev->prog_inferface == 0x30) {
-                        // NOTE: FLADJ is not set. Done by the BIOS? Could be an issue in the future.
-                        kinfo("BAR:");
-                        if(dev->bar0.mmio) kinfo("(MMIO) %p %zu bytes", dev->bar0.as.mmio.addr, dev->bar0.size);
-                        else kinfo("(Port IO) %d", dev->bar0.as.port);
+                    if((e=init_usb(dev)) < 0) {
+                        kwarn("usb Failed to initialise USB device: %s", status_str(e));
+                        continue;
                     }
-                    else 
-                        kwarn("USB Controller Unsupported.");
                     file_logger.private = (void*)oldpath;
                     kernel.logger = oldlogger;
                 }

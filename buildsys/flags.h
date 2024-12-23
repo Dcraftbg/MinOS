@@ -13,6 +13,7 @@
     "-O2",\
     "-MMD",\
     "-MP",\
+    "-Ikernel/src",\
     /*"-fomit-frame-pointer", "-fno-builtin", */\
     /*"-mno-red-zone",*/\
     "-mno-mmx",\
