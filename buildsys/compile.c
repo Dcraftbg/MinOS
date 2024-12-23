@@ -1,4 +1,13 @@
 #include "flags.h"
+void cleanup_d(const char* obj) {
+    size_t temp = nob_temp_save();
+    char* str = nob_temp_strdup(obj);
+    size_t str_len = strlen(str);
+    assert(str_len);
+    str[str_len-1] = 'd';
+    nob_delete_file(str);
+    nob_temp_rewind(temp);
+}
 // TODO: cc but async
 bool cc(const char* ipath, const char* opath) {
     Nob_Cmd cmd = {0};
@@ -9,6 +18,7 @@ bool cc(const char* ipath, const char* opath) {
     nob_cmd_append(&cmd, "-c", ipath, "-o", opath);
     if(!nob_cmd_run_sync(cmd)) {
        nob_cmd_free(cmd);
+       cleanup_d(opath);
        return false;
     }
     nob_cmd_free(cmd);
@@ -49,6 +59,7 @@ bool cc_user(const char* ipath, const char* opath) {
     nob_cmd_append(&cmd, "-c", ipath, "-o", opath);
     if(!nob_cmd_run_sync(cmd)) {
        nob_cmd_free(cmd);
+       cleanup_d(opath);
        return false;
     }
     nob_cmd_free(cmd);
@@ -121,15 +132,12 @@ bool _build_dir(BuildFuncs* funcs, const char* rootdir, const char* build_dir, c
                     Nob_File_Paths dep_paths={0};
                     char* obj=NULL;
                     if(!dep_analyse_str(dep_sb.items, &obj, &dep_paths)) {
-                        nob_log(NOB_ERROR, "Failed to dependency analyse %s", opath.items);
                         nob_sb_free(dep_sb);
                         nob_da_free(dep_paths);
                         nob_return_defer(false);
                     }
                     if(nob_needs_rebuild(opath.items, dep_paths.items, dep_paths.count)) {
-                        nob_log(NOB_ERROR, "nob_needs_rebuild?");
                         if(!funcs->cc(path, obj)) {
-                            nob_log(NOB_ERROR, "This?");
                             nob_sb_free(dep_sb);
                             nob_da_free(dep_paths);
                             nob_return_defer(false);
