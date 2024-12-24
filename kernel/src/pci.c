@@ -124,14 +124,6 @@ intptr_t pci_scan(Pci* pci) {
             kinfo("(bus=%03d slot=%02d) vid=%04X device=%04X subclass=%02X", bus, slot, device->vendor_id, device->device, device->subclass);
             file_logger.private = (void*)oldpath;
             kernel.logger = oldlogger;
-
-            intptr_t e;
-            if((e=pci_map_bar0(&device->bar0, bus, slot, 0)) < 0) {
-                kerror("(pci) Failed to map bar: %s", status_str(e));
-                pci->busses[bus][slot][0] = NULL;
-                pci_device_destroy(device);
-                return e;
-            }
         }
     }
 
@@ -164,6 +156,10 @@ void init_pci() {
                     kernel.logger = &file_logger;
                     intptr_t e;
                     kinfo("usb (bus=%03d slot=%02d device=%d). (pi=0x%02X)", busi, sloti, devi, dev->prog_inferface);
+                    if((e=pci_map_bar0(&dev->bar0, busi, sloti, devi)) < 0) {
+                        kerror("(usb) Failed to map bar: %s", status_str(e));
+                        continue;
+                    }
                     if((e=init_usb(dev)) < 0) {
                         kwarn("usb Failed to initialise USB device: %s", status_str(e));
                         continue;
