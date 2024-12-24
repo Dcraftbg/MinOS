@@ -53,10 +53,18 @@ void boot_map_phys_memory() {
     for(size_t i = 0; i < limine_memmap_request.response->entry_count; ++i) {
         struct limine_memmap_entry* entry = limine_memmap_request.response->entries[i];
         pageflags_t flags = KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_WRITE | KERNEL_PFLAG_EXEC_DISABLE;
-        if(entry->base >= PHYS_RAM_MIRROR_SIZE) continue;
         size_t pages = entry->length/PAGE_SIZE;
-        if(entry->base+(pages*PAGE_SIZE) > PHYS_RAM_MIRROR_SIZE)  {
-            pages = (PHYS_RAM_MIRROR_SIZE-entry->base)/PAGE_SIZE;
+        if(
+            entry->type != LIMINE_MEMMAP_FRAMEBUFFER &&
+            entry->type != LIMINE_MEMMAP_KERNEL_AND_MODULES
+        ) {
+            if(entry->base >= PHYS_RAM_MIRROR_SIZE) {
+                ktrace("OutOfBou %-22s (%p -> %p) %zu pages", limine_memmap_str[entry->type], (void*)PAGE_ALIGN_DOWN(entry->base), (void*)PAGE_ALIGN_DOWN(entry->base | KERNEL_MEMORY_MASK), pages);
+                continue;
+            }
+            if(entry->base+(pages*PAGE_SIZE) > PHYS_RAM_MIRROR_SIZE)  {
+                pages = (PHYS_RAM_MIRROR_SIZE-entry->base)/PAGE_SIZE;
+            }
         }
         switch(entry->type) {
         case LIMINE_MEMMAP_FRAMEBUFFER:
@@ -82,6 +90,34 @@ void boot_map_phys_memory() {
             ktrace("Skipping %-22s (%p -> %p) %zu pages", limine_memmap_str[entry->type], (void*)PAGE_ALIGN_DOWN(entry->base), (void*)PAGE_ALIGN_DOWN(entry->base | KERNEL_MEMORY_MASK), (size_t)pages);
         }
     }
+#if 0
+    // Fuck you limine
+    kinfo("Framebuffer Patches");
+    size_t framebuffer_count = get_framebuffer_count();
+    for(size_t i = 0; i < framebuffer_count; ++i) {
+        Framebuffer framebuffer = get_framebuffer_by_id(i);
+        if(!framebuffer.addr) continue;
+        if(((uintptr_t)framebuffer.addr-KERNEL_MEMORY_MASK) > PHYS_RAM_MIRROR_SIZE) {
+            // NOTE: assumes addr is in HHDM
+            paddr_t   phys = ((paddr_t)framebuffer.addr)-KERNEL_MEMORY_MASK;
+            uintptr_t virt = (uintptr_t)framebuffer.addr;
+            size_t   pages = PAGE_ALIGN_UP(framebuffer.height*framebuffer.pitch_bytes)/PAGE_SIZE;
+            pageflags_t flags = KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_WRITE | KERNEL_PFLAG_EXEC_DISABLE | KERNEL_PFLAG_WRITE_COMBINE;
+            if(!
+               page_mmap(
+                 kernel.pml4,
+                 phys,
+                 virt,
+                 pages,
+                 flags
+               )
+            ) {
+                kpanic("Failed to map Framebuffer#%zu. (%p -> %p) %zu pages. Available memory in bitmap: %zu pages", i, (void*)phys, (void*)virt, pages, kernel.map.page_available);
+            }
+            kinfo("Framebuffer#%zu (%p -> %p) %zu pages", i, (void*)phys, (void*)virt, (size_t)pages);
+        }
+    }
+#endif
 }
 static Framebuffer fmbuf_from_limine(struct limine_framebuffer* buf) {
     static_assert(sizeof(Framebuffer) == 40, "Update fmbuf_from_limine");
