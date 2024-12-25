@@ -145,20 +145,80 @@ static uint32_t fbtty_getchar(Tty* device) {
     }
     return code;
 }
+static uint32_t bit4_colors[8] = {
+    0xff000000,
+    0xffaa0000,
+    0xff00aa00,
+    0xffaa5500,
+    0xff0000aa,
+    0xffaa00aa,
+    0xff00aaaa,
+    0xffaaaaaa
+};
+static uint32_t bit4_bold_colors[8] = {
+    0xff555555,
+    0xffff5555,
+    0xff55ff55,
+    0xffffff55,
+    0xff5555ff,
+    0xffff55ff,
+    0xff55ffff,
+    0xffffffff
+};
 static void handle_csi_final(FbTty* fbtty, uint32_t code) {
     switch(code) {
     case 'm':
         if(fbtty->csi.nums_count < 1) {
             kerror("(fbtty) Missing arguments for SGR");
         }
-        kinfo("(fbtty) nums_count=%zu", fbtty->csi.nums_count);
-        switch(fbtty->csi.nums[0]) {
+        int n = fbtty->csi.nums[0];
+        switch(n) {
         case 0:
             fbtty->fg = VGA_FG;
             fbtty->bg = VGA_BG;
             break;
+        case 30:
+        case 31:
+        case 32:
+        case 33:
+        case 34:
+        case 35:
+        case 36:
+        case 37:
+            fbtty->fg = bit4_colors[n - 30];
+            break;
+        case 40:
+        case 41:
+        case 42:
+        case 43:
+        case 44:
+        case 45:
+        case 46:
+        case 47:
+            fbtty->bg = bit4_colors[n - 40];
+            break;
+        case 90:
+        case 91:
+        case 92:
+        case 93:
+        case 94:
+        case 95:
+        case 96:
+        case 97:
+            fbtty->fg = bit4_bold_colors[n - 90];
+            break;
+        case 100:
+        case 101:
+        case 102:
+        case 103:
+        case 104:
+        case 105:
+        case 106:
+        case 107:
+            fbtty->bg = bit4_bold_colors[n - 100];
+            break;
         default:
-            kerror("(fbtty) Unsupported SGR param: %d", fbtty->csi.nums[0]);
+            kerror("(fbtty) Unsupported SGR param: %d", n);
             break;
         }
         break;
