@@ -147,6 +147,21 @@ static uint32_t fbtty_getchar(Tty* device) {
 }
 static void handle_csi_final(FbTty* fbtty, uint32_t code) {
     switch(code) {
+    case 'm':
+        if(fbtty->csi.nums_count < 1) {
+            kerror("(fbtty) Missing arguments for SGR");
+        }
+        kinfo("(fbtty) nums_count=%zu", fbtty->csi.nums_count);
+        switch(fbtty->csi.nums[0]) {
+        case 0:
+            fbtty->fg = VGA_FG;
+            fbtty->bg = VGA_BG;
+            break;
+        default:
+            kerror("(fbtty) Unsupported SGR param: %d", fbtty->csi.nums[0]);
+            break;
+        }
+        break;
     default:
         kerror("(fbtty) Unsupported csi final code: %c (%02X)", code, code);
         break;
@@ -168,6 +183,7 @@ static void fbtty_putchar(Tty* device, uint32_t code) {
         switch(code) {
         case '[':
             fbtty->state = STATE_CSI;
+            fbtty->csi.nums[0] = 0;
             fbtty->csi.nums_count = 1;
             break;
         default:
