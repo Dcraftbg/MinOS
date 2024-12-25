@@ -67,13 +67,24 @@ static int key_unicode(KeyState* keyboard, uint16_t code) {
         return code;
     }
 }
-
+#define MAX_CSI_NUMS 5
+typedef struct {
+    int nums[MAX_CSI_NUMS];
+    size_t current_num;
+} CsiParser;
 typedef struct {
     Inode* keyboard;
     KeyState keystate;
     FbTextWriter fbt;
     bool blink;
     size_t blink_time;
+    enum {
+        STATE_NORMAL,
+        STATE_ANSI_ESCAPE,
+        STATE_CSI,
+    } state;
+    CsiParser csi;
+    uint32_t fg, bg;
 } FbTty;
 static Cache* fbtty_cache = NULL;
 intptr_t init_fbtty(void) {
@@ -92,20 +103,18 @@ static FbTty* fbtty_new_internal(Inode* keyboard, FbTextWriter writer) {
     memset(tty, 0, sizeof(*tty));
     tty->keyboard = keyboard;
     tty->fbt = writer;
+    tty->fg = VGA_FG;
+    tty->bg = VGA_BG;
     return tty;
 }
 
 static void fbtty_fill_blink(FbTty* fb, uint32_t color) {
     size_t x=fb->fbt.x, y=fb->fbt.y;
-    fbwriter_draw_codepoint(&fb->fbt, CODE_BLOCK, color, VGA_BG);
+    fbwriter_draw_codepoint(&fb->fbt, CODE_BLOCK, color, fb->bg);
     fb->fbt.x = x; 
     fb->fbt.y = y;
 }
 
-static const uint32_t blink_color[2] = {
-    VGA_BG,
-    VGA_FG
-};
 #define TTY_MILISECOND_BLINK 500
 static uint32_t fbtty_getchar(Tty* device) {
     intptr_t e;
@@ -116,14 +125,14 @@ static uint32_t fbtty_getchar(Tty* device) {
         // TODO: Thread blocker for this stuff
         for(;;) {
             if((e=inode_read(fbtty->keyboard, &key, sizeof(key), 0)) < 0) {
-                if(fbtty->blink) fbtty_fill_blink(fbtty, VGA_BG);
+                if(fbtty->blink) fbtty_fill_blink(fbtty, fbtty->bg);
                 return e;
             } else if (e > 0) break;
             size_t now = kernel.pit_info.ticks;
             if(now-fbtty->blink_time >= TTY_MILISECOND_BLINK) {
                 fbtty->blink = !fbtty->blink;
                 fbtty->blink_time = now;
-                fbtty_fill_blink(fbtty, blink_color[fbtty->blink]);
+                fbtty_fill_blink(fbtty, fbtty->blink ? fbtty->fg : fbtty->bg);
             }
         }
         key_set(&fbtty->keystate, key.code, key.attribs);
@@ -132,15 +141,78 @@ static uint32_t fbtty_getchar(Tty* device) {
     }
     if(code == '\n') {
         fbtty->blink = false;
-        fbtty_fill_blink(fbtty, blink_color[fbtty->blink]);
+        fbtty_fill_blink(fbtty, fbtty->blink ? fbtty->fg : fbtty->bg);
     }
     return code;
 }
+static void handle_csi_final(FbTty* tty, uint32_t code) {
+    switch(code) {
+    default:
+        kerror("(fbtty) Unsupported csi final code: %c (%02X)", code, code);
+        break;
+    }
+}
 static void fbtty_putchar(Tty* device, uint32_t code) {
     FbTty* fbtty = device->priv;
-    if(fbtty->blink) fbtty_fill_blink(fbtty, VGA_BG);
-    fbwriter_draw_codepoint(&fbtty->fbt, code, VGA_FG, VGA_BG);
-    fbtty_fill_blink(fbtty, blink_color[fbtty->blink]);
+    switch(fbtty->state) {
+    case STATE_NORMAL:
+        if(code == 0x1B) {
+            fbtty->state = STATE_ANSI_ESCAPE;
+            break;
+        }
+        if(fbtty->blink) fbtty_fill_blink(fbtty, fbtty->bg);
+        fbwriter_draw_codepoint(&fbtty->fbt, code, fbtty->fg, fbtty->bg);
+        fbtty_fill_blink(fbtty, fbtty->blink ? fbtty->fg : fbtty->bg);
+        break;
+    case STATE_ANSI_ESCAPE:
+        switch(code) {
+        case '[':
+            fbtty->state = STATE_CSI;
+            break;
+        default:
+            kerror("(fbtty) Unsupported escape character %c (%02X)", code, code);
+            fbtty->state = STATE_NORMAL;
+        }
+        break;
+    case STATE_CSI:
+        switch(code) {
+        case ';': {
+            if(++fbtty->csi.current_num >= MAX_CSI_NUMS) {
+                kerror("(fbtty) Too many arguments in ANSI escape sequence");
+                fbtty->csi.current_num = 0;
+                fbtty->state = STATE_NORMAL;
+                return;
+            }
+            break;
+        case '0':
+        case '1':
+        case '2':
+        case '3':
+        case '4':
+        case '5':
+        case '6':
+        case '7':
+        case '8':
+        case '9':
+            fbtty->csi.nums[fbtty->csi.current_num] *= 10;
+            fbtty->csi.nums[fbtty->csi.current_num] += code-'0';
+            break;
+        default:
+            // We reached the final byte
+            if(code >= 0x40 && code <= 0x7E) {
+                handle_csi_final(fbtty, code);
+            } else {
+                kerror("(fbtty) Unsupported code in csi escape sequence: %c (%02X)", code, code);
+            }
+            fbtty->state = STATE_NORMAL;
+            fbtty->csi.current_num = 0;
+            break;
+        }
+        }
+        break;
+    default:
+        kerror("Invalid state: %d", fbtty->state);
+    }
 }
 static intptr_t fbtty_deinit(Tty* device) {
     FbTty* fbtty = device->priv;
