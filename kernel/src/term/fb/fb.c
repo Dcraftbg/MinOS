@@ -70,7 +70,7 @@ static int key_unicode(KeyState* keyboard, uint16_t code) {
 #define MAX_CSI_NUMS 5
 typedef struct {
     int nums[MAX_CSI_NUMS];
-    size_t current_num;
+    size_t nums_count;
 } CsiParser;
 typedef struct {
     Inode* keyboard;
@@ -145,7 +145,7 @@ static uint32_t fbtty_getchar(Tty* device) {
     }
     return code;
 }
-static void handle_csi_final(FbTty* tty, uint32_t code) {
+static void handle_csi_final(FbTty* fbtty, uint32_t code) {
     switch(code) {
     default:
         kerror("(fbtty) Unsupported csi final code: %c (%02X)", code, code);
@@ -168,6 +168,7 @@ static void fbtty_putchar(Tty* device, uint32_t code) {
         switch(code) {
         case '[':
             fbtty->state = STATE_CSI;
+            fbtty->csi.nums_count = 1;
             break;
         default:
             kerror("(fbtty) Unsupported escape character %c (%02X)", code, code);
@@ -177,9 +178,9 @@ static void fbtty_putchar(Tty* device, uint32_t code) {
     case STATE_CSI:
         switch(code) {
         case ';': {
-            if(++fbtty->csi.current_num >= MAX_CSI_NUMS) {
+            if(fbtty->csi.nums_count++ >= MAX_CSI_NUMS) {
                 kerror("(fbtty) Too many arguments in ANSI escape sequence");
-                fbtty->csi.current_num = 0;
+                fbtty->csi.nums_count = 0;
                 fbtty->state = STATE_NORMAL;
                 return;
             }
@@ -194,8 +195,8 @@ static void fbtty_putchar(Tty* device, uint32_t code) {
         case '7':
         case '8':
         case '9':
-            fbtty->csi.nums[fbtty->csi.current_num] *= 10;
-            fbtty->csi.nums[fbtty->csi.current_num] += code-'0';
+            fbtty->csi.nums[fbtty->csi.nums_count-1] *= 10;
+            fbtty->csi.nums[fbtty->csi.nums_count-1] += code-'0';
             break;
         default:
             // We reached the final byte
@@ -205,7 +206,7 @@ static void fbtty_putchar(Tty* device, uint32_t code) {
                 kerror("(fbtty) Unsupported code in csi escape sequence: %c (%02X)", code, code);
             }
             fbtty->state = STATE_NORMAL;
-            fbtty->csi.current_num = 0;
+            fbtty->csi.nums_count = 0;
             break;
         }
         }
