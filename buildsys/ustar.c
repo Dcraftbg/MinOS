@@ -24,6 +24,7 @@ bool initrd_setup() {
         "./bin/user/shell/shell",
         "./bin/user/hello/hello",
         "./bin/user/cat/cat",
+        "./bin/user/ansi_test/ansi_test",
         "./bin/user/ls/ls",
         "./bin/user/fbtest/fbtest",
     )) return false;

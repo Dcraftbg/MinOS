@@ -19,6 +19,9 @@ bool build_user(const char* what) {
         else if(strcmp(what, "cat") == 0) {
             if(!build_cat()) return false;
         }
+        else if(strcmp(what, "ansi_test") == 0) {
+            if(!build_ansi_test()) return false;
+        }
         else if(strcmp(what, "ls") == 0) {
             if(!build_ls()) return false;
         }
@@ -36,6 +39,7 @@ bool build_user(const char* what) {
         if(!build_shell()) return false;
         if(!build_hello()) return false;
         if(!build_cat()) return false;
+        if(!build_ansi_test()) return false;
         if(!build_ls()) return false;
         if(!build_fbtest()) return false;
     }
