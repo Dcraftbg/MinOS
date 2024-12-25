@@ -146,6 +146,17 @@ static uint32_t fbtty_getchar(Tty* device) {
     return code;
 }
 static uint32_t bit4_colors[8] = {
+#ifdef JAKE_COLORSCHEME
+    // NOTE: Soft colors. Really cool :D
+    0xffa4ada6,
+    0xfff07473,
+    0xff00aa00,
+    0xffdaa05c,
+    0xff0000aa,
+    0xffa48abc,
+    0xff447ff0,
+    0xffaaaaaa
+#else
     0xff000000,
     0xffaa0000,
     0xff00aa00,
@@ -154,6 +165,7 @@ static uint32_t bit4_colors[8] = {
     0xffaa00aa,
     0xff00aaaa,
     0xffaaaaaa
+#endif
 };
 static uint32_t bit4_bold_colors[8] = {
     0xff555555,

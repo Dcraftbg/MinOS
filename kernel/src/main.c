@@ -41,13 +41,15 @@
 #include "acpi.h"
 #include "pci.h"
 #include "general_caches.h"
+
+#include "term/fb/fb.h"
 // TODO: create a symlink "/devices/keyboard" which will be a link to the currently selected keyboard
 // Like for example PS1 or USB or anything like that
 static void fbt() {
     Framebuffer buf = get_framebuffer_by_id(0);
     if(!buf.addr) return;
     if(buf.bpp != 32) return;
-    fmbuf_fill(&buf, 0xFF212121);
+    fmbuf_fill(&buf, VGA_BG);
 }
 #if 0
 #include "probe.h"

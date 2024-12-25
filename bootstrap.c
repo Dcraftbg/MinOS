@@ -189,6 +189,8 @@ bool bootstrap_config(Build* build) {
      fprintf(f, "//// Enable the Welcome.txt message (will be created at runtime)\n");
      fprintf(f, "//// NOTE: This like embedfs has been superseeded by initrd\n");
      fprintf(f, "// #define ENABLE_WELCOME\n");
+     fprintf(f, "//// Enable Jake colorscheme for framebuffers\n");
+     fprintf(f, "// #define JAKE_COLORSCHEME\n");
      fclose(f);
      return true;
 }
