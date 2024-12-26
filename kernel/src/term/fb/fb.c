@@ -88,7 +88,12 @@ typedef struct {
     Inode* keyboard;
     TtyScratch scratch;
     KeyState keystate;
-    FbTextWriter fbt;
+    Framebuffer fb;
+    size_t x, y;
+    size_t w, h;
+    struct {
+        char c;
+    }* map;
     bool blink;
     size_t blink_time;
     enum {
@@ -110,12 +115,23 @@ void deinit_fbtty(void) {
     // TODO: Implement cache_destory and remove this cache
     fbtty_cache = NULL;
 }
-static FbTty* fbtty_new_internal(Inode* keyboard, FbTextWriter writer) {
+static FbTty* fbtty_new_internal(Inode* keyboard, Framebuffer fb) {
     FbTty* tty = cache_alloc(fbtty_cache);
     if(!tty) return tty;
     memset(tty, 0, sizeof(*tty));
+    tty->w  = fb.width/8;
+    tty->h  = fb.height/16;
+    tty->map = kernel_malloc(tty->w * tty->h * sizeof(tty->map[0]));
+    if(!tty->map) {
+        cache_dealloc(fbtty_cache, tty);
+        return NULL;
+    }
+    size_t chars = tty->w * tty->h;
+    for(size_t i = 0; i < chars; ++i) {
+        tty->map[i].c = ' ';
+    }
     tty->keyboard = keyboard;
-    tty->fbt = writer;
+    tty->fb = fb;
     tty->fg = VGA_FG;
     tty->bg = VGA_BG;
     ttyscratch_init(&tty->scratch);
@@ -123,10 +139,7 @@ static FbTty* fbtty_new_internal(Inode* keyboard, FbTextWriter writer) {
 }
 
 static void fbtty_fill_blink(FbTty* fb, uint32_t color) {
-    size_t x=fb->fbt.x, y=fb->fbt.y;
-    fbwriter_draw_codepoint(&fb->fbt, CODE_BLOCK, color, fb->bg);
-    fb->fbt.x = x; 
-    fb->fbt.y = y;
+    fb_draw_codepoint_at(&fb->fb, fb->x*8, fb->y*16, fb->map[fb->y * fb->w + fb->x].c, 0xffffffff - color, color);
 }
 
 #define TTY_MILISECOND_BLINK 500
@@ -153,7 +166,6 @@ static uint32_t fbtty_getchar(Tty* device) {
             }
         }
         key_set(&fbtty->keystate, key.code, key.attribs);
-
         // FIXME: Ignores memory alloc failure. Shouldn't happen really
         // Cuz the scratch buffer is never going to actually allocate any memory but yk
         // Still leaving this comment just in case this becomes an issue in the future
@@ -256,25 +268,28 @@ static void handle_csi_final(FbTty* fbtty, uint32_t code) {
         break;
     case 'H': {
         if(fbtty->blink) fbtty_fill_blink(fbtty, fbtty->bg);
+        fbtty->blink = false;
         int y=1, x=1;
         if(fbtty->csi.nums_count > 0) y = fbtty->csi.nums[0];
         if(fbtty->csi.nums_count > 1) x = fbtty->csi.nums[1];
         if(x <= 0) x = 1;
         if(y <= 0) y = 1;
-        x--;
-        y--;
-        fbtty->fbt.x = x * 8;
-        fbtty->fbt.y = y * 16;
-        if(fbtty->fbt.x > fbtty->fbt.fb.width ) fbtty->fbt.x = fbtty->fbt.fb.width-8;
-        if(fbtty->fbt.y > fbtty->fbt.fb.height) fbtty->fbt.y = fbtty->fbt.fb.height-16;
+        fbtty->x = (x-1);
+        fbtty->y = (y-1);
+        if(fbtty->x > fbtty->w) fbtty->x = fbtty->w-1;
+        if(fbtty->y > fbtty->h) fbtty->y = fbtty->h-1;
     } break;
     case 'J': {
         int mode=0;
         if(fbtty->csi.nums_count > 0) mode=fbtty->csi.nums[0];
         switch(mode) {
-        case 2:
-            fmbuf_fill(&fbtty->fbt.fb, fbtty->bg);
-            break;
+        case 2: {
+            size_t chars = fbtty->h * fbtty->w;
+            for(size_t i = 0; i < chars; ++i) {
+                fbtty->map[i].c = ' ';
+            }
+            fmbuf_fill(&fbtty->fb, fbtty->bg);
+        } break;
         default:
             kerror("(fbtty) Clear mode not supported (csi J)");
             break;
@@ -285,6 +300,50 @@ static void handle_csi_final(FbTty* fbtty, uint32_t code) {
         break;
     }
 }
+static void fbtty_draw_char(FbTty* fbtty, uint32_t code) {
+    if(fbtty->blink) fbtty_fill_blink(fbtty, fbtty->bg);
+    size_t i = fbtty->y * fbtty->w + fbtty->x;
+    switch(code) {
+    case '\b': {
+        if(fbtty->x) fbtty->x--;
+        fbtty->map[fbtty->y * fbtty->w + fbtty->x].c = ' ';
+        size_t x = fbtty->x * 8;
+        size_t y = fbtty->y * 16;
+        fmbuf_draw_rect(&fbtty->fb, x, y, x + 8, y + 16, fbtty->bg);
+    } break;
+    case ' ': {
+        fbtty->map[i].c = code;
+        size_t x = fbtty->x * 8;
+        size_t y = fbtty->y * 16;
+        fmbuf_draw_rect(&fbtty->fb, x, y, x + 8, y + 16, fbtty->bg);
+        fbtty->x++;
+    } break;
+    case '\n':
+        fbtty->map[i].c = code;
+        fbtty->y++;
+        fbtty->x = 0;
+        break;
+    case '\t':
+        fbtty->map[i].c = code;
+        fbtty->x += 4;
+        break;
+    default:
+        fbtty->map[i].c = code;
+        fb_draw_codepoint_at(&fbtty->fb, fbtty->x * 8, fbtty->y * 16, code, fbtty->fg, fbtty->bg);
+        fbtty->x++;
+        break;
+    }
+    while(fbtty->x >= fbtty->w) {
+        fbtty->x -= fbtty->w;
+        fbtty->y++;
+    }
+    while(fbtty->y >= fbtty->h) {
+        fmbuf_scroll_up(&fbtty->fb, 16, fbtty->bg);
+        memmove(fbtty->map, fbtty->map+fbtty->w, fbtty->w*(fbtty->h-1)*sizeof(fbtty->map[0]));
+        fbtty->y--;
+    }
+    fbtty_fill_blink(fbtty, fbtty->blink ? fbtty->fg : fbtty->bg);
+}
 static void fbtty_putchar(Tty* device, uint32_t code) {
     FbTty* fbtty = device->priv;
     switch(fbtty->state) {
@@ -293,9 +352,7 @@ static void fbtty_putchar(Tty* device, uint32_t code) {
             fbtty->state = STATE_ANSI_ESCAPE;
             break;
         }
-        if(fbtty->blink) fbtty_fill_blink(fbtty, fbtty->bg);
-        fbwriter_draw_codepoint(&fbtty->fbt, code, fbtty->fg, fbtty->bg);
-        fbtty_fill_blink(fbtty, fbtty->blink ? fbtty->fg : fbtty->bg);
+        fbtty_draw_char(fbtty, code);
         break;
     case STATE_ANSI_ESCAPE:
         switch(code) {
@@ -358,17 +415,16 @@ static intptr_t fbtty_deinit(Tty* device) {
     return 0;
 }
 Tty* fbtty_new(Inode* keyboard, size_t framebuffer_id) {
-    FbTextWriter writer={0};
-    writer.fb = get_framebuffer_by_id(framebuffer_id);
-    if(!writer.fb.addr) {
+    Framebuffer fb = get_framebuffer_by_id(framebuffer_id);
+    if(!fb.addr) {
         kerror("(fbtty) Cannot create fbtty on framebuffer#%zu Framebuffer not existent", framebuffer_id);
         return NULL;
     }
-    if(writer.fb.bpp != 32) {
-        kerror("(fbtty) Cannot create fbtty with bpp != 32 (bpp=%zu for framebuffer#%zu)", writer.fb.bpp, framebuffer_id);
+    if(fb.bpp != 32) {
+        kerror("(fbtty) Cannot create fbtty with bpp != 32 (bpp=%zu for framebuffer#%zu)", fb.bpp, framebuffer_id);
         return NULL;
     }
-    FbTty* fbtty = fbtty_new_internal(keyboard, writer);
+    FbTty* fbtty = fbtty_new_internal(keyboard, fb);
     if(!fbtty) return NULL;
     Tty* tty = tty_new();
     if(!tty) {
