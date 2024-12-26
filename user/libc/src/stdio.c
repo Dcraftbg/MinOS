@@ -10,6 +10,40 @@ typedef struct {
     char* head;
     char* end;
 } SWriter;
+#include <errno.h>
+#define ARRAY_LEN(a) (sizeof((a))/sizeof((a)[0]))
+static ssize_t status_map[] = {
+    [NOT_ENOUGH_MEM]     = ENOMEM,
+    [BAD_INODE]          = EINVAL,
+    [INVALID_PARAM]      = EINVAL, 
+    [FILE_CORRUPTION]    = EIO,
+    [LIMITS]             = E2BIG,
+    [NOT_FOUND]          = ENOENT,
+    [UNSUPPORTED]        = ENOSYS,
+    [ALREADY_EXISTS]     = EEXIST,
+    [INODE_IS_DIRECTORY] = EISDIR,
+    [INVALID_OFFSET]     = EINVAL,
+    [BAD_DEVICE]         = EIO,
+    [PERMISION_DENIED]   = EPERM,
+    [PREMATURE_EOF]      = EIO,
+    [INVALID_MAGIC]      = ENOEXEC,
+    [NO_ENTRYPOINT]      = EINVAL,
+    [INVALID_TYPE]       = EINVAL,
+    [INVALID_HANDLE]     = EINVAL,
+    [SIZE_MISMATCH]      = EMSGSIZE,
+    [WOULD_SEGFAULT]     = EFAULT,
+    [RESOURCE_BUSY]      = EBUSY,
+    [YOU_ARE_CHILD]      = ECHILD,
+    [INVALID_PATH]       = EINVAL,
+    [IS_NOT_DIRECTORY]   = ENOTDIR,
+    [BUFFER_TOO_SMALL]   = ENOBUFS,
+};
+static ssize_t status_to_errno(intptr_t status) {
+    if(status >= 0) return 0;
+    status = -status;
+    if(status >= ARRAY_LEN(status_map)) return EUNKNOWN;
+    return status_map[status];
+}
 FILE* stddbg = NULL;
 static ssize_t _fwrite_base_func(void* user, const char* data, size_t len);
 static ssize_t print_base(void* user, PrintWriteFunc func, const char* fmt, va_list list) {
@@ -17,7 +51,7 @@ static ssize_t print_base(void* user, PrintWriteFunc func, const char* fmt, va_l
     do {\
         size_t __len = len;\
         ssize_t _res = func(user, data, __len);\
-        if(_res < 0) return _res;\
+        if(_res < 0) return -status_to_errno(_res);\
         else if(_res != __len) {\
             return (fmt+_res)-fmt_start;\
         }\
@@ -205,6 +239,7 @@ FILE* fopen(const char* path, const char* mode) {
     
     intptr_t e = open(path, fmode, fmode & MODE_WRITE ? O_CREAT : 0);
     if(e < 0) {
+        errno = status_to_errno(e);
         return NULL;
     }
     return (FILE*)e;
@@ -289,4 +324,19 @@ int sscanf(const char *restrict buffer, const char *restrict fmt, ...) {
 FILE *fdopen(int fd, const char *mode) {
     fprintf(stderr, "ERROR: fdopen is a stub (%d, %s)\n", fd, mode);
     return NULL;
+}
+
+static const char* strerror_str_map[] = {
+    [0]          = "OK",
+    [E2BIG]      = "Too Big",
+    [EACCES]     = "Access Denied",
+    [EADDRINUSE] = "Address in Use",
+    [EIO]        = "IO Error",
+    [EPERM]      = "Permission Denied",
+    [ENOENT]     = "Not Found"
+};
+const char* strerror(int e) {
+    if(e < 0) return "UNKOWN";
+    if(e >= ARRAY_LEN(strerror_str_map)) return "INVALID ERROR";
+    return strerror_str_map[e];
 }

@@ -27,6 +27,7 @@ ssize_t ftell(FILE* f);
 size_t fwrite(const void* restrict buffer, size_t size, size_t count, FILE* restrict f);
 int fclose(FILE* f);
 int fgetc(FILE* f);
+#define getchar() fgetc(stdin)
 int fputs(const char* restrict str, FILE* restrict stream);
 int fputc(int c, FILE* f);
 static int puts(const char* restrict str) {
@@ -46,3 +47,5 @@ enum {
 int fseek (FILE* f, long offset, int origin);
 int sscanf(const char *restrict buffer, const char *restrict fmt, ...);
 #define EOF -1
+
+const char* strerror(int e);
