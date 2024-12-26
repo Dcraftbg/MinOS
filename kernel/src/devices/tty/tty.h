@@ -7,6 +7,7 @@
 #include "../../framebuffer.h"
 #include "../../bootutils.h"
 #include <stdint.h>
+#include <minos/tty/ttydefs.h>
 typedef struct {
     char* data;
     size_t len, cap;
@@ -39,6 +40,7 @@ static inline char ttyscratch_popfront(TtyScratch* scratch) {
 typedef struct Tty Tty;
 struct Tty {
     TtyScratch scratch;
+    ttyflags_t flags;
     void* priv;
     uint32_t (*getchar)(Tty* device);
     void     (*putchar)(Tty* device, uint32_t code);

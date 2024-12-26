@@ -42,6 +42,7 @@ Tty* tty_new(void) {
     if(!tty) return NULL;
     memset(tty, 0, sizeof(*tty));
     ttyscratch_init(&tty->scratch);
+    tty->flags = TTY_ECHO;
     return tty;
 }
 static Inode* get_init_keyboard() {
@@ -154,28 +155,35 @@ static intptr_t tty_write(Inode* file, const void* buf, size_t size, off_t offse
 static void tty_putchar(Tty* tty, uint32_t code) {
     if(tty->putchar) tty->putchar(tty, code);
 }
+static void tty_echo(Tty* tty, uint32_t code) {
+    if(tty->flags & TTY_ECHO) tty_putchar(tty, code);
+}
 static intptr_t tty_read(Inode* file, void* buf, size_t size, off_t offset) {
     Tty* tty = file->priv;
     if(!tty->getchar) return -UNSUPPORTED;
     if(tty->scratch.len) goto end;
     for(;;) {
         uint32_t code = tty->getchar(tty);
+        if(code && (tty->flags & TTY_INSTANT)) {
+            if(!ttyscratch_push(&tty->scratch, code)) return -NOT_ENOUGH_MEM;
+            goto end;
+        }
         switch(code) {
         case '\b':
             if(tty->scratch.len) {
-                tty_putchar(tty, '\b');
+                tty_echo(tty, '\b');
                 tty->scratch.len--;
             }
             break;
         case '\n':
             if(!ttyscratch_push(&tty->scratch, '\n')) return -NOT_ENOUGH_MEM;
-            tty_putchar(tty, '\n');
+            tty_echo(tty, '\n');
             goto end;
         case '\0':
             break;
         default: {
             if(!ttyscratch_push(&tty->scratch, code)) return -NOT_ENOUGH_MEM;
-            tty_putchar(tty, code);
+            tty_echo(tty, code);
         } break;
         }
     }
@@ -187,10 +195,24 @@ end:
     ttyscratch_shrink(&tty->scratch);
     return to_copy;
 }
-
+static intptr_t tty_ioctl(Inode* file, Iop op, void* arg) {
+    Tty* tty = file->priv;
+    switch(op) {
+    case TTY_IOCTL_SET_FLAGS:
+        tty->flags = (ttyflags_t)(uintptr_t)arg;
+        break;
+    case TTY_IOCTL_GET_FLAGS:
+        *((ttyflags_t*)arg) = tty->flags;
+        break;
+    default:
+        return -UNSUPPORTED;
+    }
+    return 0;
+}
 static InodeOps inodeOps = {
     .write = tty_write,
     .read = tty_read,
+    .ioctl = tty_ioctl
 };
 static intptr_t init_inode(Device* this, Inode* inode) {
     inode->ops = &inodeOps;
