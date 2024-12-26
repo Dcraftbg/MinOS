@@ -19,21 +19,7 @@ bool ttyscratch_reserve(TtyScratch* scratch, size_t extra) {
     }
     return true;
 }
-static inline void ttyscratch_init(TtyScratch* scratch) {
-    scratch->data = scratch->small_inline;
-    scratch->len = 0;
-    scratch->cap = sizeof(scratch->small_inline);
-}
-static inline bool ttyscratch_push(TtyScratch* scratch, char c) {
-    if(!ttyscratch_reserve(scratch, 1)) return false;
-    scratch->data[scratch->len++] = c;
-    return true;
-}
-static inline char ttyscratch_pop(TtyScratch* scratch) {
-    if(scratch->len == 0) return 0;
-    return scratch->data[scratch->len--];
-}
-static inline void ttyscratch_shrink(TtyScratch* scratch) {
+void ttyscratch_shrink(TtyScratch* scratch) {
     if(scratch->len <= sizeof(scratch->small_inline)) {
         memcpy(scratch->small_inline, scratch->data, scratch->len);
         if(scratch->data != scratch->small_inline) kernel_dealloc(scratch->data, scratch->cap);

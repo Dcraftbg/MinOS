@@ -7,6 +7,24 @@ static uint16_t SCAN1_PS2[] = {
     MINOS_KEY_F6 ,MINOS_KEY_F7 ,MINOS_KEY_F8 ,MINOS_KEY_F9 ,MINOS_KEY_F10 ,MINOS_KEY_NUMLOCK ,MINOS_KEY_SCROLLLOCK ,MINOS_KEY_NUMPAD_7 ,MINOS_KEY_NUMPAD_8 ,MINOS_KEY_NUMPAD_9 ,MINOS_KEY_NUMPAD_MINUS ,MINOS_KEY_NUMPAD_4 ,MINOS_KEY_NUMPAD_5 ,MINOS_KEY_NUMPAD_6 ,MINOS_KEY_NUMPAD_PLUS ,MINOS_KEY_NUMPAD_1 ,
     MINOS_KEY_NUMPAD_2 ,MINOS_KEY_NUMPAD_3 ,MINOS_KEY_NUMPAD_0 ,MINOS_KEY_NUMPAD_DOT ,0   ,0   ,0   ,MINOS_KEY_F11 ,MINOS_KEY_F12 ,0   ,0   ,0   ,0   ,0   ,0   ,0   ,
 };
+static uint16_t SCAN1_PS2_EX[128] = {
+    0,                     0,                     0,                     0,                     0,                     0,                     0,                     0,                     
+    0,                     0,                     0,                     0,                     0,                     0,                     0,                     0,                     
+    0,                     0,                     0,                     0,                     0,                     0,                     0,                     0,                     
+    0,                     0,                     0,                     0,                     0,                     0,                     0,                     0,                     
+    0,                     0,                     0,                     0,                     0,                     0,                     0,                     0,                     
+    0,                     0,                     0,                     0,                     0,                     0,                     0,                     0,                     
+    0,                     0,                     0,                     0,                     0,                     0,                     0,                     0,                     
+    0,                     0,                     0,                     0,                     0,                     0,                     0,                     0,                     
+    0,                     0,                     0,                     0,                     0,                     0,                     0,                     0,                     
+    MINOS_KEY_UP_ARROW,    0,                     0,                     MINOS_KEY_LEFT_ARROW,  0,                     MINOS_KEY_RIGHT_ARROW, 0,                     0,                     
+    MINOS_KEY_DOWN_ARROW,  0,                     0,                     0,                     0,                     0,                     0,                     0,                     
+    0,                     0,                     0,                     0,                     0,                     0,                     0,                     0,                     
+    0,                     0,                     0,                     0,                     0,                     0,                     0,                     0,                     
+    0,                     0,                     0,                     0,                     0,                     0,                     0,                     0,                     
+    0,                     0,                     0,                     0,                     0,                     0,                     0,                     0,                     
+    0,                     0,                     0,                     0,                     0,                     0,                     0,                     0,                     
+};
 static void* max_memcpy(void* dest, const void* src, size_t destcap, size_t srclen) {
     if(destcap < srclen) srclen = destcap;
     return memcpy(dest, src, srclen);
@@ -100,6 +118,7 @@ static const char* keycode_display(uint16_t key, char* buf, size_t size) {
     return buf;
 }
 
+bool extended;
 void ps2_keyboard_handler() {
     size_t i = 0;
     for(;i<PS2_MAX_RETRIES; ++i) {
@@ -112,15 +131,22 @@ void ps2_keyboard_handler() {
     }
     uint8_t code = inb(0x60);
     switch(code) {
+    case 0xE0:
+        extended = true;
+        break;
     default: {
-         bool released = code >> 7;
-         (void)released;
-         uint8_t norm = code & ~(1<<7);
-         uint16_t key  = norm < ARRAY_LEN(SCAN1_PS2) ? SCAN1_PS2[norm] : 0;
-         if(key) {
-            ps2queue_push(&ps2queue, (Key) { key, released });
-         }
-         // else printf("Keyboard: <Unknown %02X>\n",code);
+        bool released = code >> 7;
+        (void)released;
+        uint8_t norm  = code & ~(1<<7);
+        uint16_t key  = 
+            extended ? 
+                norm < ARRAY_LEN(SCAN1_PS2_EX) ? SCAN1_PS2_EX[norm] : 0 :
+                norm < ARRAY_LEN(SCAN1_PS2   ) ? SCAN1_PS2   [norm] : 0;
+        if(key) {
+           ps2queue_push(&ps2queue, (Key) { key, released });
+        }
+        extended = false;
+        // else printf("Keyboard: <Unknown %02X>\n",code);
     }
     }
     pic_end(1);

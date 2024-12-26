@@ -53,19 +53,31 @@ static uint8_t US_QWERTY_SHIFTED[256] = {
    0xF0, 0xF1, 0xF2, 0xF3, 0xF4, 0xF5, 0xF6, 0xF7,
    0xF8, 0xF9, 0xFA, 0xFB, 0xFC, 0xFD, 0xFE, 0xFF
 };
-static int key_unicode(KeyState* keyboard, uint16_t code) {
+static bool key_extend(KeyState* keyboard, TtyScratch* scratch, uint16_t code) {
     switch(code) {
     case MINOS_KEY_ENTER:
-        if(key_get(keyboard, MINOS_KEY_ENTER)) return '\n';
-        return 0;
+        if(key_get(keyboard, MINOS_KEY_ENTER))
+            return ttyscratch_push(scratch, '\n');
+        break;
+    case MINOS_KEY_UP_ARROW:
+    case MINOS_KEY_DOWN_ARROW:
+    case MINOS_KEY_RIGHT_ARROW:
+    case MINOS_KEY_LEFT_ARROW: {
+        if(!ttyscratch_reserve(scratch, 3)) return false;
+        ttyscratch_push(scratch, 0x1b);
+        ttyscratch_push(scratch, '[');
+        ttyscratch_push(scratch, (code - MINOS_KEY_UP_ARROW) + 'A');
+    } break;
     default:
-        if(code >= 256 || !key_get(keyboard, code)) return 0;
-        if(key_get(keyboard, MINOS_KEY_LEFT_SHIFT) || key_get(keyboard, MINOS_KEY_RIGHT_SHIFT)) {
-            return US_QWERTY_SHIFTED[code];
-        }
-        if(code >= 'A' && code <= 'Z') return code-'A' + 'a';
-        return code;
+        if(code >= 256 || !key_get(keyboard, code)) 
+            break; 
+        if(key_get(keyboard, MINOS_KEY_LEFT_SHIFT) || key_get(keyboard, MINOS_KEY_RIGHT_SHIFT))
+            return ttyscratch_push(scratch, US_QWERTY_SHIFTED[code]);
+        if(code >= 'A' && code <= 'Z') 
+            return ttyscratch_push(scratch, code-'A' + 'a');
+        return ttyscratch_push(scratch, code);
     }
+    return true;
 }
 #define MAX_CSI_NUMS 5
 typedef struct {
@@ -74,6 +86,7 @@ typedef struct {
 } CsiParser;
 typedef struct {
     Inode* keyboard;
+    TtyScratch scratch;
     KeyState keystate;
     FbTextWriter fbt;
     bool blink;
@@ -105,6 +118,7 @@ static FbTty* fbtty_new_internal(Inode* keyboard, FbTextWriter writer) {
     tty->fbt = writer;
     tty->fg = VGA_FG;
     tty->bg = VGA_BG;
+    ttyscratch_init(&tty->scratch);
     return tty;
 }
 
@@ -119,9 +133,12 @@ static void fbtty_fill_blink(FbTty* fb, uint32_t color) {
 static uint32_t fbtty_getchar(Tty* device) {
     intptr_t e;
     FbTty* fbtty = device->priv;
-    uint32_t code;
     Key key;
-    for(;;) {
+    // TODO: Potentially in the future we would collect all the key codes 
+    // so that we aren't dependent on the keyboard keeping up with its circular buffer
+    // but this works for now.
+    // IF YOU GO ABOUT THIS, CHECK ALLOCATION FAILURE
+    while(fbtty->scratch.len == 0) {
         // TODO: Thread blocker for this stuff
         for(;;) {
             if((e=inode_read(fbtty->keyboard, &key, sizeof(key), 0)) < 0) {
@@ -136,14 +153,16 @@ static uint32_t fbtty_getchar(Tty* device) {
             }
         }
         key_set(&fbtty->keystate, key.code, key.attribs);
-        code = key_unicode(&fbtty->keystate, key.code);
-        if(!(key.attribs & KEY_ATTRIB_RELEASE)) break; 
+
+        // FIXME: Ignores memory alloc failure. Shouldn't happen really
+        // Cuz the scratch buffer is never going to actually allocate any memory but yk
+        // Still leaving this comment just in case this becomes an issue in the future
+        if(!(key.attribs & KEY_ATTRIB_RELEASE)) 
+            key_extend(&fbtty->keystate, &fbtty->scratch, key.code);
     }
-    if(code == '\n') {
-        fbtty->blink = false;
-        fbtty_fill_blink(fbtty, fbtty->blink ? fbtty->fg : fbtty->bg);
-    }
-    return code;
+    char res = ttyscratch_popfront(&fbtty->scratch);
+    ttyscratch_shrink(&fbtty->scratch);
+    return res;
 }
 static uint32_t bit4_colors[8] = {
 #ifdef JAKE_COLORSCHEME
