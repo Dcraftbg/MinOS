@@ -201,6 +201,7 @@ static void handle_csi_final(FbTty* fbtty, uint32_t code) {
     case 'm':
         if(fbtty->csi.nums_count < 1) {
             kerror("(fbtty) Missing arguments for SGR");
+            return;
         }
         int n = fbtty->csi.nums[0];
         switch(n) {
@@ -253,6 +254,32 @@ static void handle_csi_final(FbTty* fbtty, uint32_t code) {
             break;
         }
         break;
+    case 'H': {
+        if(fbtty->blink) fbtty_fill_blink(fbtty, fbtty->bg);
+        int y=1, x=1;
+        if(fbtty->csi.nums_count > 0) y = fbtty->csi.nums[0];
+        if(fbtty->csi.nums_count > 1) x = fbtty->csi.nums[1];
+        if(x <= 0) x = 1;
+        if(y <= 0) y = 1;
+        x--;
+        y--;
+        fbtty->fbt.x = x * 8;
+        fbtty->fbt.y = y * 16;
+        if(fbtty->fbt.x > fbtty->fbt.fb.width ) fbtty->fbt.x = fbtty->fbt.fb.width-8;
+        if(fbtty->fbt.y > fbtty->fbt.fb.height) fbtty->fbt.y = fbtty->fbt.fb.height-16;
+    } break;
+    case 'J': {
+        int mode=0;
+        if(fbtty->csi.nums_count > 0) mode=fbtty->csi.nums[0];
+        switch(mode) {
+        case 2:
+            fmbuf_fill(&fbtty->fbt.fb, fbtty->bg);
+            break;
+        default:
+            kerror("(fbtty) Clear mode not supported (csi J)");
+            break;
+        }
+    } break;
     default:
         kerror("(fbtty) Unsupported csi final code: %c (%02X)", code, code);
         break;
@@ -274,7 +301,7 @@ static void fbtty_putchar(Tty* device, uint32_t code) {
         switch(code) {
         case '[':
             fbtty->state = STATE_CSI;
-            fbtty->csi.nums[0] = 0;
+            memset(fbtty->csi.nums, 0, MAX_CSI_NUMS*sizeof(fbtty->csi.nums[0]));
             fbtty->csi.nums_count = 1;
             break;
         default:
@@ -289,6 +316,7 @@ static void fbtty_putchar(Tty* device, uint32_t code) {
                 kerror("(fbtty) Too many arguments in ANSI escape sequence");
                 fbtty->csi.nums_count = 0;
                 fbtty->state = STATE_NORMAL;
+                memset(fbtty->csi.nums, 0, MAX_CSI_NUMS*sizeof(fbtty->csi.nums[0]));
                 return;
             }
             break;
@@ -314,6 +342,7 @@ static void fbtty_putchar(Tty* device, uint32_t code) {
             }
             fbtty->state = STATE_NORMAL;
             fbtty->csi.nums_count = 0;
+            memset(fbtty->csi.nums, 0, MAX_CSI_NUMS*sizeof(fbtty->csi.nums[0]));
             break;
         }
         }
