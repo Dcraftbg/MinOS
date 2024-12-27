@@ -1,0 +1,63 @@
+From 1ff067fbbd6745cd7392580917b0985eb7d4f427 Mon Sep 17 00:00:00 2001
+From: DcraftBg <czl_obshta@abv.bg>
+Date: Fri, 27 Dec 2024 18:44:33 +0200
+Subject: [PATCH] Port to MinOS
+
+---
+ src/Makefile  | 4 ++--
+ src/lua.c     | 4 ++++
+ src/luaconf.h | 6 ++++--
+ 3 files changed, 10 insertions(+), 4 deletions(-)
+
+diff --git a/src/Makefile b/src/Makefile
+index b771196..536d1ad 100644
+--- a/src/Makefile
++++ b/src/Makefile
+@@ -6,10 +6,10 @@
+ # Your platform. See PLATS for possible values.
+ PLAT= guess
+ 
+-CC= gcc -std=gnu99
++CC= x86_64-minos-gcc -std=gnu99
+ CFLAGS= -O2 -Wall -Wextra -DLUA_COMPAT_5_3 $(SYSCFLAGS) $(MYCFLAGS)
+ LDFLAGS= $(SYSLDFLAGS) $(MYLDFLAGS)
+-LIBS= -lm $(SYSLIBS) $(MYLIBS)
++LIBS= $(SYSLIBS) $(MYLIBS)
+ 
+ AR= ar rcu
+ RANLIB= ranlib
+diff --git a/src/lua.c b/src/lua.c
+index 6da331f..e762e52 100644
+--- a/src/lua.c
++++ b/src/lua.c
+@@ -50,6 +50,10 @@ static void setsignal (int sig, void (*handler)(int)) {
+   sigaction(sig, &sa, NULL);
+ }
+ 
++#elif defined(_MINOS)
++
++#define setsignal(...)
++
+ #else           /* }{ */
+ 
+ #define setsignal            signal
+diff --git a/src/luaconf.h b/src/luaconf.h
+index 33bb580..271cce8 100644
+--- a/src/luaconf.h
++++ b/src/luaconf.h
+@@ -794,8 +794,10 @@
+ ** without modifying the main part of the file.
+ */
+ 
+-
+-
++#ifdef _MINOS
++#include <stdatomic.h>
++#define l_signalT atomic_size_t
++#endif
+ 
+ 
+ #endif
+-- 
+2.34.1
+
