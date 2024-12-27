@@ -1,5 +1,6 @@
 #pragma once
-extern int errno;
+typedef int errno_t;
+extern errno_t errno;
 #define E2BIG            1
 #define EACCES           2
 #define EADDRINUSE       3

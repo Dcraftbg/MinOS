@@ -47,6 +47,8 @@ void _start(int argc, const char** argv, int envc, const char** envv) {
     if((e = open("/devices/tty0", MODE_WRITE | MODE_READ, 0)) < 0) {
         exit(-e); 
     }
+    _libc_internal_init_heap();
+    _libc_init_streams();
     printf("Args dump:\n");
     for(size_t i = 0; i < argc; ++i) {
         printf("%zu> ",i+1); printf("%p",argv[i]); printf(" %s\n",argv[i]);

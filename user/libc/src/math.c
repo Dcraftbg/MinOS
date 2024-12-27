@@ -18,3 +18,22 @@ double ldexp(double x, int exponent) {
     }
     return x*too;
 }
+// TODO: Proper floor. This is not exactly correct as it doesn't account for sign
+double floor(double f) {
+    return (double)((unsigned long long)f);
+}
+#include <errno.h>
+double fmod(double x, double y) {
+    if (y == 0) {
+        errno = EDOM;
+        return x;
+    }
+    double q = x / y;
+    double r = x - (y * floor(q));
+    return r;
+}
+
+double frexp(double x, int* expptr) {
+    fprintf(stderr, "TODO: frexp");
+    exit(1);
+}

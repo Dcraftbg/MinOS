@@ -4,13 +4,18 @@
 #include <stdint.h>
 #include <stdarg.h>
 typedef intptr_t ssize_t;
-typedef void FILE;
+typedef struct FILE FILE;
 #define STDOUT_FILENO 0
 #define STDIN_FILENO  0
 #define STDERR_FILENO 0
-#define stdout ((FILE*)STDOUT_FILENO)
-#define stdin  ((FILE*)STDIN_FILENO )
-#define stderr ((FILE*)STDERR_FILENO)
+extern FILE* stdout; 
+extern FILE* stdin ; 
+extern FILE* stderr; 
+enum {
+    _IOLBF,
+    _IONBF,
+    _IOFBF,
+};
 extern FILE* stddbg;
 ssize_t printf  (const char* fmt, ...) __attribute__((format(printf,1,2)));
 ssize_t vprintf (const char* fmt, va_list va);
@@ -21,13 +26,16 @@ ssize_t vsnprintf(char* buf, size_t cap, const char* fmt, va_list va);
 ssize_t sprintf(char* buf, const char* fmt, ...) __attribute__((format(printf,2, 3)));
 
 FILE* fopen(const char* path, const char* mode);
+FILE* freopen(const char* path, const char* mode, FILE* f);
 FILE *fdopen(int fd, const char *mode);
+
 size_t fread(void* buffer, size_t size, size_t count, FILE* f);
 ssize_t ftell(FILE* f);
 size_t fwrite(const void* restrict buffer, size_t size, size_t count, FILE* restrict f);
 int fclose(FILE* f);
 int fgetc(FILE* f);
 #define getchar() fgetc(stdin)
+#define getc(f) fgetc(f)
 int fputs(const char* restrict str, FILE* restrict stream);
 int fputc(int c, FILE* f);
 static int puts(const char* restrict str) {
@@ -49,3 +57,10 @@ int sscanf(const char *restrict buffer, const char *restrict fmt, ...);
 #define EOF -1
 
 const char* strerror(int e);
+#define BUFSIZ 4096 
+
+int fgets(char* buf, size_t size, FILE* f);
+int ferror(FILE* f);
+int feof(FILE* f);
+
+void _libc_init_streams(void);

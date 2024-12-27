@@ -192,6 +192,7 @@ int main() {
         printf("%s > ", cwd);
         arena_reset(&arena);
         arg_count=0;
+        fflush(stdout);
         if((e=readline(linebuf, LINEBUF_MAX-1)) < 0) {
             printf("Failed to read on stdin: %s\n", status_str(e));
             return 1;

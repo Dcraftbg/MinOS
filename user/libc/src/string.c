@@ -146,4 +146,20 @@ char* strstr(const char* str, const char* substr) {
     }
     return NULL;
 }
-
+#include <stdio.h>
+#include <stdlib.h>
+double strtod(const char* str, char** endptr) {
+    fprintf(stderr, "TODO: strtod is a stub");
+    exit(1);
+}
+size_t strspn(const char* str, const char* charset) {
+    size_t n=0;
+    while(str[0]) {
+        const char* head = charset;
+        while(str[0] != head[0]) head++;
+        if(!head[0]) break;
+        n++;
+        str++;
+    }
+    return n;
+}
