@@ -267,9 +267,9 @@ static uint8_t parse_mode(const char* mode_str) {
 }
 fmode_t mode_to_minos(uint8_t mode) {
     fmode_t fmode = 0;
-    fmode |= mode & FILE_MODE_READ  ? MODE_READ  : 0;
-    fmode |= mode & FILE_MODE_WRITE ? MODE_WRITE : 0;
-    return 0;
+    fmode |= (mode & FILE_MODE_READ ) ? MODE_READ  : 0;
+    fmode |= (mode & FILE_MODE_WRITE) ? MODE_WRITE : 0;
+    return fmode;
 }
 static FILE* filefd_new(uint8_t mode, int fd) {
     char* vbuf = malloc(BUFSIZ);
@@ -604,12 +604,10 @@ const char* strerror(int e) {
 }
 
 int ferror(FILE* f) {
-    fprintf(stderr, "WARN: ferror is a stub");
-    return 0;
+    return f->error == EOF ? 0 : f->error;
 }
 int feof(FILE* f) {
-    fprintf(stderr, "WARN: feof is a stub");
-    return 0;
+    return f->error == EOF;
 }
 #include <assert.h>
 void _libc_init_streams(void) {
@@ -617,6 +615,7 @@ void _libc_init_streams(void) {
     stdin  = fdopen( STDIN_FILENO, "rb");
     stderr = fdopen(STDERR_FILENO, "wb");
     stdout->buf_mode = _IONBF;
+    stderr->buf_mode = _IONBF;
     assert(stdout);
     assert(stdin);
     assert(stderr);

@@ -1,9 +1,13 @@
 #include <time.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <minos/sysstd.h>
+#include <assert.h>
 time_t time(time_t* timer) {
-    fprintf(stderr, "TODO: time is a stub");
-    exit(1);
+    assert(timer == NULL && "timer doesn't support non NULL time yet");
+    MinOS_Time time;
+    gettime(&time);
+    return time.ms / 1000;
 }
 double difftime(time_t time1, time_t time0) {
     return time1-time0;
