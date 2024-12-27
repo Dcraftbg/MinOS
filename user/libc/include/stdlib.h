@@ -15,3 +15,6 @@ int atoi(const char *str);
 float atof(const char *str);
 int abs(int num);
 void qsort(void* ptr, size_t count, size_t size, int (*comp)(const void*, const void*));
+int system(const char* command);
+#define EXIT_SUCCESS 0
+#define EXIT_FAILURE 1

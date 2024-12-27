@@ -31,6 +31,7 @@ FILE *fdopen(int fd, const char *mode);
 
 size_t fread(void* buffer, size_t size, size_t count, FILE* f);
 ssize_t ftell(FILE* f);
+#define ftello ftell 
 size_t fwrite(const void* restrict buffer, size_t size, size_t count, FILE* restrict f);
 int fclose(FILE* f);
 int fgetc(FILE* f);
@@ -53,14 +54,20 @@ enum {
     SEEK_END
 };
 int fseek (FILE* f, long offset, int origin);
+#define fseeko fseek
 int sscanf(const char *restrict buffer, const char *restrict fmt, ...);
 #define EOF -1
 
 const char* strerror(int e);
 #define BUFSIZ 4096 
 
-int fgets(char* buf, size_t size, FILE* f);
+char* fgets(char* buf, size_t size, FILE* f);
 int ferror(FILE* f);
 int feof(FILE* f);
-
+#define L_tmpnam 1024
+char *tmpnam(char *s);
 void _libc_init_streams(void);
+void clearerr(FILE* f);
+int ungetc(int chr, FILE* f);
+int setvbuf(FILE* f, char* buf, int mode, size_t size);
+FILE* tmpfile(void);

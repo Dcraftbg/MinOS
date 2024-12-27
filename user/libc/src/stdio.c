@@ -307,6 +307,9 @@ static FILE* filetmp_new(uint8_t mode) {
     f->buf = vbuf;
     return f;
 }
+FILE* tmpfile(void) {
+    return filetmp_new(FILE_MODE_READ | FILE_MODE_WRITE);
+}
 FILE* fopen(const char* path, const char* mode_str) {
     uint8_t mode = parse_mode(mode_str);
     if(mode == 0) {
@@ -548,22 +551,24 @@ int fgetc(FILE* f) {
     return c;
 }
 
-int fgets(char* buf, size_t size, FILE* f) {
-    if(size == 0) return 0;
+char* fgets(char* buf, size_t size, FILE* f) {
+    if(size == 0) return buf;
     size_t i = 0;
     int c;
-    while(i < size && (c=fgetc(f)) > 0 && c != '\n') 
+    while(i < (size-1) && (c=fgetc(f)) > 0) {
         buf[i++] = c;
-    if(c < 0) return c;
-    buf[i++] = '\n';
-    return i;
+        if(c == '\n') break;
+    }
+    if(c < 0) return NULL;
+    buf[i++] = '\0';
+    return buf;
 }
 
 #include <string.h>
 // TODO: Error check
 int fputs(const char* restrict str, FILE* restrict stream) {
-    fwrite(str, strlen(str), 1, stream);
-    return 0;
+    if(fwrite(str, strlen(str), 1, stream) == 0) return 0;
+    return -errno;
 }
 int fputc(int c, FILE* f) {
     fwrite(&c, 1, 1, f);
@@ -615,4 +620,25 @@ void _libc_init_streams(void) {
     assert(stdout);
     assert(stdin);
     assert(stderr);
+}
+
+void clearerr(FILE* f) {
+    f->error = 0;
+}
+int ungetc(int chr, FILE* f) {
+    fprintf(stderr, "WARN: ungetc is a stub");
+    exit(1);
+}
+int setvbuf(FILE* f, char* buf, int mode, size_t size)  {
+    assert(mode == _IOFBF || mode == _IOLBF || mode == _IONBF);
+    assert(size == BUFSIZ);
+    f->mode = mode;
+    f->buf_real = false;
+    if(buf) f->buf = buf;
+    return 0;
+}
+
+char *tmpnam(char *s) {
+    fprintf(stderr, "WARN: tmpnam is a stub");
+    exit(1);
 }

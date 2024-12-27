@@ -244,3 +244,8 @@ void qsort(void* ptr, size_t count, size_t size, int (*comp)(const void*, const 
         return;
     qsort_impl(ptr, ptr, ptr+(count-1)*size, size, comp);
 }
+
+int system(const char* command) {
+    fprintf(stderr, "system() is a stub\n");
+    exit(1);
+}

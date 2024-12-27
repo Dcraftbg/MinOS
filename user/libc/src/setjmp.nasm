@@ -3,6 +3,8 @@
 section .text
 
 global setjmp
+global longjmp
+
 struc jmp_buf
     .rip resq 1
     .rsp resq 1
