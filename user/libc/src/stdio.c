@@ -334,6 +334,8 @@ FILE* freopen(const char* path, const char* mode, FILE* f) {
 
 int fclose(FILE* f) {
     if(!f) return EOF;
+    int e;
+    if((e=fflush(f)) < 0) return e;
     if(f->tmp) {
         free(f->as.tmp.data);
         f->as.tmp.data = NULL;
