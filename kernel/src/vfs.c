@@ -106,6 +106,10 @@ intptr_t inode_mmap(Inode* file, MmapContext* context, void** addr, size_t size_
     if(!file->ops->mmap) return -UNSUPPORTED;
     return file->ops->mmap(file, context, addr, size_pages);
 }
+intptr_t inode_truncate(Inode* file, size_t size) {
+    if(!file->ops->truncate) return -UNSUPPORTED;
+    return file->ops->truncate(file, size);
+}
 intptr_t inode_stat(Inode* inode, Stats* stats) {
     if(!inode->ops->stat) return -UNSUPPORTED;
     return inode->ops->stat(inode, stats);

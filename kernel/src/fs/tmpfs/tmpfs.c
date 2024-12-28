@@ -193,6 +193,28 @@ static intptr_t tmpfs_write(Inode* file, const void* buf, size_t size, off_t off
     }
     return written;
 }
+static intptr_t tmpfs_truncate(Inode* file, size_t size) {
+    TmpfsInode* inode = file->priv;
+    if(inode->kind != INODE_FILE) return -INODE_IS_DIRECTORY;
+    // TODO: Allow reserving space in the file.
+    // For now truncate only works as making the file smaller
+    if(inode->size < size) return -INVALID_PARAM;
+    if(inode->size == size) return 0;
+    inode->size = size;
+    TmpfsData* data = inode->data;
+    size_t n = 0;
+    while(data && n < size) {
+        n += TMPFS_DATABLOCK_BYTES;
+        data = data->next;
+    }
+    if(!data) return -FILE_CORRUPTION;
+    while(data) {
+        TmpfsData* next = data->next;
+        datablock_destroy(data);
+        data = next;
+    }
+    return 0;
+}
 static intptr_t tmpfs_find(Inode* dir, const char* name, size_t namelen, inodeid_t* id) {
     TmpfsInode* inode = dir->priv;
     if(inode->kind != INODE_DIR) return -IS_NOT_DIRECTORY;
@@ -239,7 +261,8 @@ static InodeOps tmpfs_inode_ops = {
     .find  = tmpfs_find,
     .read  = tmpfs_read,
     .write = tmpfs_write,
-    .stat  = tmpfs_stat
+    .truncate = tmpfs_truncate,
+    .stat  = tmpfs_stat,
 };
 
 

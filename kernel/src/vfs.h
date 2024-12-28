@@ -73,6 +73,7 @@ struct InodeOps {
     intptr_t (*write)(Inode* file, const void* buf, size_t size, off_t offset);
     intptr_t (*ioctl)(Inode* file, Iop op, void* arg);
     intptr_t (*mmap)(Inode* file, MmapContext* context, void** addr, size_t size_pages);
+    intptr_t (*truncate)(Inode* file, size_t size);
 
     intptr_t (*stat)(Inode* inode, Stats* stats);
     void (*cleanup)(Inode* inode); 
@@ -86,6 +87,7 @@ intptr_t inode_read(Inode* file, void* buf, size_t size, off_t offset);
 intptr_t inode_write(Inode* file, const void* buf, size_t size, off_t offset);
 intptr_t inode_ioctl(Inode* file, Iop op, void* arg);
 intptr_t inode_mmap(Inode* file, MmapContext* context, void** addr, size_t size_pages);
+intptr_t inode_truncate(Inode* file, size_t size);
 intptr_t inode_stat(Inode* inode, Stats* stats);
 static intptr_t inode_size(Inode* inode) {
     Stats stats;
