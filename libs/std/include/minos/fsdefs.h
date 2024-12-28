@@ -10,8 +10,9 @@ enum {
 typedef uint32_t fmode_t;
 #define PATH_MAX 4096
 enum {
-    O_CREAT=0b1,
+    O_CREAT    =0b1,
     O_DIRECTORY=0b10,
+    O_TRUNC    =0b100,
 };
 typedef uint32_t oflags_t;
 

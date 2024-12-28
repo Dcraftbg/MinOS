@@ -45,11 +45,14 @@ intptr_t sys_open(const char* path, fmode_t mode, oflags_t flags) {
             // TODO: Consider maybe adding Inode** to creat
             if((e=vfs_creat(&p, flags & O_DIRECTORY)) < 0) return e;
             if((e=vfs_find(&p, &inode)) < 0) return e;
-            resource->kind = RESOURCE_INODE;
-            resource->inode = inode;
-            resource->offset = 0;
-            return id;
+            goto found;
         }
+        resource_remove(current->resources, id);
+        return e;
+    }
+found:
+    if((flags & O_TRUNC) && (e=inode_truncate(inode, 0)) < 0) {
+        idrop(inode);
         resource_remove(current->resources, id);
         return e;
     }
