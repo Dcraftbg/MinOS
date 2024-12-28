@@ -317,7 +317,9 @@ FILE* fopen(const char* path, const char* mode_str) {
         return NULL;
     }
     fmode_t fmode = mode_to_minos(mode);
-    intptr_t e = open(path, fmode, fmode & MODE_WRITE ? O_CREAT : 0);
+    oflags_t oflags = fmode & MODE_WRITE ? O_CREAT : 0;
+    if(mode == MODE_WRITE) oflags |= O_TRUNC;
+    intptr_t e = open(path, fmode, oflags);
     if(e < 0) {
         errno = status_to_errno(e);
         return NULL;
@@ -342,6 +344,7 @@ int fclose(FILE* f) {
     if(f->tmp) {
         free(f->as.tmp.data);
         f->as.tmp.data = NULL;
+        f->as.tmp.len = 0;
     } else close(f->as.fd);
     if(f->buf_real) free(f->buf);
     free(f);
@@ -598,7 +601,7 @@ static const char* strerror_str_map[] = {
     [ENOENT]     = "Not Found"
 };
 const char* strerror(int e) {
-    if(e < 0) return "UNKOWN";
+    if(e < 0) return "UNKNOWN";
     if(e >= ARRAY_LEN(strerror_str_map)) return "INVALID ERROR";
     return strerror_str_map[e];
 }
