@@ -7,6 +7,8 @@ bool try_resolve_waitpid(ThreadBlocker* blocker, Task* task) {
     debug_assert(blocker->as.waitpid.child_index < ARRAY_LEN(proc->children) && "Invalid child_index");
     if(child_process_is_dead(proc->children[blocker->as.waitpid.child_index])) {
         blocker->as.waitpid.exit_code = child_process_get_exit_code(proc->children[blocker->as.waitpid.child_index]);
+        child_process_set_id(proc->children[blocker->as.waitpid.child_index], INVALID_PROCESS_ID);
+        proc->children[blocker->as.waitpid.child_index].exit_code = 0;
         return true;
     }
     return false;
