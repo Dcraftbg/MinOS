@@ -1,0 +1,128 @@
+From 40313baea66fe3b92b6784fb5fc477429fe9d59b Mon Sep 17 00:00:00 2001
+From: DcraftBg <czl_obshta@abv.bg>
+Date: Sun, 29 Dec 2024 13:53:35 +0200
+Subject: [PATCH] MinOS support
+
+---
+ config.sub              |  2 +-
+ fixincludes/mkfixinc.sh |  2 ++
+ gcc/config.gcc          | 13 +++++++++++++
+ gcc/config/minos.h      | 29 +++++++++++++++++++++++++++++
+ libgcc/config.host      |  8 ++++++++
+ 5 files changed, 53 insertions(+), 1 deletion(-)
+ create mode 100644 gcc/config/minos.h
+
+diff --git a/config.sub b/config.sub
+index 38f3d037a..128da8262 100755
+--- a/config.sub
++++ b/config.sub
+@@ -1749,7 +1749,7 @@ case $os in
+ 	     | onefs* | tirtos* | phoenix* | fuchsia* | redox* | bme* \
+ 	     | midnightbsd* | amdhsa* | unleashed* | emscripten* | wasi* \
+ 	     | nsk* | powerunix* | genode* | zvmoe* | qnx* | emx* | zephyr* \
+-	     | fiwix* )
++	     | fiwix* | minos* )
+ 		;;
+ 	# This one is extra strict with allowed versions
+ 	sco3.2v2 | sco3.2v[4-9]* | sco5v6*)
+diff --git a/fixincludes/mkfixinc.sh b/fixincludes/mkfixinc.sh
+index df90720b7..581a03228 100755
+--- a/fixincludes/mkfixinc.sh
++++ b/fixincludes/mkfixinc.sh
+@@ -11,6 +11,8 @@ target=fixinc.sh
+ 
+ # Check for special fix rules for particular targets
+ case $machine in
++    *-minos* | \
++    *-*-minos* | \
+     i?86-*-cygwin* | \
+     i?86-*-mingw32* | \
+     x86_64-*-mingw32* | \
+diff --git a/gcc/config.gcc b/gcc/config.gcc
+index c5064dd37..7d965b8f8 100644
+--- a/gcc/config.gcc
++++ b/gcc/config.gcc
+@@ -673,6 +673,13 @@ x86_cpus="generic intel"
+ 
+ # Common parts for widely ported systems.
+ case ${target} in
++*-*-minos*)
++  gas=yes
++  gnu_ld=yes
++  default_use_cxa_atexit=yes
++  use_gcc_stdint=provide
++  tmake_file="t-slibgcc"
++  ;;
+ *-*-darwin*)
+   tmake_file="t-darwin "
+   tm_file="${tm_file} darwin.h"
+@@ -1870,6 +1877,12 @@ hppa[12]*-*-hpux11*)
+ 		dwarf2=no
+ 	fi
+ 	;;
++i[34567]86-*-minos*)
++	tm_file="${tm_file} i386/unix.h i386/att.h dbxelf.h elfos.h glibc-stdint.h i386/i386elf.h minos.h"
++	;;
++x86_64-*-minos*)
++	tm_file="${tm_file} i386/unix.h i386/att.h dbxelf.h elfos.h glibc-stdint.h i386/i386elf.h i386/x86-64.h minos.h"
++	;;
+ i[34567]86-*-darwin1[89]* | i[34567]86-*-darwin2*)
+ 	echo "Error: 32bit target is not supported after Darwin17" 1>&2
+ 	;;
+diff --git a/gcc/config/minos.h b/gcc/config/minos.h
+new file mode 100644
+index 000000000..e280b39d5
+--- /dev/null
++++ b/gcc/config/minos.h
+@@ -0,0 +1,29 @@
++/* Useful if you wish to make target-specific GCC changes. */
++#undef TARGET_MINOS
++#define TARGET_MINOS 1
++
++/* Default arguments you want when running your
++   i686-minos-gcc/x86_64-minos-gcc toolchain */
++#undef LIB_SPEC
++#define LIB_SPEC "-lc" /* link against C standard library */
++
++/* Files that are linked before user code.
++   The %s tells GCC to look for these files in the library directory. */
++#undef STARTFILE_SPEC
++#define STARTFILE_SPEC "crt0.o%s crti.o%s crtbegin.o%s"
++
++/* Files that are linked after user code. */
++#undef ENDFILE_SPEC
++#define ENDFILE_SPEC "crtend.o%s crtn.o%s"
++
++// TODO: Remove the __unix__ and system=unix system=posix stuff
++/* Additional predefined macros. */
++#undef TARGET_OS_CPP_BUILTINS
++#define TARGET_OS_CPP_BUILTINS()      \
++  do {                                \
++    builtin_define ("_MINOS");      \
++    builtin_define ("__unix__");      \
++    builtin_assert ("system=minos");   \
++    builtin_assert ("system=unix");   \
++    builtin_assert ("system=posix");   \
++  } while(0);
+diff --git a/libgcc/config.host b/libgcc/config.host
+index 8c56fcae5..5f55520a2 100644
+--- a/libgcc/config.host
++++ b/libgcc/config.host
+@@ -698,6 +698,14 @@ hppa*-*-openbsd*)
+ hppa*-*-netbsd*)
+ 	tmake_file="$tmake_file pa/t-netbsd"
+ 	;;
++i[34567]86-*-minos*)
++	extra_parts="$extra_parts crti.o crtbegin.o crtbeginS.o crtend.o crtendS.o crtn.o"
++	tmake_file="$tmake_file i386/t-crtstuff t-crtstuff-pic t-libgcc-pic t-slibgcc"
++	;;
++x86_64-*-minos*)
++	extra_parts="$extra_parts crti.o crtbegin.o crtbeginS.o crtend.o crtendS.o crtn.o"
++	tmake_file="$tmake_file i386/t-crtstuff t-crtstuff-pic t-libgcc-pic t-slibgcc"
++	;;
+ i[34567]86-*-darwin*)
+ 	tmake_file="$tmake_file i386/t-crtpc t-crtfm i386/t-msabi"
+ 	tm_file="$tm_file i386/darwin-lib.h"
+-- 
+2.34.1
+

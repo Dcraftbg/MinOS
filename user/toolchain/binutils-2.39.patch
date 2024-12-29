@@ -1,0 +1,165 @@
+From 0997e033de38dbe8d3197276ea37a567d7c42278 Mon Sep 17 00:00:00 2001
+From: DcraftBg <czl_obshta@abv.bg>
+Date: Sun, 29 Dec 2024 12:22:15 +0200
+Subject: [PATCH] MinOS support
+
+---
+ bfd/config.bfd                    | 11 +++++++++++
+ config.sub                        |  2 +-
+ gas/configure.tgt                 |  1 +
+ ld/Makefile.am                    |  2 ++
+ ld/Makefile.in                    |  4 ++++
+ ld/configure.tgt                  |  8 ++++++++
+ ld/emulparams/elf_i386_minos.sh   |  1 +
+ ld/emulparams/elf_x86_64_minos.sh |  1 +
+ 8 files changed, 29 insertions(+), 1 deletion(-)
+ create mode 100644 ld/emulparams/elf_i386_minos.sh
+ create mode 100644 ld/emulparams/elf_x86_64_minos.sh
+
+diff --git a/bfd/config.bfd b/bfd/config.bfd
+index a4c6c8e8..508e1a62 100644
+--- a/bfd/config.bfd
++++ b/bfd/config.bfd
+@@ -587,7 +587,18 @@ case "${targ}" in
+     targ64_selvecs="x86_64_elf64_sol2_vec x86_64_pe_vec x86_64_pei_vec"
+     want64=true
+     ;;
++
++  i[3-7]86-*-minos*)
++    targ_defvec=i386_elf32_vec
++    targ_selvecs=
++    targ64_selvecs=x86_64_elf64_vec
++    ;;
+ #ifdef BFD64
++  x86_64-*-minos*)
++    targ_defvec=x86_64_elf64_vec
++    targ_selvecs=i386_elf32_vec
++    want64=true
++    ;;
+   x86_64-*-solaris2*)
+     targ_defvec=i386_elf32_sol2_vec
+     targ_selvecs="x86_64_elf64_sol2_vec iamcu_elf32_vec i386_coff_vec i386_pei_vec x86_64_pe_vec x86_64_pei_vec"
+diff --git a/config.sub b/config.sub
+index dba16e84..487c0392 100755
+--- a/config.sub
++++ b/config.sub
+@@ -1754,7 +1754,7 @@ case $os in
+ 	     | onefs* | tirtos* | phoenix* | fuchsia* | redox* | bme* \
+ 	     | midnightbsd* | amdhsa* | unleashed* | emscripten* | wasi* \
+ 	     | nsk* | powerunix* | genode* | zvmoe* | qnx* | emx* | zephyr* \
+-	     | fiwix* )
++	     | fiwix* | minos*)
+ 		;;
+ 	# This one is extra strict with allowed versions
+ 	sco3.2v2 | sco3.2v[4-9]* | sco5v6*)
+diff --git a/gas/configure.tgt b/gas/configure.tgt
+index 62f806bd..181f4267 100644
+--- a/gas/configure.tgt
++++ b/gas/configure.tgt
+@@ -221,6 +221,7 @@ case ${generic_target} in
+   h8300-*-elf)				fmt=elf ;;
+   h8300-*-linux*)			fmt=elf em=linux ;;
+ 
++  i386-*-minos*)            fmt=elf ;;
+   i386-*-beospe*)			fmt=coff em=pe ;;
+   i386-*-beos*)				fmt=elf ;;
+   i386-*-elfiamcu)			fmt=elf arch=iamcu ;;
+diff --git a/ld/Makefile.am b/ld/Makefile.am
+index d31021c1..564b15bd 100644
+--- a/ld/Makefile.am
++++ b/ld/Makefile.am
+@@ -275,6 +275,7 @@ ALL_EMULATION_SOURCES = \
+ 	eelf32xtensa.c \
+ 	eelf32z80.c \
+ 	eelf_i386.c \
++	eelf_i386_minos.c \
+ 	eelf_i386_be.c \
+ 	eelf_i386_fbsd.c \
+ 	eelf_i386_haiku.c \
+@@ -453,6 +454,7 @@ ALL_64_EMULATION_SOURCES = \
+ 	eelf64tilegx_be.c \
+ 	eelf_mipsel_haiku.c \
+ 	eelf_x86_64.c \
++	eelf_x86_64_minos.c \
+ 	eelf_x86_64_cloudabi.c \
+ 	eelf_x86_64_fbsd.c \
+ 	eelf_x86_64_haiku.c \
+diff --git a/ld/Makefile.in b/ld/Makefile.in
+index ee0c98f6..c31f6aca 100644
+--- a/ld/Makefile.in
++++ b/ld/Makefile.in
+@@ -772,6 +772,7 @@ ALL_EMULATION_SOURCES = \
+ 	eelf32xtensa.c \
+ 	eelf32z80.c \
+ 	eelf_i386.c \
++	eelf_i386_minos.c \
+ 	eelf_i386_be.c \
+ 	eelf_i386_fbsd.c \
+ 	eelf_i386_haiku.c \
+@@ -949,6 +950,7 @@ ALL_64_EMULATION_SOURCES = \
+ 	eelf64tilegx_be.c \
+ 	eelf_mipsel_haiku.c \
+ 	eelf_x86_64.c \
++	eelf_x86_64_minos.c \
+ 	eelf_x86_64_cloudabi.c \
+ 	eelf_x86_64_fbsd.c \
+ 	eelf_x86_64_haiku.c \
+@@ -1441,6 +1443,7 @@ distclean-compile:
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64tilegx.Po@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf64tilegx_be.Po@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_i386.Po@am__quote@
++@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_i386_minos.Po@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_i386_be.Po@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_i386_fbsd.Po@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_i386_haiku.Po@am__quote@
+@@ -1451,6 +1454,7 @@ distclean-compile:
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_mipsel_haiku.Po@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_s390.Po@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_x86_64.Po@am__quote@
++@AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_x86_64_minos.Po@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_x86_64_cloudabi.Po@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_x86_64_fbsd.Po@am__quote@
+ @AMDEP_TRUE@@am__include@ @am__quote@./$(DEPDIR)/eelf_x86_64_haiku.Po@am__quote@
+diff --git a/ld/configure.tgt b/ld/configure.tgt
+index 2bae9099..de866a40 100644
+--- a/ld/configure.tgt
++++ b/ld/configure.tgt
+@@ -352,6 +352,11 @@ i[3-7]86-*-aros*)	targ_emul=elf_i386
+ i[3-7]86-*-rdos*)	targ_emul=elf_i386
+ 			targ_extra_emuls=elf_iamcu
+ 			;;
++i[3-7]86-*-minos*)    
++			targ_emul=elf_i386_minos
++			targ_extra_emuls=elf_i386
++			targ64_extra_emuls="elf_x86_64_minos elf_x86_64"
++			;;
+ i[3-7]86-*-bsd)		targ_emul=i386bsd
+ 			targ_extra_ofiles=
+ 			;;
+@@ -988,6 +993,9 @@ visium-*-elf)		targ_emul=elf32visium
+ 			;;
+ x86_64-*-rdos*)		targ_emul=elf64rdos
+ 			;;
++x86_64-*-minos*)    targ_emul=elf_x86_64_minos
++			        targ_extra_emuls="elf_i386_minos elf_x86_64 elf_i386"
++			        ;;
+ x86_64-*-cloudabi*)	targ_emul=elf_x86_64_cloudabi
+ 			;;
+ x86_64-*-haiku*)	targ_emul=elf_x86_64_haiku
+diff --git a/ld/emulparams/elf_i386_minos.sh b/ld/emulparams/elf_i386_minos.sh
+new file mode 100644
+index 00000000..9d11a528
+--- /dev/null
++++ b/ld/emulparams/elf_i386_minos.sh
+@@ -0,0 +1 @@
++source_sh ${srcdir}/emulparams/elf_i386.sh
+diff --git a/ld/emulparams/elf_x86_64_minos.sh b/ld/emulparams/elf_x86_64_minos.sh
+new file mode 100644
+index 00000000..59e7df71
+--- /dev/null
++++ b/ld/emulparams/elf_x86_64_minos.sh
+@@ -0,0 +1 @@
++source_sh ${srcdir}/emulparams/elf_x86_64.sh
+-- 
+2.34.1
+
