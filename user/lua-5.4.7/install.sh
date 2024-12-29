@@ -6,6 +6,7 @@ if ! command -v x86_64-minos-gcc &> /dev/null; then
     echo "In order to build lua for MinOS you need the MinOS toolchain"
     echo "For more information checkout <path to MinOS>/user/toolchain/build.sh"
     echo "Make sure to add <path to MinOS>/user/toolchain/bin/binutils/bin/ to your PATH!"
+    exit 1
 fi 
 
 lua_version="5.4.7"
