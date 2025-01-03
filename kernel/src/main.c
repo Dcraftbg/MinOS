@@ -195,8 +195,8 @@ void _start() {
         kabort();
     }
     kinfo("Spawning `%s` id=%zu", epath, (size_t)e);
-    pic_clear_mask(1);
-    pic_clear_mask(0);
+    irq_clear(1);
+    irq_clear(0);
     for(;;) {
         asm volatile("hlt");
     }
