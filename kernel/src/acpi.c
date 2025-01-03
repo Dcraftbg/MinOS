@@ -4,6 +4,7 @@
 #include "filelog.h"
 #include "kernel.h"
 #include "iomem.h"
+#include "apic.h"
 
 typedef struct {
     RSDP* rsdp;
@@ -155,24 +156,6 @@ void init_rsdp(RSDP* rsdp) {
     }
     acpi.sdt = rsdt;
     init_rsdt(rsdt);
-}
-typedef struct {
-    ACPISDTHeader header;
-    uint32_t lapic_addr;
-    uint32_t flags;
-
-} APIC;
-void init_apic() {
-    ACPISDTHeader* apic_header = acpi_find("APIC"); 
-    if(!apic_header) return;
-    if(apic_header->length < sizeof(APIC)) {
-        kerror("Length was odd");
-        goto length_check_err;
-    }
-    
-    return;
-length_check_err:
-    iounmap_bytes(apic_header, apic_header->length);
 }
 void init_acpi() {
     paddr_t rsdp_phys = get_rsdp_addr();

@@ -1,4 +1,5 @@
 #pragma once
+#include "utils.h"
 #include <stdint.h>
 typedef struct RSDP RSDP;
 struct RSDP {
@@ -34,7 +35,8 @@ struct ACPISDTHeader {
     uint32_t OEMRevision;
     uint32_t CreatorID;
     uint32_t CreatorRevision;
-} __attribute__((packed));
+};
+static_assert(sizeof(ACPISDTHeader) == 36, "ACPISDTHeader alignment is weird");
 typedef struct {
     ACPISDTHeader header;
 } RSDT;
