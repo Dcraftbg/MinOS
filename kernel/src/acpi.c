@@ -80,14 +80,6 @@ void init_acpi_isdt(paddr_t phys) {
         kwarn("checksum mismatch: Expected 0 found `%d`", checksum);
         goto checksum_err;
     }
-    Logger* oldlogger = kernel.logger;
-    const char* oldpath = file_logger.private;
-    char name[20]={0};
-    memcpy(name+0 , "/acpi/"    , 6);
-    memcpy(name+6 , h->signature, 4);
-    memcpy(name+10, ".log"      , 5);
-    file_logger.private = name;
-    kernel.logger = &file_logger;
     kinfo("signature: %.4s", h->signature);
     kinfo("length: %zu", (size_t)h->length);
     kinfo("revision: %d", h->revision);
@@ -96,8 +88,6 @@ void init_acpi_isdt(paddr_t phys) {
     kinfo("OEMRevision: %d", h->OEMRevision);
     kinfo("CreatorID: %d", h->CreatorID);
     kinfo("CreatorRevision: %d", h->CreatorRevision);
-    file_logger.private = (void*)oldpath;
-    kernel.logger = oldlogger;
     iounmap_bytes(h, length);
     return;
 checksum_err:
@@ -105,28 +95,16 @@ checksum_err:
 }
 void init_xsdt(XSDT* xsdt) {
     size_t entries = (xsdt->header.length-sizeof(ACPISDTHeader)) / sizeof(uint64_t);
-    Logger* oldlogger = kernel.logger;
-    const char* oldpath = file_logger.private;
-    file_logger.private = "/XSDT.log";
-    kernel.logger = &file_logger;
     kinfo("Signature of header: %.4s", xsdt->header.signature);
     kinfo("Total amount of entries: %zu", entries);
-    file_logger.private = (void*)oldpath;
-    kernel.logger = oldlogger;
     for(size_t i = 0; i < entries; ++i) {
         init_acpi_isdt((paddr_t)((uint64_t*)(xsdt+1))[i]);
     }
 }
 void init_rsdt(RSDT* rsdt) {
     size_t entries = (rsdt->header.length-sizeof(ACPISDTHeader)) / sizeof(uint32_t);
-    Logger* oldlogger = kernel.logger;
-    const char* oldpath = file_logger.private;
-    file_logger.private = "/RSDT.log";
-    kernel.logger = &file_logger;
     kinfo("Signature of header: %.4s", rsdt->header.signature);
     kinfo("Total amount of entries: %zu", entries);
-    file_logger.private = (void*)oldpath;
-    kernel.logger = oldlogger;
     for(size_t i = 0; i < entries; ++i) {
         init_acpi_isdt((paddr_t)((uint32_t*)(rsdt+1))[i]);
     }
@@ -137,10 +115,6 @@ void init_xsdp(XSDP* xsdp) {
         kwarn("checksum mismatch: Expected 0 found `%d` (xsdp)", checksum);
         return;
     }
-    Logger* oldlogger = kernel.logger;
-    const char* oldpath = file_logger.private;
-    file_logger.private = "/XSDP.log";
-    kernel.logger = &file_logger;
     kinfo("Signature: %.8s", xsdp->signature);
     kinfo("oemid: %.6s", xsdp->OEMID);
     kinfo("revision: %d", xsdp->revision);
@@ -160,15 +134,9 @@ void init_xsdp(XSDP* xsdp) {
         kerror("Not enough memory for xsdt (2)");
         return;
     }
-    file_logger.private = (void*)oldpath;
-    kernel.logger = oldlogger;
     init_xsdt(xsdt);
 }
 void init_rsdp(RSDP* rsdp) {
-    Logger* oldlogger = kernel.logger;
-    const char* oldpath = file_logger.private;
-    file_logger.private = "/RSDP.log";
-    kernel.logger = &file_logger;
     kinfo("Signature: %.8s", rsdp->signature);
     kinfo("oemid: %.6s", rsdp->OEMID);
     kinfo("revision: %d", rsdp->revision);
@@ -186,16 +154,27 @@ void init_rsdp(RSDP* rsdp) {
         return;
     }
     acpi.sdt = rsdt;
-    file_logger.private = (void*)oldpath;
-    kernel.logger = oldlogger;
     init_rsdt(rsdt);
 }
-void init_acpi() {
-    intptr_t e;
-    if((e=vfs_creat_abs("/acpi", O_DIRECTORY)) < 0) {
-        kwarn("Failed to create /acpi: %s", status_str(e));
-        return;
+typedef struct {
+    ACPISDTHeader header;
+    uint32_t lapic_addr;
+    uint32_t flags;
+
+} APIC;
+void init_apic() {
+    ACPISDTHeader* apic_header = acpi_find("APIC"); 
+    if(!apic_header) return;
+    if(apic_header->length < sizeof(APIC)) {
+        kerror("Length was odd");
+        goto length_check_err;
     }
+    
+    return;
+length_check_err:
+    iounmap_bytes(apic_header, apic_header->length);
+}
+void init_acpi() {
     paddr_t rsdp_phys = get_rsdp_addr();
     if(!rsdp_phys) {
         kwarn("RSDP pointer not supplied");
@@ -224,4 +203,5 @@ void init_acpi() {
     } else {
         init_rsdp(rsdp);
     }
+    init_apic();
 }

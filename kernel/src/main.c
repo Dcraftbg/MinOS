@@ -71,11 +71,10 @@ void _start() {
     init_loggers();
 #ifdef GLOBAL_STORAGE_GDT_IDT
     init_gdt();
+    disable_interrupts();
     init_idt();
     init_exceptions();
     tss_load_cpu(0);
-    init_pic();
-    enable_interrupts();
 #endif
     init_bitmap();
     init_paging();
@@ -84,19 +83,22 @@ void _start() {
     init_gdt();
     disable_interrupts();
     init_idt();
-    init_pic();
     init_exceptions();
     tss_load_cpu(0);
-    enable_interrupts();
 #endif
     enable_cpu_features();
+    // Interrupt controller Initialisation
+    init_pic();
+    init_acpi();
+    enable_interrupts();
+    // Caches
     init_cache_cache();
-    init_vfs();
-    init_rootfs();
     assert(kernel.device_cache = create_new_cache(sizeof(Device), "Device"));
     init_general_caches();
     init_charqueue();
-    init_devices();
+    // Devices
+    init_pci();
+    // Initialisation for process related things
     init_memregion();
     init_processes();
     init_tasks();
@@ -105,12 +107,12 @@ void _start() {
     init_task_switch();
     init_syscalls();
     init_resources();
-    pit_set_count(1000);
-    init_acpi();
     fbt();
+    // VFS
+    init_vfs();
+    init_rootfs();
+    init_devices();
     init_tty();
-
-    init_pci();
 
     intptr_t e = 0;
     const char* epath = NULL;
@@ -134,8 +136,10 @@ void _start() {
         kabort();
     }
     kinfo("Spawning `%s` id=%zu", epath, (size_t)e);
+    disable_interrupts();
     irq_clear(1);
     irq_clear(0);
+    enable_interrupts();
     for(;;) {
         asm volatile("hlt");
     }

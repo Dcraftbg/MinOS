@@ -20,7 +20,6 @@ void pci_config_write_dword(uint8_t bus, uint8_t slot, uint8_t func, uint8_t off
 }
 #include "kernel.h"
 #include "log.h"
-#include "filelog.h"
 #include "iomem.h"
 static inline Cache* pci_bus_cache() {
     return kernel.cache256;
@@ -116,14 +115,7 @@ intptr_t pci_scan(Pci* pci) {
             device->subclass       = general >> 16;
             device->prog_inferface = general >> 8;
             device->revision_id    = general;
-            
-            Logger* oldlogger = kernel.logger;
-            const char* oldpath = file_logger.private;
-            file_logger.private = "/pci/scan.log";
-            kernel.logger = &file_logger;
             kinfo("(bus=%03d slot=%02d) vid=%04X device=%04X subclass=%02X", bus, slot, device->vendor_id, device->device, device->subclass);
-            file_logger.private = (void*)oldpath;
-            kernel.logger = oldlogger;
         }
     }
 
@@ -135,9 +127,6 @@ intptr_t pci_scan(Pci* pci) {
 void init_pci() {
     assert(kernel.pci_device_cache = create_new_cache(sizeof(PciDevice), "PciDevice"));
     intptr_t e;
-    if((e=vfs_creat_abs("/pci", O_DIRECTORY)) < 0)
-        kwarn("(pci) Failed to create pci folder: %s", status_str(e));
-    
     if((e=pci_scan(&pci)) < 0)
         kpanic("(pci) Failure on pci scan: %s", status_str(e));
     for(size_t busi = 0; busi < PCI_BUS_COUNT; ++busi) {
@@ -150,10 +139,6 @@ void init_pci() {
                 PciDevice* dev = slot[devi];
                 if(!dev) continue;
                 if(dev->subclass == 0x03) {
-                    Logger* oldlogger = kernel.logger;
-                    const char* oldpath = file_logger.private;
-                    file_logger.private = "/pci/usb.log";
-                    kernel.logger = &file_logger;
                     intptr_t e;
                     kinfo("usb (bus=%03d slot=%02d device=%d). (pi=0x%02X)", busi, sloti, devi, dev->prog_inferface);
                     if((e=pci_map_bar0(&dev->bar0, busi, sloti, devi)) < 0) {
@@ -164,8 +149,6 @@ void init_pci() {
                         kwarn("usb Failed to initialise USB device: %s", status_str(e));
                         continue;
                     }
-                    file_logger.private = (void*)oldpath;
-                    kernel.logger = oldlogger;
                 }
             }
         }
