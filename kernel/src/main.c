@@ -40,6 +40,7 @@
 #include "iomem.h"
 #include "acpi.h"
 #include "pci.h"
+#include "interrupt.h"
 #include "general_caches.h"
 
 #include "term/fb/fb.h"
