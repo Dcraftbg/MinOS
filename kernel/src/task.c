@@ -25,7 +25,8 @@ void init_kernel_task() {
 }
 
 void init_task_switch() {
-    idt_register(0x20, pit_handler, IDT_INTERRUPT_TYPE);
+    irq_register(0x20, pit_handler, IRQ_FLAG_FAST);
+    pit_set_count(1000);
 }
 Task* kernel_task_add() {
     Task* task = (Task*)cache_alloc(kernel.task_cache);
