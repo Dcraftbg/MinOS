@@ -125,10 +125,8 @@ void ps2_keyboard_handler() {
        uint8_t stat = inb(0x64);
        if(stat & 0x01) break;
     }
-    if(i == PS2_MAX_RETRIES) {
-        pic_end(1);
-        return;
-    }
+    if(i == PS2_MAX_RETRIES) 
+        goto end;
     uint8_t code = inb(0x60);
     switch(code) {
     case 0xE0:
@@ -149,7 +147,8 @@ void ps2_keyboard_handler() {
         // else printf("Keyboard: <Unknown %02X>\n",code);
     }
     }
-    pic_end(1);
+end:
+    irq_eoi(1);
 }
 
 static intptr_t ps2keyboard_read(Inode* file, void* buf, size_t size, off_t offset) {

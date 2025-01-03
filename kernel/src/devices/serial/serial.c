@@ -38,11 +38,11 @@ void serial_handler() {
     uint8_t uni = charmap[key];
     if(!uni) {
         kwarn("[serial] Key %d is unmapped", (int)key);
-        pic_end(4);
-        return;
+        goto end;
     }
     charqueue_push((CharQueue*)serial0_device->priv, uni);
-    pic_end(4);
+end:
+    irq_eoi(4);
 }
 static intptr_t serial_dev_write(Inode* file, const void* buf, size_t size, off_t offset) {
     (void)file;
