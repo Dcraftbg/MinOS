@@ -1,10 +1,10 @@
 #include "serial.h"
-#include "../../charqueue.h"
-#include "../../pic.h"
+#include <interrupt.h>
+#include <charqueue.h>
 // TODO: More formal way of registering interrupts
-#include "../../arch/x86_64/idt.h"
-#include "../../kernel.h"
-#include "../../log.h"
+#include <arch/x86_64/idt.h>
+#include <kernel.h>
+#include <log.h>
 static Device* serial0_device=NULL;
 extern void idt_serial_handler();
 #define COM_PORT   0x3f8

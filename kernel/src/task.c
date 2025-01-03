@@ -4,9 +4,9 @@
 #include "mem/slab.h"
 #include "string.h"
 #include "port.h"
-#include "pic.h"
 #include "exec.h"
 #include "log.h"
+#include "interrupt.h"
 
 void pit_handler();
 void init_tasks() {

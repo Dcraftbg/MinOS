@@ -1,4 +1,5 @@
 #include "keyboard.h"
+#include <interrupt.h>
 static uint16_t SCAN1_PS2[] = {
     0   ,MINOS_KEY_ESCAPE,'1' ,'2' ,'3' ,'4' ,'5' ,'6' ,'7' ,'8' ,'9' ,'0' ,'-' ,'=' ,MINOS_KEY_BACKSPACE, MINOS_KEY_TAB,
     'Q' ,'W' ,'E' ,'R' ,'T' ,'Y' ,'U' ,'I' ,'O' ,'P' ,'[' ,']' , MINOS_KEY_ENTER, MINOS_KEY_LEFT_CTRL, 'A' ,'S' ,
