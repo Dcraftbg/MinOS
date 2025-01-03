@@ -63,7 +63,21 @@ void init_xsdt(XSDT* xsdt) {
     file_logger.private = (void*)oldpath;
     kernel.logger = oldlogger;
     for(size_t i = 0; i < entries; ++i) {
-        init_acpi_sdt(((paddr_t*)(xsdt+1))[i]);
+        init_acpi_sdt((paddr_t)((uint64_t*)(xsdt+1))[i]);
+    }
+}
+void init_rsdt(RSDT* rsdt) {
+    size_t entries = (rsdt->header.length-sizeof(ACPISDTHeader)) / sizeof(uint32_t);
+    Logger* oldlogger = kernel.logger;
+    const char* oldpath = file_logger.private;
+    file_logger.private = "/RSDT.log";
+    kernel.logger = &file_logger;
+    kinfo("Signature of header: %.4s", rsdt->header.signature);
+    kinfo("Total amount of entries: %zu", entries);
+    file_logger.private = (void*)oldpath;
+    kernel.logger = oldlogger;
+    for(size_t i = 0; i < entries; ++i) {
+        init_acpi_sdt((paddr_t)((uint32_t*)(rsdt+1))[i]);
     }
 }
 void init_xsdp(XSDP* xsdp) {
@@ -98,6 +112,31 @@ void init_xsdp(XSDP* xsdp) {
     kernel.logger = oldlogger;
     init_xsdt(xsdt);
 }
+void init_rsdp(RSDP* rsdp) {
+    Logger* oldlogger = kernel.logger;
+    const char* oldpath = file_logger.private;
+    file_logger.private = "/RSDP.log";
+    kernel.logger = &file_logger;
+    kinfo("Signature: %.8s", rsdp->signature);
+    kinfo("oemid: %.6s", rsdp->OEMID);
+    kinfo("revision: %d", rsdp->revision);
+    kinfo("rsdt: %p", (void*)(uintptr_t)rsdp->rsdt_address); 
+    RSDT* rsdt;
+    if(!(rsdt=iomap_bytes(rsdp->rsdt_address, sizeof(RSDT), KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_WRITE))) {
+        kerror("Not enough memory for rsdt");
+        return;
+    }
+    size_t length_rsdt = rsdt->header.length;
+    kinfo("length=%zu", length_rsdt);
+    iounmap_bytes(rsdt, sizeof(RSDT));
+    if(!(rsdt=iomap_bytes(rsdp->rsdt_address, length_rsdt, KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_WRITE))) {
+        kerror("Not enough memory for rsdt (2)");
+        return;
+    }
+    file_logger.private = (void*)oldpath;
+    kernel.logger = oldlogger;
+    init_rsdt(rsdt);
+}
 void init_acpi() {
     intptr_t e;
     if((e=vfs_creat_abs("/acpi", O_DIRECTORY)) < 0) {
@@ -129,9 +168,6 @@ void init_acpi() {
     if(rsdp->revision > 1) {
         init_xsdp((XSDP*)rsdp);
     } else {
-        kinfo("Signature: %.8s", rsdp->signature);
-        kinfo("oemid: %.6s", rsdp->OEMID);
-        kinfo("revision: %d", rsdp->revision);
-        kinfo("rsdt: %p", (void*)(uintptr_t)rsdp->rsdt_address);
+        init_rsdp(rsdp);
     }
 }
