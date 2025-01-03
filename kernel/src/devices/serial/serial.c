@@ -1,8 +1,6 @@
 #include "serial.h"
 #include <interrupt.h>
 #include <charqueue.h>
-// TODO: More formal way of registering interrupts
-#include <arch/x86_64/idt.h>
 #include <kernel.h>
 #include <log.h>
 static Device* serial0_device=NULL;
@@ -72,9 +70,9 @@ static intptr_t init_inode(Device* this, Inode* inode) {
     return 0;
 }
 intptr_t serial_dev_init() {
-    idt_register(0x24, idt_serial_handler, IDT_TRAP_TYPE);
+    irq_register(0x24, idt_serial_handler, 0);
     outb(COM_INT_ENABLE_PORT, 0x01); // Enable received data available interrupt
-    pic_clear_mask(4);
+    irq_clear(4);
     return 0;
 }
 intptr_t serial_device_create(Device* device) {
