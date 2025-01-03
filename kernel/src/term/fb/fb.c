@@ -340,6 +340,9 @@ static void fbtty_draw_char(FbTty* fbtty, uint32_t code) {
     while(fbtty->y >= fbtty->h) {
         fmbuf_scroll_up(&fbtty->fb, 16, fbtty->bg);
         memmove(fbtty->map, fbtty->map+fbtty->w, fbtty->w*(fbtty->h-1)*sizeof(fbtty->map[0]));
+        for(size_t i = 0; i < fbtty->w; ++i) {
+            (fbtty->map + fbtty->w*(fbtty->h-1))[i].c = ' ';
+        }
         fbtty->y--;
     }
     fbtty_fill_blink(fbtty, fbtty->blink ? fbtty->fg : fbtty->bg);
