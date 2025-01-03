@@ -5,6 +5,53 @@
 #include "kernel.h"
 #include "iomem.h"
 
+typedef struct {
+    RSDP* rsdp;
+    void* sdt;
+} ACPI;
+static ACPI acpi;
+ACPISDTHeader* sdt_map_and_find(paddr_t phys, const char* signature) {
+    if(!phys) return NULL;
+    ACPISDTHeader* h;
+    if(!(h=iomap_bytes(phys, sizeof(ACPISDTHeader), KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_WRITE))) {
+        kerror("(sdt_map_and_find) Failed to map acpi header");
+        return NULL;
+    }
+    if(memcmp(h->signature, signature, 4) != 0) {
+        iounmap_bytes(h, sizeof(ACPISDTHeader));
+        return NULL;
+    }
+    size_t length = h->length;
+    iounmap_bytes(h, sizeof(ACPISDTHeader));
+    if(!(h=iomap_bytes(phys, length, KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_WRITE))) {
+        kerror("(sdt_map_and_find) Failed to remap acpi header");
+        return NULL;
+    }
+    return h;
+}
+static ACPISDTHeader* rsdt_find(RSDT* rsdt, const char* signature) {
+    ACPISDTHeader* h;
+    size_t entries = (rsdt->header.length-sizeof(ACPISDTHeader)) / sizeof(uint32_t);
+    for(size_t i = 0; i < entries; ++i) {
+        if((h=sdt_map_and_find((paddr_t)((uint32_t*)(rsdt+1))[i], signature))) 
+            return h;
+    }
+    return h;
+}
+static ACPISDTHeader* xsdt_find(XSDT* xsdt, const char* signature) {
+    ACPISDTHeader* h;
+    size_t entries = (xsdt->header.length-sizeof(ACPISDTHeader)) / sizeof(uint64_t);
+    for(size_t i = 0; i < entries; ++i) {
+        if((h=sdt_map_and_find((paddr_t)((uint32_t*)(xsdt+1))[i], signature))) 
+            return h;
+    }
+    return h;
+}
+ACPISDTHeader* acpi_find(const char* signature) {
+    if(acpi.rsdp->revision < 1)
+        return rsdt_find(acpi.sdt, signature);
+    return xsdt_find(acpi.sdt, signature);
+}
 static uint8_t count_checksum(const uint8_t* bytes, size_t count) {
     uint8_t checksum = 0;
     for(size_t i = 0; i < count; ++i) {
@@ -12,7 +59,7 @@ static uint8_t count_checksum(const uint8_t* bytes, size_t count) {
     }
     return checksum;
 }
-void init_acpi_sdt(paddr_t phys) {
+void init_acpi_isdt(paddr_t phys) {
     if(!phys) {
         kwarn("Ignoring phys=NULL");
         return;
@@ -31,7 +78,7 @@ void init_acpi_sdt(paddr_t phys) {
     uint8_t checksum = count_checksum((uint8_t*)h, length);
     if(checksum != 0) {
         kwarn("checksum mismatch: Expected 0 found `%d`", checksum);
-        return;
+        goto checksum_err;
     }
     Logger* oldlogger = kernel.logger;
     const char* oldpath = file_logger.private;
@@ -51,6 +98,10 @@ void init_acpi_sdt(paddr_t phys) {
     kinfo("CreatorRevision: %d", h->CreatorRevision);
     file_logger.private = (void*)oldpath;
     kernel.logger = oldlogger;
+    iounmap_bytes(h, length);
+    return;
+checksum_err:
+    iounmap_bytes(h, length);
 }
 void init_xsdt(XSDT* xsdt) {
     size_t entries = (xsdt->header.length-sizeof(ACPISDTHeader)) / sizeof(uint64_t);
@@ -63,7 +114,7 @@ void init_xsdt(XSDT* xsdt) {
     file_logger.private = (void*)oldpath;
     kernel.logger = oldlogger;
     for(size_t i = 0; i < entries; ++i) {
-        init_acpi_sdt((paddr_t)((uint64_t*)(xsdt+1))[i]);
+        init_acpi_isdt((paddr_t)((uint64_t*)(xsdt+1))[i]);
     }
 }
 void init_rsdt(RSDT* rsdt) {
@@ -77,7 +128,7 @@ void init_rsdt(RSDT* rsdt) {
     file_logger.private = (void*)oldpath;
     kernel.logger = oldlogger;
     for(size_t i = 0; i < entries; ++i) {
-        init_acpi_sdt((paddr_t)((uint32_t*)(rsdt+1))[i]);
+        init_acpi_isdt((paddr_t)((uint32_t*)(rsdt+1))[i]);
     }
 }
 void init_xsdp(XSDP* xsdp) {
@@ -101,6 +152,7 @@ void init_xsdp(XSDP* xsdp) {
         kerror("Not enough memory for xsdt");
         return;
     }
+    acpi.sdt = xsdt;
     size_t length_xsdt = xsdt->header.length;
     kinfo("length=%zu", length_xsdt);
     iounmap_bytes(xsdt, sizeof(XSDT));
@@ -133,6 +185,7 @@ void init_rsdp(RSDP* rsdp) {
         kerror("Not enough memory for rsdt (2)");
         return;
     }
+    acpi.sdt = rsdt;
     file_logger.private = (void*)oldpath;
     kernel.logger = oldlogger;
     init_rsdt(rsdt);
@@ -165,6 +218,7 @@ void init_acpi() {
             return;
         }
     }
+    acpi.rsdp = rsdp;
     if(rsdp->revision > 1) {
         init_xsdp((XSDP*)rsdp);
     } else {

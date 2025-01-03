@@ -42,3 +42,4 @@ typedef struct {
     ACPISDTHeader header;
 } XSDT;
 void init_acpi();
+ACPISDTHeader* acpi_find(const char* signature);
