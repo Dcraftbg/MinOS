@@ -178,10 +178,6 @@ bool bootstrap_config(Build* build) {
      fprintf(f, "//// Place GDT and IDT in global storage\n");
      fprintf(f, "//// Instead of allocating them in the bitmap heap\n");
      fprintf(f, "// #define GLOBAL_STORAGE_GDT_IDT\n");
-     fprintf(f, "//// Display a progress bar for each step in kernel booting\n");
-     fprintf(f, "//// NOTE: Only intended to be used for debugging purposes\n");
-     fprintf(f, "//// Will most likely be removed in the future\n");
-     fprintf(f, "// #define PROGRESS_BAR\n");
      fprintf(f, "//// Enable embedfs which is a file system that is embedded\n");
      fprintf(f, "//// Into the kernel itself\n");
      fprintf(f, "//// NOTE: This has now been deprecated and is no longer supported for most build in favour of initrd\n");
