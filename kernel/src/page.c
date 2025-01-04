@@ -505,6 +505,6 @@ const char* page_type_str(pageflags_t flags) {
 #include "cache.h"
 void invalidate_pages(void* address, size_t pages) {
     for(size_t i = 0; i < pages; ++i) {
-        __invlpg(address+pages*PAGE_SIZE);
+        __invlpg(address + i * PAGE_SIZE);
     }
 }
