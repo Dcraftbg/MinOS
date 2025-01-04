@@ -20,6 +20,6 @@ intptr_t irq_register(size_t irq, void (*handler)(), irq_flags_t flags) {
     intptr_t e;
     if((e=irq_reserve(irq)) < 0)
         return e;
-    idt_register(0x20 + e, handler, flags & IRQ_FLAG_FAST ? IDT_INTERRUPT_TYPE : IDT_TRAP_TYPE);
+    idt_register(e, handler, flags & IRQ_FLAG_FAST ? IDT_INTERRUPT_TYPE : IDT_TRAP_TYPE);
     return 0;
 }

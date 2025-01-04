@@ -38,6 +38,7 @@
 #include "filelog.h"
 #include "iomem.h"
 #include "acpi.h"
+#include "apic.h"
 #include "pci.h"
 #include "interrupt.h"
 #include "general_caches.h"
@@ -138,7 +139,10 @@ void _start() {
     kinfo("Spawning `%s` id=%zu", epath, (size_t)e);
     disable_interrupts();
     irq_clear(1);
-    irq_clear(0);
+    if(kernel.interrupt_controller == &apic_controller)
+        irq_clear(2);
+    else
+        irq_clear(0);
     enable_interrupts();
     for(;;) {
         asm volatile("hlt");

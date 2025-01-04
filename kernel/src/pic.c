@@ -48,7 +48,7 @@ void pic_clear(IntController* _, size_t irq) {
 }
 intptr_t pic_reserve(IntController* _, size_t irq) {
     if(irq >= 16) return -UNSUPPORTED;
-    return irq;
+    return 0x20 + irq;
 }
 IntController pic_controller = {
     .eoi = pic_eoi,

@@ -23,9 +23,12 @@ void init_kernel_task() {
     kt->image.ts_rsp = 0;
     kt->image.rip = 0;
 }
-
+#include "apic.h"
 void init_task_switch() {
-    irq_register(0, pit_handler, IRQ_FLAG_FAST);
+    if(kernel.interrupt_controller == &apic_controller) 
+        irq_register(2, pit_handler, IRQ_FLAG_FAST);
+    else 
+        irq_register(0, pit_handler, IRQ_FLAG_FAST);
     pit_set_count(1000);
 }
 Task* kernel_task_add() {
