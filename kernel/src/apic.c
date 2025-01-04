@@ -39,6 +39,8 @@ typedef struct {
 } IOApic;
 #define IOAPIC_ADDR_SPACE_SIZE 64
 IOApic ioapic = {0};
+void* lapic_addr = NULL;
+
 typedef uint8_t ioapic_flags_t;
 #define IOAPIC_FLAG_LOW   0b1
 #define IOAPIC_FLAG_HIGH  0b0
@@ -65,6 +67,18 @@ void ioapic_set_mask(size_t irq, uint32_t on) {
     reg_low  = (reg_low & ~0x10000) | (on << 16);
     ioapic_write(ioapic.addr, IOAPIC_REDIRECTION_BASE + number    , reg_low);
 }
+static uint32_t lapic_read(void *lapic_addr, size_t off) {
+    uint32_t volatile *lapic = (uint32_t volatile*)(lapic_addr + off);
+    return lapic[0];
+}
+static void lapic_write(void *lapic_addr, size_t off, uint32_t value) {
+    uint32_t volatile *lapic = (uint32_t volatile*)(lapic_addr + off);
+    lapic[0] = value;
+}
+static void lapic_eoi(void *lapic_addr) {
+    lapic_write(lapic_addr, 0xB0, 0);
+}
+
 void init_apic() {
     ACPISDTHeader* apic_header = acpi_find("APIC"); 
     if(!apic_header) return;
@@ -73,12 +87,18 @@ void init_apic() {
         goto length_check_err;
     }
     APIC* apic = (APIC*)apic_header;
+    lapic_addr = iomap_bytes(apic->lapic_addr, 4096, KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_WRITE);
+    if(!lapic_addr) {
+        kerror("LAPIC not enough memory to map in lapic");
+        goto lapic_addr_err;
+    }
     for(
         APICEntry* entry = (APICEntry*)(apic+1);
         ((char*)entry < (((char*)apic) + apic->header.length));
         entry = (APICEntry*)(((char*)entry) + entry->length)
     ) {
-        if(entry->type == MADT_ENTRY_IOAPIC) {
+        switch(entry->type) {
+        case MADT_ENTRY_IOAPIC: {
             if(entry->length < sizeof(IOApicEntry)) {
                 kerror("IOAPIC entry with size < %zu (size=%zu)", sizeof(IOApicEntry), entry->length);
                 continue;
@@ -94,12 +114,16 @@ void init_apic() {
             ioapic.addr = new_ioapic_addr;
             ioapic.gsi  = ioapic_entry->gsi;
             kinfo("Mapped in ioapic!");
-        }
+        } break;
+        } 
         kinfo("APIC entry:");
         kinfo(" - type: %d", entry->type);
         kinfo(" - length: %zu", entry->length);
     }
     return;
+    iounmap_bytes(lapic_addr, 4096);
+    lapic_addr = NULL;
+lapic_addr_err:
 length_check_err:
     iounmap_bytes(apic_header, apic_header->length);
 }
