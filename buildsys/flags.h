@@ -7,6 +7,7 @@
     "-ffreestanding",\
     "-static", \
     "-Werror", "-Wno-unused-function",\
+    "-Wno-address-of-packed-member", \
     "-Wall", \
     "-fno-stack-protector", \
     "-fcf-protection=none", \
