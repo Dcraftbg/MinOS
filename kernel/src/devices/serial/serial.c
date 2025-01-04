@@ -70,7 +70,7 @@ static intptr_t init_inode(Device* this, Inode* inode) {
     return 0;
 }
 intptr_t serial_dev_init() {
-    irq_register(0x24, idt_serial_handler, 0);
+    irq_register(4, idt_serial_handler, 0);
     outb(COM_INT_ENABLE_PORT, 0x01); // Enable received data available interrupt
     irq_clear(4);
     return 0;

@@ -6,6 +6,7 @@
 #include "arch/x86_64/tss.h"
 #include "vfs.h"
 #include "pit.h"
+#include "interrupt.h"
 struct Logger;
 typedef struct Cache Cache;
 #include <sync/mutex.h>
@@ -43,6 +44,7 @@ typedef struct {
     Cache *pci_device_cache;
     Cache *cache64, *cache256;
 
+    IntController* interrupt_controller;
     struct list cache_list;
     struct Logger* logger;
     PitInfo pit_info;

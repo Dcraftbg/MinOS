@@ -1,16 +1,25 @@
 #include "interrupt.h"
 #include "kernel.h"
+
+
+intptr_t irq_reserve(size_t irq) {
+    return kernel.interrupt_controller->reserve(kernel.interrupt_controller, irq);
+}
+// TODO: Should probably just be irq_set_mask
+void irq_clear(size_t irq) {
+    kernel.interrupt_controller->clear(kernel.interrupt_controller, irq);
+}
+void irq_eoi(size_t irq) {
+    kernel.interrupt_controller->eoi(kernel.interrupt_controller, irq);
+}
+
 // Platform specific:
 #include "pic.h"
 #include <arch/x86_64/idt.h>
-void irq_eoi(size_t irq) {
-    pic_end(irq);
-}
-// TODO: I should do +0x20 because irq_register is NOT going to be used by exception definitions as they're platform specific
-// and it makes irq_eoi and irq_clear inconsistent
-void irq_register(size_t irq, void (*handler)(), irq_flags_t flags) {
-    idt_register(irq, handler, flags & IRQ_FLAG_FAST ? IDT_INTERRUPT_TYPE : IDT_TRAP_TYPE);
-}
-void irq_clear(size_t irq) {
-    pic_clear_mask(irq);
+intptr_t irq_register(size_t irq, void (*handler)(), irq_flags_t flags) {
+    intptr_t e;
+    if((e=irq_reserve(irq)) < 0)
+        return e;
+    idt_register(0x20 + e, handler, flags & IRQ_FLAG_FAST ? IDT_INTERRUPT_TYPE : IDT_TRAP_TYPE);
+    return 0;
 }

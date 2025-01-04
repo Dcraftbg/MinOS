@@ -25,7 +25,7 @@ void init_kernel_task() {
 }
 
 void init_task_switch() {
-    irq_register(0x20, pit_handler, IRQ_FLAG_FAST);
+    irq_register(0, pit_handler, IRQ_FLAG_FAST);
     pit_set_count(1000);
 }
 Task* kernel_task_add() {
