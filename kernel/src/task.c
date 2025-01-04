@@ -29,7 +29,7 @@ void init_task_switch() {
         irq_register(2, pit_handler, IRQ_FLAG_FAST);
     else 
         irq_register(0, pit_handler, IRQ_FLAG_FAST);
-    pit_set_count(1000);
+    pit_set_hz(1000);
 }
 Task* kernel_task_add() {
     Task* task = (Task*)cache_alloc(kernel.task_cache);
