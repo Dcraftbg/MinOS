@@ -43,7 +43,7 @@ static ACPISDTHeader* xsdt_find(XSDT* xsdt, const char* signature) {
     ACPISDTHeader* h;
     size_t entries = (xsdt->header.length-sizeof(ACPISDTHeader)) / sizeof(uint64_t);
     for(size_t i = 0; i < entries; ++i) {
-        if((h=sdt_map_and_find((paddr_t)((uint32_t*)(xsdt+1))[i], signature))) 
+        if((h=sdt_map_and_find((paddr_t)((uint64_t*)(xsdt+1))[i], signature))) 
             return h;
     }
     return h;
