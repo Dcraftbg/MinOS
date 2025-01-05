@@ -144,6 +144,8 @@ void init_apic() {
     lapic_write(lapic_addr, 0xE0, 0xF << 28);
     lapic_write(lapic_addr, 0xF0, 0xFF | 0x100);
     kernel.interrupt_controller = &apic_controller;
+    kernel.task_switch_irq = 2;
+    pit_set_hz(1000);
     return;
     iounmap_bytes(lapic_addr, 4096);
     lapic_addr = NULL;

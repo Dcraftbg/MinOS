@@ -44,6 +44,7 @@ typedef struct {
     Cache *pci_device_cache;
     Cache *cache64, *cache256;
 
+    size_t task_switch_irq;
     IntController* interrupt_controller;
     struct list cache_list;
     struct Logger* logger;

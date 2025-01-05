@@ -8,7 +8,7 @@
 #include "log.h"
 #include "interrupt.h"
 
-void pit_handler();
+void task_switch_handler();
 void init_tasks() {
     assert(kernel.task_cache = create_new_cache(sizeof(Task), "Task"));
     list_init(&kernel.tasks);
@@ -25,11 +25,7 @@ void init_kernel_task() {
 }
 #include "apic.h"
 void init_task_switch() {
-    if(kernel.interrupt_controller == &apic_controller) 
-        irq_register(2, pit_handler, IRQ_FLAG_FAST);
-    else 
-        irq_register(0, pit_handler, IRQ_FLAG_FAST);
-    pit_set_hz(1000);
+    irq_register(kernel.task_switch_irq, task_switch_handler, IRQ_FLAG_FAST);
 }
 Task* kernel_task_add() {
     Task* task = (Task*)cache_alloc(kernel.task_cache);

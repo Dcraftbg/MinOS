@@ -2,13 +2,13 @@
 %include "arch/x86_64/asmstd.inc"
 section .text
 extern task_switch
-global pit_handler
+global task_switch_handler
 
 struc ContextFrame
    .cr3 resq 1
    .rsp resq 1
 endstruc 
-pit_handler:
+task_switch_handler:
    irq_push_regs
    mov rax, rsp
    sub rsp, ContextFrame_size

@@ -26,6 +26,8 @@ void init_pic() {
     outb(PIC1_DATA, 0b11111111);
     outb(PIC2_DATA, 0b11111111);
     kernel.interrupt_controller = &pic_controller;
+    kernel.task_switch_irq = 0;
+    pit_set_hz(1000);
 }
 
 void pic_eoi(IntController* _, size_t irq) {
