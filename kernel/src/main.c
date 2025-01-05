@@ -25,7 +25,6 @@
 #include "task.h"
 #include "exec.h" 
 #include "pic.h"
-#include "pit.h"
 #include "syscall.h"
 #include "devices.h"
 #include "./devices/tty/tty.h"
