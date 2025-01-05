@@ -16,7 +16,7 @@
     "-MP",\
     "-Ikernel/src",\
     /*"-fomit-frame-pointer", "-fno-builtin", */\
-    /*"-mno-red-zone",*/\
+    "-mgeneral-regs-only", \
     "-mno-mmx",\
     "-mno-sse", "-mno-sse2",\
     "-mno-3dnow",\

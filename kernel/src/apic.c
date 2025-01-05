@@ -90,8 +90,30 @@ static int vec_alloc(void) {
     }
     return -1;
 }
+static void vec_reserve(size_t vec) {
+    size_t byte = vec / 8, bit = vec % 8;
+    vec_bitmap[byte] |= bit;
+}
+#define LAPIC_LVT_TIMER_OFFSET 0x320
+#define LAPIC_INITCNT_OFFSET   0x380
+#define LAPIC_CURRCNT_OFFSET   0x390
+// NOTE: Divide configuration register
+#define LAPIC_DIV_OFFSET       0x3E0
+#define LAPIC_TIMER_IRQ        0x28
+
+#define LVT_MASK_SHIFT    (16)
+#define LVT_MASK          (1 << LVT_MASK_SHIFT) 
+#define LVT_TIMER_ONESHOT (0x20000)
+static size_t tmp_pit_ticks = 0;
+__attribute__((interrupt)) 
+void _tmp_pit_handler(void *) {
+    tmp_pit_ticks++;
+    irq_eoi(0);
+}
 void init_apic() {
     memset(vec_bitmap, 0xFF, 4);
+    // Reserve IRQ0 for lapic timer
+    vec_reserve(LAPIC_TIMER_IRQ);
     vec_bitmap[31] |= 0x80; // Set vec at 0xFF to 1
     ACPISDTHeader* apic_header = acpi_find("APIC"); 
     if(!apic_header) return;
@@ -136,6 +158,17 @@ void init_apic() {
     for(size_t i = 0x20; i < 0xFF; ++i) {
         ioapic_set_mask(i, 1);
     }
+    pit_set_hz(1000);
+    irq_register(0, _tmp_pit_handler, IRQ_FLAG_FAST);
+    // APIC divider of 16
+    lapic_write(lapic_addr, LAPIC_DIV_OFFSET    , 3);
+    lapic_write(lapic_addr, LAPIC_INITCNT_OFFSET, 0xFFFFFFFF);
+    irq_clear(0);
+    // NOTE: For a little more accuracy we sleep for 10ms and then divide by 10
+    while(tmp_pit_ticks < 10) asm volatile("hlt");
+    size_t ticks = (0xFFFFFFFF - lapic_read (lapic_addr, LAPIC_CURRCNT_OFFSET)) / 10;
+    lapic_write(lapic_addr, LAPIC_LVT_TIMER_OFFSET, LVT_TIMER_ONESHOT | LVT_MASK | LAPIC_TIMER_IRQ);
+    lapic_write(lapic_addr, LAPIC_INITCNT_OFFSET  , ticks);
     // Disable PIC
     outb(0x21, 0xFF);
     outb(0xA1, 0xFF);
@@ -144,8 +177,7 @@ void init_apic() {
     lapic_write(lapic_addr, 0xE0, 0xF << 28);
     lapic_write(lapic_addr, 0xF0, 0xFF | 0x100);
     kernel.interrupt_controller = &apic_controller;
-    kernel.task_switch_irq = 2;
-    pit_set_hz(1000);
+    kernel.task_switch_irq = LAPIC_TIMER_IRQ;
     return;
     iounmap_bytes(lapic_addr, 4096);
     lapic_addr = NULL;
@@ -154,6 +186,7 @@ length_check_err:
     iounmap_bytes(apic_header, apic_header->length);
 }
 intptr_t apic_reserve(IntController* _, size_t irq) {
+    if(irq == LAPIC_TIMER_IRQ) return LAPIC_TIMER_IRQ;
     int vec = vec_alloc();
     if(vec < 0) return -LIMITS;
     ioapic_register(vec, irq, 0, IOAPIC_FLAG_HIGH | IOAPIC_FLAG_EDGE);
@@ -163,7 +196,13 @@ void apic_eoi(IntController* _, size_t _irq) {
     lapic_eoi(lapic_addr);
 }
 void apic_set_mask(IntController* _, size_t irq, uint32_t on) {
-    ioapic_set_mask(irq, on);
+    if(irq == LAPIC_TIMER_IRQ) {
+        uint32_t reg_low  = lapic_read(lapic_addr, LAPIC_LVT_TIMER_OFFSET);
+        reg_low  = (reg_low & ~LVT_MASK) | (on << LVT_MASK_SHIFT);
+        lapic_write(lapic_addr, LAPIC_LVT_TIMER_OFFSET, reg_low);
+    } else {
+        ioapic_set_mask(irq, on);
+    }
 }
 IntController apic_controller = {
     .reserve = apic_reserve,
