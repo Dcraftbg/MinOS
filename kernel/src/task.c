@@ -96,7 +96,7 @@ void task_switch(ContextFrame* frame) {
         kernel.current_processid = select->processid;
         if (select->image.flags & TASK_FLAG_FIRST_RUN) {
             select->image.flags &= ~TASK_FLAG_FIRST_RUN;
-            irq_eoi(0);
+            irq_eoi(kernel.task_switch_irq);
             irq_ret_user(
                 (uint64_t)select->image.ts_rsp,
                 (uint64_t)select->image.cr3 & ~KERNEL_MEMORY_MASK,
@@ -105,5 +105,5 @@ void task_switch(ContextFrame* frame) {
             );
         }
     }
-    irq_eoi(0);
+    irq_eoi(kernel.task_switch_irq);
 }
