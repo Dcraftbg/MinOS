@@ -35,7 +35,7 @@ void pic_eoi(IntController* _, size_t irq) {
     outb(PIC1_CMD, 0x20);
 }
 
-void pic_clear(IntController* _, size_t irq) {
+void pic_set_mask(IntController* _, size_t irq, uint32_t on) {
     uint16_t port;
     if (irq < 8) {
         port = PIC1_DATA;
@@ -43,7 +43,7 @@ void pic_clear(IntController* _, size_t irq) {
         port = PIC2_DATA;
         irq -= 8;
     }
-    uint8_t mask = inb(port) & ~(1 << irq);
+    uint8_t mask = (inb(port) & ~(1 << irq)) | (on << irq);
     outb(port, mask);
 }
 intptr_t pic_reserve(IntController* _, size_t irq) {
@@ -52,7 +52,7 @@ intptr_t pic_reserve(IntController* _, size_t irq) {
 }
 IntController pic_controller = {
     .eoi = pic_eoi,
-    .clear = pic_clear,
+    .set_mask = pic_set_mask,
     .reserve = pic_reserve,
     .priv = NULL,
 };

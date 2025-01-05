@@ -160,12 +160,12 @@ intptr_t apic_reserve(IntController* _, size_t irq) {
 void apic_eoi(IntController* _, size_t _irq) {
     lapic_eoi(lapic_addr);
 }
-void apic_clear(IntController* _, size_t irq) {
-    ioapic_set_mask(irq, 0);
+void apic_set_mask(IntController* _, size_t irq, uint32_t on) {
+    ioapic_set_mask(irq, on);
 }
 IntController apic_controller = {
     .reserve = apic_reserve,
     .eoi = apic_eoi,
-    .clear = apic_clear,
+    .set_mask = apic_set_mask,
     .priv = NULL
 };

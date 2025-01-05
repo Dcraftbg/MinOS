@@ -7,7 +7,7 @@ struct IntController {
     // Returns interrupt vector
     intptr_t (*reserve)(IntController* c, size_t irq);
     void (*eoi)(IntController* c, size_t irq);
-    void (*clear)(IntController* c, size_t irq);
+    void (*set_mask)(IntController* c, size_t irq, uint32_t on);
     void *priv;
 };
 typedef int irq_flags_t;
@@ -18,4 +18,5 @@ intptr_t irq_register(size_t irq, void (*handler)(), irq_flags_t flags);
 // Wrappers around interrupt_controller functions
 intptr_t irq_reserve(size_t irq);
 void     irq_clear(size_t irq);
+void     irq_mask(size_t irq);
 void     irq_eoi(size_t irq);
