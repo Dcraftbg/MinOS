@@ -164,8 +164,20 @@ size_t strspn(const char* str, const char* charset) {
     size_t n=0;
     while(str[0]) {
         const char* head = charset;
-        while(str[0] != head[0]) head++;
+        while(head[0] && str[0] != head[0]) head++;
         if(!head[0]) break;
+        n++;
+        str++;
+    }
+    return n;
+}
+
+size_t strcspn(const char* str, const char* charset) {
+    size_t n=0;
+    while(str[0]) {
+        const char* head = charset;
+        while(head[0] && str[0] != head[0]) head++;
+        if(head[0]) break;
         n++;
         str++;
     }

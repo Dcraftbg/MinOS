@@ -21,6 +21,7 @@ char* strcat (char *restrict dest, const char *restrict src);
 double strtod(const char* str, char** endptr);
 char* strpbrk(const char* str, const char* breakset);
 size_t strspn(const char* str, const char* charset);
+size_t strcspn(const char* str, const char* charset);
 static char* strcpy (char *restrict dest, const char *restrict src) {
     return memcpy(dest, src, strlen(src)+1);
 }
