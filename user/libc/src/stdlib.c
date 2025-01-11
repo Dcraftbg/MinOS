@@ -123,11 +123,12 @@ void init_libc_heap(_LibcInternalHeap* heap) {
     node->size = aligndown_to(heap->heap.size-sizeof(_HeapNode), 16);
     list_append(&node->list, &heap->alloc_list);
 }
+#define LIBC_MIN_SIZE (4096*16)
 void* malloc(size_t size) {
     size = alignup_to(size, 16);
     for(size_t i = 0; i < _LIBC_INTERNAL_HEAPS_MAX; ++i) {
         if(_libc_internal_heaps[i].id == _LIBC_INTERNAL_INVALID_HEAPID) {
-            intptr_t e = heap_create(HEAP_RESIZABLE);
+            intptr_t e = heap_create(HEAP_RESIZABLE, size > LIBC_MIN_SIZE ? size : LIBC_MIN_SIZE);
             if(e < 0) return NULL; // Failed to create heap. Most likely out of memory
             _libc_internal_heaps[i].id = e;
             e=heap_get(e, &_libc_internal_heaps[i].heap);

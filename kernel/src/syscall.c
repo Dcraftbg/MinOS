@@ -350,7 +350,7 @@ intptr_t sys_waitpid(size_t pid) {
 #define MIN_HEAP_PAGES 16
 #define MAX_HEAP_PAGES 64
 // FIXME: Possible problem with multiple tasks
-intptr_t sys_heap_create(uint64_t flags) {
+intptr_t sys_heap_create(uint64_t flags, size_t size_min) {
     Process* cur_proc = current_process();
     Task* cur_task = current_task();
     MemoryRegion* region = memregion_new(
@@ -365,8 +365,12 @@ intptr_t sys_heap_create(uint64_t flags) {
         memregion_drop(region, NULL);
         return -NOT_ENOUGH_MEM;
     }
+    size_t pages_max = MAX_HEAP_PAGES;
+    size_t pages_min = (size_min+(PAGE_SIZE-1))/PAGE_SIZE;
+    if(!pages_min) pages_min = MIN_HEAP_PAGES;
+    if(pages_max < pages_min) pages_max = pages_min;
     // FIXME: Region must be shared between all tasks and must be available in all tasks
-    MemoryList* insert_into = memlist_find_available(&cur_task->image.memlist, region, MIN_HEAP_PAGES, MAX_HEAP_PAGES);
+    MemoryList* insert_into = memlist_find_available(&cur_task->image.memlist, region, pages_min, pages_max);
     if(!insert_into) {
         memlist_dealloc(list, NULL);
         return -NOT_ENOUGH_MEM;
