@@ -27,10 +27,12 @@ static intptr_t parse_path(Process* process, Path* res, const char* path) {
         return 0;
     }
 }
+#define strace(fmt, ...) ktrace("P%zu:T%zu"fmt, kernel.current_processid, kernel.current_taskid, __VA_ARGS__)
+#define strace1(fmt)     ktrace("P%zu:T%zu"fmt, kernel.current_processid, kernel.current_taskid)
 // TODO: Safety features like copy_to_userspace, copy_from_userspace
 intptr_t sys_open(const char* path, fmode_t mode, oflags_t flags) {
 #ifdef CONFIG_LOG_SYSCALLS
-    kinfo("sys_open(\"%s\", %d, %d)", path, (int)mode, (int)flags);
+    strace("sys_open(\"%s\", %d, %d)", path, (int)mode, (int)flags);
 #endif
     Path p;
     Process* current = current_process();
@@ -63,7 +65,7 @@ found:
 }
 intptr_t sys_write(uintptr_t handle, const void* buf, size_t size) {
 #ifdef CONFIG_LOG_SYSCALLS
-    printf("sys_write(%lu, %p, %zu)\n",handle, buf, size);
+    strace("sys_write(%lu, %p, %zu)", handle, buf, size);
 #endif
     Process* current = current_process();
     Resource* res = resource_find_by_id(current->resources, handle);
@@ -76,7 +78,7 @@ intptr_t sys_write(uintptr_t handle, const void* buf, size_t size) {
 }
 intptr_t sys_read(uintptr_t handle, void* buf, size_t size) {
 #ifdef CONFIG_LOG_SYSCALLS
-    printf("sys_read(%lu, %p, %zu)\n", handle, buf, size);
+    strace("sys_read(%lu, %p, %zu)", handle, buf, size);
 #endif
     Process* current = current_process();
     Resource* res = resource_find_by_id(current->resources, handle);
@@ -110,7 +112,7 @@ intptr_t sys_read(uintptr_t handle, void* buf, size_t size) {
 
 intptr_t sys_ioctl(uintptr_t handle, Iop op, void* arg) {
 #ifdef CONFIG_LOG_SYSCALLS
-    printf("sys_ioctl(%lu, %zu, %p)\n", handle, op, arg);
+    strace("sys_ioctl(%lu, %zu, %p)", handle, op, arg);
 #endif
     Process* current = current_process();
     Resource* res = resource_find_by_id(current->resources, handle);
@@ -120,6 +122,9 @@ intptr_t sys_ioctl(uintptr_t handle, Iop op, void* arg) {
 }
 
 intptr_t sys_mmap(uintptr_t handle, void** addr, size_t size) {
+#ifdef CONFIG_LOG_SYSCALLS
+    strace("sys_mmap(%lu, %p, %zu)", handle, addr, size);
+#endif
     Process* current = current_process();
     Task* task = current_task();
     Resource* res = resource_find_by_id(current->resources, handle);
@@ -135,6 +140,9 @@ intptr_t sys_mmap(uintptr_t handle, void** addr, size_t size) {
     return e;
 }
 intptr_t sys_seek(uintptr_t handle, off_t offset, seekfrom_t from) {
+#ifdef CONFIG_LOG_SYSCALLS
+    strace("sys_seek(%lu, %d, %zu)", handle, (int)offset, from);
+#endif
     Process* current = current_process();
     Resource* res = resource_find_by_id(current->resources, handle);
     if(!res) return -INVALID_HANDLE;
@@ -159,6 +167,9 @@ intptr_t sys_seek(uintptr_t handle, off_t offset, seekfrom_t from) {
     }
 }
 intptr_t sys_tell(uintptr_t handle) {
+#ifdef CONFIG_LOG_SYSCALLS
+    strace("sys_tell(%lu)", handle);
+#endif
     Process* current = current_process();
     Resource* res = resource_find_by_id(current->resources, handle);
     if(!res) return -INVALID_HANDLE;
@@ -170,7 +181,7 @@ intptr_t sys_tell(uintptr_t handle) {
 // The res->shared check is entirely useless
 intptr_t sys_close(uintptr_t handle) {
 #ifdef CONFIG_LOG_SYSCALLS
-    printf("sys_close(%lu)\n",handle);
+    strace("sys_close(%lu)",handle);
 #endif
     Process* current = current_process();
     Resource* res = resource_find_by_id(current->resources, handle);
@@ -185,7 +196,7 @@ intptr_t sys_close(uintptr_t handle) {
 }
 intptr_t sys_fork() {
 #ifdef CONFIG_LOG_SYSCALLS
-    printf("sys_fork()\n");
+    strace1("sys_fork()");
 #endif
     intptr_t e;
     Process* current_proc = current_process();
@@ -256,7 +267,7 @@ intptr_t sys_fork() {
 }
 intptr_t sys_exec(const char* path, const char** argv, size_t argc, const char** envv, size_t envc) {
 #ifdef CONFIG_LOG_SYSCALLS
-    printf("sys_exec(%s, %p, %zu)\n", path, argv, argc);
+    strace("sys_exec(%s, %p, %zu)", path, argv, argc);
 #endif
     intptr_t e;
     Process* cur_proc = current_process();
@@ -300,6 +311,9 @@ intptr_t sys_exec(const char* path, const char** argv, size_t argc, const char**
 }
 
 void sys_exit(int code) {
+#ifdef CONFIG_LOG_SYSCALLS
+    strace("sys_exec(%d)", code);
+#endif
     Process* cur_proc = current_process();
     Task* cur_task = current_task();
     Process* parent_proc = get_process_by_id(cur_proc->parentid);
@@ -332,6 +346,9 @@ end:
 }
 
 intptr_t sys_waitpid(size_t pid) {
+#ifdef CONFIG_LOG_SYSCALLS
+    strace("sys_waitpid(%zu)", pid);
+#endif
     Process* cur_proc = current_process();
     Task* cur_task = current_task();
     int child_index=-1;
@@ -351,6 +368,9 @@ intptr_t sys_waitpid(size_t pid) {
 #define MAX_HEAP_PAGES 64
 // FIXME: Possible problem with multiple tasks
 intptr_t sys_heap_create(uint64_t flags, size_t size_min) {
+#ifdef CONFIG_LOG_SYSCALLS
+    strace("sys_heap_create(%zu, %zu)", (size_t)flags, size_min);
+#endif
     Process* cur_proc = current_process();
     Task* cur_task = current_task();
     MemoryRegion* region = memregion_new(
@@ -391,6 +411,9 @@ intptr_t sys_heap_create(uint64_t flags, size_t size_min) {
     return heap->id;
 }
 intptr_t sys_heap_get(uintptr_t id, MinOSHeap* result) {
+#ifdef CONFIG_LOG_SYSCALLS
+    strace("sys_heap_get(%zu, %p)", id, result);
+#endif
     Process* cur_proc = current_process();
     Heap* heap = get_heap_by_id(cur_proc, id);
     if(!heap) return -INVALID_HANDLE;
@@ -400,6 +423,9 @@ intptr_t sys_heap_get(uintptr_t id, MinOSHeap* result) {
 }
 // TODO: Maybe make this into sys_heap_resize instead
 intptr_t sys_heap_extend(uintptr_t id, size_t extra_bytes) {
+#ifdef CONFIG_LOG_SYSCALLS
+    strace("sys_heap_get(%zu, %zu)", (size_t)id, extra_bytes);
+#endif
     size_t extra_pages = (extra_bytes+(PAGE_SIZE-1))/PAGE_SIZE;
     if(extra_pages == 0) return 0;
     Process* cur_proc = current_process();
@@ -411,6 +437,9 @@ intptr_t sys_heap_extend(uintptr_t id, size_t extra_bytes) {
     return e;
 }
 intptr_t sys_chdir(const char* path) {
+#ifdef CONFIG_LOG_SYSCALLS
+    strace("sys_chdir(\"%s\")", path);
+#endif
     size_t pathlen = strlen(path);
     if(pathlen >= PATH_MAX) return -LIMITS; 
     intptr_t e;
@@ -457,6 +486,9 @@ str_path_resolve_err:
     return e;
 }
 intptr_t sys_getcwd(char* buf, size_t cap) {
+#ifdef CONFIG_LOG_SYSCALLS
+    strace("sys_getcwd(%p, %zu)", buf, cap);
+#endif
     if(cap == 0) return -INVALID_PARAM;
     Process* cur_proc = current_process();
     size_t pathlen = strlen(cur_proc->curdir);
@@ -466,6 +498,9 @@ intptr_t sys_getcwd(char* buf, size_t cap) {
     return 0;
 }
 intptr_t sys_stat(const char* path, Stats* stats) {
+#ifdef CONFIG_LOG_SYSCALLS
+    strace("sys_stat(%s, %p)", path, stats);
+#endif
     Path p;
     Process* current = current_process();
     intptr_t e = 0;
@@ -478,11 +513,17 @@ intptr_t sys_stat(const char* path, Stats* stats) {
 }
 void sys_sleepfor(const MinOS_Duration* duration) {
     size_t ms = duration->secs*1000 + duration->nano/1000000;
+#ifdef CONFIG_LOG_SYSCALLS
+    strace("sys_sleepfor(%zu)", ms);
+#endif
     if(ms == 0) return;
     size_t until = kernel.pit_info.ticks + ms;
     return block_sleepuntil(current_task(), until); 
 }
 intptr_t sys_gettime(MinOS_Time* time) {
+#ifdef CONFIG_LOG_SYSCALLS
+    strace("sys_gettime(%p)", time);
+#endif
     // TODO: Actual gettime with EPOCH (1/1/1970)
     time->ms = kernel.pit_info.ticks;
     return 0;
