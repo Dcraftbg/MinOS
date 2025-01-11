@@ -71,3 +71,6 @@ void clearerr(FILE* f);
 int ungetc(int chr, FILE* f);
 int setvbuf(FILE* f, char* buf, int mode, size_t size);
 FILE* tmpfile(void);
+
+void rewind(FILE* f);
+#define FILENAME_MAX 1024

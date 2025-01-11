@@ -644,3 +644,8 @@ char *tmpnam(char *s) {
     fprintf(stderr, "WARN: tmpnam is a stub");
     exit(1);
 }
+
+void rewind(FILE* f) {
+    clearerr(f);
+    fseek(f, 0, SEEK_SET);
+}
