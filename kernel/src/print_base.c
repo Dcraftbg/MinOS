@@ -48,6 +48,20 @@ int print_base(void* user, PrintWriteFunc func, const char* fmt, va_list list) {
             bytes = ibuf;
             count = itoa(ibuf, sizeof(ibuf), va_arg(list, int));
         } break;
+        case 'l': {
+            fmt++;
+            switch(*fmt) {
+            case '\0': 
+                return 'l';
+            case 'u': {
+                fmt++;
+                bytes = ibuf;
+                count = sztoa(ibuf, sizeof(ibuf), va_arg(list, long unsigned));
+            } break;
+            default:
+                return *fmt;
+            }
+        } break;
         case 'z': {
             fmt++;
             switch(*fmt) {
