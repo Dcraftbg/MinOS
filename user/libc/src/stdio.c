@@ -329,6 +329,9 @@ FILE* fopen(const char* path, const char* mode_str) {
         close(e);
         return NULL;
     }
+    if((mode & (MODE_WRITE | MODE_READ)) == (MODE_WRITE | MODE_READ)) {
+        f->buf_mode = _IONBF;
+    }
     return f;
 }
 // TODO: Actual implementation of this
