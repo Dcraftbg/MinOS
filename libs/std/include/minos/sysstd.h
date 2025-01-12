@@ -75,3 +75,6 @@ static intptr_t sleepfor(const MinOS_Duration* duration) {
 static intptr_t gettime(MinOS_Time* time) {
     return syscall1(SYS_GETTIME, time);
 }
+static intptr_t truncate(uintptr_t handle, size_t size) {
+    return syscall2(SYS_TRUNCATE, handle, size);
+}

@@ -20,4 +20,5 @@ enum {
     SYS_STAT,
     SYS_SLEEPFOR,
     SYS_GETTIME,
+    SYS_TRUNCATE
 };

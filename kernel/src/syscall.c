@@ -528,3 +528,13 @@ intptr_t sys_gettime(MinOS_Time* time) {
     time->ms = kernel.pit_info.ticks;
     return 0;
 }
+intptr_t sys_truncate(uintptr_t handle, size_t size) {
+#ifdef CONFIG_LOG_SYSCALLS
+    strace("sys_truncate(%lu, %zu)", handle, size);
+#endif
+    Process* current = current_process();
+    Resource* res = resource_find_by_id(current->resources, handle);
+    if(!res) return -INVALID_HANDLE;
+    if(res->kind != RESOURCE_INODE) return -INVALID_TYPE;
+    return inode_truncate(res->inode, size);
+}

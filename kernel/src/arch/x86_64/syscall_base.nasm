@@ -21,6 +21,7 @@ extern sys_diropen
 extern sys_stat
 extern sys_sleepfor
 extern sys_gettime
+extern sys_truncate
 %define KERNEL_UNSUPPORTED 7
 section .text
 global syscall_base
@@ -46,6 +47,7 @@ syscall_table:
    dq sys_stat
    dq sys_sleepfor
    dq sys_gettime
+   dq sys_truncate
 syscall_table_end:
 section .text
 syscall_base:
