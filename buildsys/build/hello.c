@@ -12,6 +12,10 @@ bool build_hello() {
         nob_da_free(paths);
         return false;
     }
+    if(!find_objs(LIBDIR, &paths)) {
+        nob_da_free(paths);
+        return false;
+    }
     if(!ld(&paths, BINDIR "hello"  , "./user/hello/link.ld")) {
         nob_da_free(paths);
         return false;
