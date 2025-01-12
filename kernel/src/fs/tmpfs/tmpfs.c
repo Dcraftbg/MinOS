@@ -196,10 +196,42 @@ static intptr_t tmpfs_write(Inode* file, const void* buf, size_t size, off_t off
 static intptr_t tmpfs_truncate(Inode* file, size_t size) {
     TmpfsInode* inode = file->priv;
     if(inode->kind != INODE_FILE) return -INODE_IS_DIRECTORY;
-    // TODO: Allow reserving space in the file.
-    // For now truncate only works as making the file smaller
-    if(inode->size < size) return -INVALID_PARAM;
     if(inode->size == size) return 0;
+    if(inode->size < size) {
+        TmpfsData* data = inode->data;
+        size_t n = 0;
+        while(data && n+TMPFS_DATABLOCK_BYTES < inode->size) {
+            n += TMPFS_DATABLOCK_BYTES;
+            data = data->next;
+        }
+        if(!data) return -FILE_CORRUPTION;
+        if(data->next) {
+            // TODO: Think of something smarter with the while loop above so
+            // that reserving extra blocks works
+            kerror("(tmpfs) Next block is present when EOF is reached. Reserved blocks aren't supported in truncate yet");
+            return -FILE_CORRUPTION;
+        }
+        TmpfsData* start = data;
+        while(n < size) {
+            n += TMPFS_DATABLOCK_BYTES;
+            data->next = datablock_new();
+            if(!data->next) {
+                size = inode->size;
+                // Skip the first one that already existed
+                start = start->next;
+                // Cleanup the newly allocated blocks
+                while(start) {
+                    TmpfsData* next = start->next;
+                    datablock_destroy(start);
+                    start = next;
+                }
+                return -NOT_ENOUGH_MEM;
+            }
+            data = data->next;
+        }
+        inode->size = size;
+        return 0;
+    } 
     inode->size = size;
     TmpfsData* data = inode->data;
     size_t n = 0;
