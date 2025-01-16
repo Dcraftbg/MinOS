@@ -1,0 +1,11 @@
+--- sqlite3.c	2024-12-07 22:57:53.000000000 +0200
++++ ../sqlite-amalgamation-3470200/sqlite3.c	2025-01-16 10:13:01.769386041 +0200
+@@ -73273,7 +73273,7 @@
+           }
+         }
+       }
+-#if SQLITE_THREADSAFE
++#if !SQLITE_THREADSAFE
+       mutexOpen = sqlite3MutexAlloc(SQLITE_MUTEX_STATIC_OPEN);
+       sqlite3_mutex_enter(mutexOpen);
+       mutexShared = sqlite3MutexAlloc(SQLITE_MUTEX_STATIC_MAIN);
