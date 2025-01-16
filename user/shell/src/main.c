@@ -226,6 +226,10 @@ int main() {
                 fprintf(stderr, "Too many arguments provided to `exit`\n");
                 continue;
             }
+        } else if (strcmp(cmd, "clear") == 0) {
+            if(arg_count > 1) fprintf(stderr, "Ignoring extra arguments to clear\n");
+            printf("\033[2J\033[H");
+            fflush(stdout);
         } else if (strcmp(cmd, "cd") == 0) {
             if (arg_count < 2) {
                 fprintf(stderr, "Expected path after cd\n");
