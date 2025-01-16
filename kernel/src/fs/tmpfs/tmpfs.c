@@ -198,24 +198,23 @@ static intptr_t tmpfs_truncate(Inode* file, size_t size) {
     if(inode->kind != INODE_FILE) return -INODE_IS_DIRECTORY;
     if(inode->size == size) return 0;
     if(inode->size < size) {
-        TmpfsData* data = inode->data;
+        TmpfsData *head = inode->data, *prev = (TmpfsData*)&inode->data;
         size_t n = 0;
-        while(data && n+TMPFS_DATABLOCK_BYTES < inode->size) {
+        while(head && n < inode->size) {
             n += TMPFS_DATABLOCK_BYTES;
-            data = data->next;
+            prev = head;
+            head = head->next;
         }
-        if(!data) return -FILE_CORRUPTION;
-        if(data->next) {
-            // TODO: Think of something smarter with the while loop above so
-            // that reserving extra blocks works
-            kerror("(tmpfs) Next block is present when EOF is reached. Reserved blocks aren't supported in truncate yet");
+        if(n < inode->size) {
+            kerror("File corruption. n=%zu inode->size=%zu", n, inode->size);
             return -FILE_CORRUPTION;
         }
-        TmpfsData* start = data;
+        TmpfsData* start = head = prev;
+        n -= TMPFS_DATABLOCK_BYTES;
         while(n < size) {
             n += TMPFS_DATABLOCK_BYTES;
-            data->next = datablock_new();
-            if(!data->next) {
+            head->next = datablock_new();
+            if(!head->next) {
                 size = inode->size;
                 // Skip the first one that already existed
                 start = start->next;
@@ -227,7 +226,7 @@ static intptr_t tmpfs_truncate(Inode* file, size_t size) {
                 }
                 return -NOT_ENOUGH_MEM;
             }
-            data = data->next;
+            head = head->next;
         }
         inode->size = size;
         return 0;
