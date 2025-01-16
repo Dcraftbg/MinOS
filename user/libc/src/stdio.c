@@ -652,3 +652,7 @@ void rewind(FILE* f) {
     clearerr(f);
     fseek(f, 0, SEEK_SET);
 }
+int fileno(FILE* f) {
+    if(f->tmp) return -1;
+    return f->as.fd;
+}
