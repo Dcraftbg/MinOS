@@ -4,6 +4,7 @@ section .text
 extern exception_handler
 extern ps2_keyboard_handler
 extern serial_handler
+extern xhci_handler
 extern unknown_handler
 
 global idt_exception_division
@@ -45,6 +46,7 @@ idt_%1:
 register_irq ps2_keyboard_handler
 register_irq serial_handler
 register_irq unknown_handler
+register_irq xhci_handler
 
 
 idt_spurious_interrupt:
