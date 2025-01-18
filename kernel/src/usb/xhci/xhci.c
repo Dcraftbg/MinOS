@@ -165,9 +165,8 @@ static inline OperationalRegs* xhci_op_regs(XhciController* c) {
 
 
 
-extern void idt_xhci_handler();
-void xhci_handler() {
-    kinfo("Called xhci_handler!");
+void xhci_handler(PciDevice* dev) {
+    kinfo("Called xhci_handler %p", dev);
 }
 #define CMD_RING_CAP 256
 static intptr_t init_cmd_ring(XhciController* cont) {
@@ -355,27 +354,12 @@ intptr_t init_xhci(PciDevice* dev) {
     cont->erst[0].size = EVENT_RING_CAP;
     xhci_op_regs(cont)->usb_cmd |= USBCMD_INT_ENABLE;
 
-    intptr_t irq = msi_reserve_irq(&msi_manager);
-    if(irq < 0) {
-        e = irq;
-        goto irq_err;
-    }
-    intptr_t vec = irq_register(irq, idt_xhci_handler, 0);
-    if(vec < 0) {
-        e = vec;
-        goto vec_err;
-    }
-    pci_device_msi_disable(dev);
-    pci_device_msi_set(dev, MSI_ADDRESS, vec);
-    pci_device_msi_enable(dev);
+    dev->handler = xhci_handler; 
+    msi_register(&msi_manager, dev);
 
     xhci_op_regs(cont)->usb_cmd |= USBCMD_RUN;
     // NOTE: FLADJ is not set. Done by the BIOS? Could be an issue in the future.
     return 0;
-vec_err:
-    // FIXME: 
-    // msi_unreserve_irq(&msi_manager, irq);
-irq_err:
 scratchpad_err:
     deinit_scratchpad(cont);
 event_ring_err:

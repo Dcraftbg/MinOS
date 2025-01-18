@@ -32,7 +32,8 @@ typedef struct {
 #define PCI_CAP_START  0x34
 #define PCI_CAPID_MSI  0x05
 #define PCI_CAPID_MSIX 0x11
-typedef struct {
+typedef struct PciDevice PciDevice;
+struct PciDevice {
     uint8_t bus, slot, func;
     uint16_t vendor_id;
     uint16_t status, command;
@@ -40,7 +41,8 @@ typedef struct {
     uint8_t base_class, subclass, prog_inferface, revision_id;
     uint8_t msi_offset, msi_x_offset;
     Bar bar0;
-} PciDevice;
+    void (*handler)(PciDevice* dev);
+};
 void pci_device_enum_caps(PciDevice* dev);
 void pci_device_msi_disable(PciDevice* dev);
 void pci_device_msi_enable(PciDevice* dev);

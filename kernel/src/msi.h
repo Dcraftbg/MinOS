@@ -1,4 +1,5 @@
 #pragma once
+#include <pci.h>
 #include "utils.h"
 #include <stdint.h>
 #include <stddef.h>
@@ -11,8 +12,11 @@
 static_assert(MSI_COUNT % 8 == 0, "MSI_COUNT needs to be byte aligned because of reasons");
 #define MSI_ADDRESS 0xFEE00000
 typedef struct {
+    PciDevice* pci_devices[MSI_COUNT];
     uint8_t irqs[MSI_BYTES_COUNT];
 } MSIManager;
-intptr_t msi_reserve_irq(MSIManager* manager);
+intptr_t msi_register(MSIManager* m, PciDevice* dev);
 // TODO: Consider moving into Kernel
 extern MSIManager msi_manager;
+typedef void (*msi_handler_t)(void);
+extern msi_handler_t msi_handlers[];
