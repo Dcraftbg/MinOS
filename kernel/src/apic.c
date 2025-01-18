@@ -114,7 +114,10 @@ void init_apic() {
     memset(vec_bitmap, 0xFF, 4);
     // Reserve IRQ0 for lapic timer
     vec_reserve(LAPIC_TIMER_IRQ);
-    vec_bitmap[31] |= 0x80; // Set vec at 0xFF to 1
+    // Reserve IRQ 0x80 for syscall
+    vec_reserve(0x80);
+    // Reserve IRQ 0xFF Spurious interrupt 
+    vec_reserve(0xFF);
     ACPISDTHeader* apic_header = acpi_find("APIC"); 
     if(!apic_header) return;
     if(apic_header->length < sizeof(APIC)) {
