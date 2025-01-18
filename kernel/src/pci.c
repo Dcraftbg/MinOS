@@ -12,6 +12,7 @@ uint32_t pci_config_read_dword(uint8_t bus, uint8_t slot, uint8_t func, uint8_t 
    outl(0xCF8, address);
    return inl(0xCFC);
 }
+
 void pci_config_write_dword(uint8_t bus, uint8_t slot, uint8_t func, uint8_t offset, uint32_t what) {
    uint32_t address = (uint32_t)(((uint32_t)bus) << 16) | (((uint32_t)slot)<<11) | 
            (((uint32_t)func) << 8) | (offset & 0xFC) | ((uint32_t)0x80000000);
@@ -40,12 +41,16 @@ static PciSlot* pci_slot_new() {
     return slot;
 }
 static inline PciDevice* pci_device_new() {
-    return cache_alloc(kernel.pci_device_cache);
+    PciDevice* dev = cache_alloc(kernel.pci_device_cache);
+    if(!dev) return NULL;
+    memset(dev, 0, sizeof(*dev));
+    return dev;
 }
 static inline void pci_device_destroy(PciDevice* device) {
     return cache_dealloc(kernel.pci_device_cache, device);
 }
-bool pci_add(Pci* pci, size_t bus, size_t slot, size_t func, PciDevice* device) {
+bool pci_add(Pci* pci, PciDevice* device) {
+    uint8_t bus = device->bus, slot = device->slot, func = device->func;
     if(!pci->busses[bus]) 
         if(!(pci->busses[bus] = pci_bus_new())) return false;
     if(!pci->busses[bus][slot])
@@ -84,7 +89,9 @@ intptr_t pci_map_bar0(Bar* bar, size_t bus, size_t slot, size_t func) {
     default:
         return -INVALID_TYPE;
     }
-    if(!(bar->as.mmio.addr = iomap_bytes(bar0_phys, bar->size, KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT)))
+    pageflags_t flags = KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT;
+    if(!bar->as.mmio.prefetch) flags |= KERNEL_PFLAG_CACHE_DISABLE;
+    if(!(bar->as.mmio.addr = iomap_bytes(bar0_phys, bar->size, flags)))
         return -NOT_ENOUGH_MEM;
     return 0;
 }
@@ -98,7 +105,10 @@ intptr_t pci_scan(Pci* pci) {
                 kerror("(pci) Not enough memory to create PCI device");
                 return -NOT_ENOUGH_MEM;
             }
-            if(!pci_add(pci, bus, slot, 0, device)) {
+            device->bus  = bus;
+            device->slot = slot;
+            device->func = 0;
+            if(!pci_add(pci, device)) {
                 kerror("(pci) Failed to add device. Not enough memory");
                 pci->busses[bus][slot][0] = NULL;
                 pci_device_destroy(device);
@@ -122,6 +132,57 @@ intptr_t pci_scan(Pci* pci) {
     return 0;
 }
 
+void pci_device_enum_caps(PciDevice* dev) {
+    if(!(dev->status & PCI_STATUS_CAP)) return;
+    uint8_t cap = pci_config_read_word(dev->bus, dev->slot, dev->func, PCI_CAP_START) & 0xFF;
+    while(cap) {
+        uint32_t reg0 = pci_config_read_word(dev->bus, dev->slot, dev->func, cap);
+        switch(reg0 & 0xFF) {
+        case PCI_CAPID_MSI:
+            kinfo("PCI device (b%d:s%d:f%d) MSI capability", dev->bus, dev->slot, dev->func);
+            dev->msi_offset = cap;
+            break;
+        case PCI_CAPID_MSIX:
+            kinfo("PCI device (b%d:s%d:f%d) MSIX capability", dev->bus, dev->slot, dev->func);
+            dev->msi_x_offset = cap;
+            break;
+        default:
+            kwarn("PCI device (b%d:s%d:f%d) Undefined capability with id = 0x%02X", dev->bus, dev->slot, dev->func, reg0 & 0xFF);
+        }
+        cap = (reg0 >> 8) & 0xFF;
+    }
+}
+static uint16_t pci_device_msi_get_mctl(PciDevice* dev) {
+    return pci_config_read_word(dev->bus, dev->slot, dev->func, dev->msi_offset + 2);
+}
+static void pci_device_msi_set_mctl(PciDevice* dev, uint16_t value) {
+    pci_config_write_dword(dev->bus, dev->slot, dev->func, dev->msi_offset + 2, (pci_config_read_dword(dev->bus, dev->slot, dev->func, dev->msi_offset) & (~0xFFFF0000)) | (((uint32_t)value) << 16));
+}
+#define MSI_MCTL_ENABLE 0b1
+#define MSI_MCTL_64_BIT 0b10000000
+void pci_device_msi_disable(PciDevice* dev) {
+    debug_assert(dev->msi_offset);
+    uint16_t msgctl = pci_device_msi_get_mctl(dev);
+    msgctl &= (~MSI_MCTL_ENABLE);
+    pci_device_msi_set_mctl(dev, msgctl);
+}
+void pci_device_msi_enable(PciDevice* dev) {
+    debug_assert(dev->msi_offset);
+    uint16_t msgctl = pci_device_msi_get_mctl(dev);
+    msgctl |= MSI_MCTL_ENABLE;
+    pci_device_msi_set_mctl(dev, msgctl);
+}
+void pci_device_msi_set(PciDevice* dev, uintptr_t addr, uint8_t vec) {
+    debug_assert(dev->msi_offset);
+    if(pci_device_msi_get_mctl(dev) & MSI_MCTL_64_BIT) {
+        pci_config_write_dword(dev->bus, dev->slot, dev->func, dev->msi_offset + 0x4, addr);
+        pci_config_write_dword(dev->bus, dev->slot, dev->func, dev->msi_offset + 0x8, addr>>32);
+        pci_config_write_dword(dev->bus, dev->slot, dev->func, dev->msi_offset + 0xC, vec);
+    } else {
+        pci_config_write_dword(dev->bus, dev->slot, dev->func, dev->msi_offset + 0x4, addr);
+        pci_config_write_dword(dev->bus, dev->slot, dev->func, dev->msi_offset + 0x8, vec);
+    }
+}
 
 #include <usb/usb.h>
 void init_pci() {
