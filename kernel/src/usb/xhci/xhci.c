@@ -206,6 +206,7 @@ void xhci_handler(PciDevice* dev) {
     XhciController* cont = dev->priv;
     volatile ISREntry* irs = &xhci_runtime_regs(cont)->irs[0];
     irs->iman |= IMAN_PENDING | IMAN_ENABLED;
+    irs->event_ring_dequeue_ptr = (irs->event_ring_dequeue_ptr + sizeof(TRB)) | 0b1000;
     irq_eoi(dev->irq);
 }
 #define CMD_RING_CAP 256
@@ -267,8 +268,6 @@ static intptr_t init_event_ring(XhciController* cont) {
     last->cycle = 1;
     last->data = cont->event_ring_phys+0*sizeof(TRB);
     last->type = TRB_TYPE_LINK;
-    volatile ISREntry* irs = &xhci_runtime_regs(cont)->irs[0];
-    irs->event_ring_dequeue_ptr = cont->event_ring_phys;
     return 0;
 }
 static void deinit_event_ring(XhciController* cont) {
@@ -393,12 +392,15 @@ intptr_t init_xhci(PciDevice* dev) {
     volatile ISREntry* irs = &xhci_runtime_regs(cont)->irs[0];
     irs->erst_size = 1;
     irs->erst_addr = cont->erst_phys;
+    irs->event_ring_dequeue_ptr = cont->event_ring_phys;
     irs->iman |= IMAN_PENDING | IMAN_ENABLED;
     xhci_op_regs(cont)->usb_cmd |= USBCMD_INT_ENABLE;
 
     dev->handler = xhci_handler; 
     dev->priv = cont;
     msi_register(&msi_manager, dev);
+    irq_clear(dev->irq);
+    kinfo("xHCI Running");
     xhci_op_regs(cont)->usb_cmd |= USBCMD_RUN;
     // NOTE: FLADJ is not set. Done by the BIOS? Could be an issue in the future.
     return 0;
