@@ -16,7 +16,7 @@ intptr_t msi_register(MSIManager* m, PciDevice* dev) {
     intptr_t e;
     if((e=msi_reserve_irq(m)) < 0) return e;
     uint8_t msi = e;
-    if((e=irq_register(MSI_BASE + msi, msi_handlers[msi], 0)) < 0) return e;
+    if((e=irq_register(dev->irq = (MSI_BASE + msi), msi_handlers[msi], 0)) < 0) return e;
     m->pci_devices[msi] = dev;
     uint8_t vec = e;
     pci_device_msi_set(dev, MSI_ADDRESS, vec);

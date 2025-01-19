@@ -7,19 +7,15 @@ typedef struct {
     uint8_t  caplen;
     uint8_t  _reserved;
     uint16_t hci_version;
-    // uint32_t hcs_params1;
-    uint32_t max_device_slots : 8;
-    uint32_t max_interrupters : 11;
-    uint32_t _rsvd1 : 5;
-    uint32_t max_ports : 8;
+    uint32_t hcs_params1;
 
-    // uint32_t hcs_params2;
-    uint32_t ist : 4;
-    uint32_t erst_max : 4;
-    uint32_t _rsvd2 : 13;
-    uint32_t max_scratchpad_high : 5;
-    uint32_t spr : 1;
-    uint32_t max_scratchpad_low : 5;
+    uint32_t hcs_params2;
+    // uint32_t ist : 4;
+    // uint32_t erst_max : 4;
+    // uint32_t _rsvd2 : 13;
+    // uint32_t max_scratchpad_high : 5;
+    // uint32_t spr : 1;
+    // uint32_t max_scratchpad_low : 5;
 
     uint32_t hcs_params3;
     uint32_t hcc_params1;
@@ -28,6 +24,46 @@ typedef struct {
     uint32_t hcc_params2;
 } __attribute__((packed)) CapabilityRegs; 
 static_assert(sizeof(CapabilityRegs) == 32, "CapabilityRegs has to be 32 bytes");
+#define DEVICE_SLOTS_SHIFT     0
+#define MAX_INTERRUPTERS_SHIFT 8
+#define MAX_PORTS_SHIFT        24
+#define DEVICE_SLOTS_MASK      (0b11111111    << DEVICE_SLOTS_SHIFT)
+#define MAX_INTERRUPTERS_MASK  (0b11111111111 << MAX_INTERRUPTERS_SHIFT)
+#define MAX_PORTS_MASK         (0b11111111    << MAX_PORTS_SHIFT)
+static uint32_t get_max_device_slots(volatile CapabilityRegs* regs) {
+    return (regs->hcs_params1 & DEVICE_SLOTS_MASK) >> DEVICE_SLOTS_SHIFT;
+}
+static uint32_t get_max_interrupters(volatile CapabilityRegs* regs) {
+    return (regs->hcs_params1 & MAX_INTERRUPTERS_MASK) >> MAX_INTERRUPTERS_SHIFT;
+}
+static uint32_t get_max_ports(volatile CapabilityRegs* regs) {
+    return (regs->hcs_params1 & MAX_PORTS_MASK) >> MAX_PORTS_SHIFT;
+}
+
+#define IST_SHIFT                 0
+#define ERST_MAX_SHIFT            4
+#define MAX_SCRATCHPAD_HIGH_SHIFT 21
+#define SPR_SHIFT                 26
+#define MAX_SCRATCHPAD_LOW_SHIFT  27
+
+#define IST_MASK                 (0b1111  << IST_SHIFT)
+#define ERST_MAX_MASK            (0b1111  << ERST_MAX_SHIFT)
+#define MAX_SCRATCHPAD_HIGH_MASK (0b11111 << MAX_SCRATCHPAD_HIGH_SHIFT)
+#define SPR_MASK                 (0b1     << SPR_SHIFT)
+#define MAX_SCRATCHPAD_LOW_MASK  (0b11111 << MAX_SCRATCHPAD_LOW_SHIFT) 
+static uint32_t get_ist_slots(volatile CapabilityRegs* regs) {
+    return (regs->hcs_params2 & IST_MASK) >> IST_SHIFT;
+}
+static uint32_t get_erst_max(volatile CapabilityRegs* regs) {
+    return (regs->hcs_params2 & ERST_MAX_MASK) >> ERST_MAX_SHIFT;
+}
+static uint32_t get_max_scratchpad_high(volatile CapabilityRegs* regs) {
+    return (regs->hcs_params2 & MAX_SCRATCHPAD_HIGH_MASK) >> MAX_SCRATCHPAD_HIGH_SHIFT;
+}
+static uint32_t get_max_scratchpad_low(volatile CapabilityRegs* regs) {
+    return (regs->hcs_params2 & MAX_SCRATCHPAD_LOW_MASK) >> MAX_SCRATCHPAD_LOW_SHIFT;
+}
+
 #define USBCMD_RUN        (1 << 0)
 #define USBCMD_HCRST      (1 << 1)
 #define USBCMD_INT_ENABLE (1 << 2)
@@ -55,7 +91,7 @@ typedef struct {
     uint32_t _rsvd2;
     uint64_t erst_addr;
     // Also includes DESi and EHB in low bits
-    uint64_t erst_dequeue_ptr;
+    uint64_t event_ring_dequeue_ptr;
 } __attribute__((packed)) ISREntry;
 static_assert(sizeof(ISREntry) == 32, "ISREntry must be 32 bytes");
 typedef struct {
@@ -132,7 +168,7 @@ static inline XhciController* xhci_controllers_pop(XhciControllers* da) {
 }
 
 struct XhciController {
-    CapabilityRegs* capregs;
+    volatile CapabilityRegs* capregs;
     size_t dcbaa_len;
     paddr_t   dcbaa_phys;
     uint64_t* dcbaa;
@@ -153,13 +189,13 @@ struct XhciController {
 };
 #define xhci_dcbaa_pages(cont) (((cont->dcbaa_len*sizeof(uint64_t))+(PAGE_SIZE-1))/PAGE_SIZE)
 #define xhci_erst_pages(cont) ((cont->erst_len*sizeof(ERSTEntry) + (PAGE_SIZE-1)) / PAGE_SIZE)
-static inline uint32_t* xhci_doorbells(XhciController* c) {
+static inline volatile uint32_t* xhci_doorbells(XhciController* c) {
     return ((void*)c->capregs) + (c->capregs->dboff);
 }
-static inline RuntimeRegs* xhci_runtime_regs(XhciController* c) {
+static inline volatile RuntimeRegs* xhci_runtime_regs(XhciController* c) {
     return ((void*)c->capregs) + (c->capregs->rtsoff);
 }
-static inline OperationalRegs* xhci_op_regs(XhciController* c) {
+static inline volatile OperationalRegs* xhci_op_regs(XhciController* c) {
     return ((void*)c->capregs) + (c->capregs->caplen);
 }
 
@@ -167,6 +203,10 @@ static inline OperationalRegs* xhci_op_regs(XhciController* c) {
 
 void xhci_handler(PciDevice* dev) {
     kinfo("Called xhci_handler %p", dev);
+    XhciController* cont = dev->priv;
+    volatile ISREntry* irs = &xhci_runtime_regs(cont)->irs[0];
+    irs->iman |= IMAN_PENDING | IMAN_ENABLED;
+    irq_eoi(dev->irq);
 }
 #define CMD_RING_CAP 256
 static intptr_t init_cmd_ring(XhciController* cont) {
@@ -185,9 +225,9 @@ static void deinit_cmd_ring(XhciController* cont) {
     if(cont->cmd_ring_phys) kernel_pages_dealloc(cont->cmd_ring_phys, CMD_RING_CAP*sizeof(TRB));
 }
 static intptr_t init_dcbaa(XhciController* cont) {
-    cont->dcbaa_len = cont->capregs->max_device_slots;
+    cont->dcbaa_len = get_max_device_slots(cont->capregs);
     // Set max device slots to dcbaa_len
-    *(volatile uint8_t*)(&xhci_op_regs(cont)->config) = cont->dcbaa_len;
+    xhci_op_regs(cont)->config = (xhci_op_regs(cont)->config & ~0xFF) | cont->dcbaa_len;
     cont->dcbaa_phys = kernel_pages_alloc(xhci_dcbaa_pages(cont));
     if(!cont->dcbaa_phys) return -NOT_ENOUGH_MEM;
     cont->dcbaa = iomap(cont->dcbaa_phys, xhci_dcbaa_pages(cont), KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_WRITE | KERNEL_PFLAG_CACHE_DISABLE);
@@ -208,11 +248,6 @@ static intptr_t init_erst(XhciController* cont) {
     cont->erst = iomap(cont->erst_phys, xhci_erst_pages(cont), KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_WRITE | KERNEL_PFLAG_CACHE_DISABLE);
     if(!cont->erst) return -NOT_ENOUGH_MEM;
     memset(cont->erst, 0, cont->erst_len * sizeof(cont->erst[0]));
-    ISREntry* irs = &xhci_runtime_regs(cont)->irs[0];
-    irs->erst_size = 1;
-    irs->erst_addr = cont->erst_phys;
-    irs->erst_dequeue_ptr = irs->erst_addr;
-    irs->iman |= IMAN_PENDING | IMAN_ENABLED;
     return 0;
 }
 static void deinit_erst(XhciController* cont) {
@@ -223,14 +258,17 @@ static void deinit_erst(XhciController* cont) {
 
 #define EVENT_RING_CAP 256
 static intptr_t init_event_ring(XhciController* cont) {
-    paddr_t phys = kernel_pages_alloc((EVENT_RING_CAP*sizeof(TRB) + (PAGE_SIZE-1)) / PAGE_SIZE);
-    if(!phys) return -NOT_ENOUGH_MEM;
-    cont->event_ring = iomap_bytes(phys, EVENT_RING_CAP*sizeof(TRB), KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_WRITE | KERNEL_PFLAG_CACHE_DISABLE);
+    cont->event_ring_phys = kernel_pages_alloc((EVENT_RING_CAP*sizeof(TRB) + (PAGE_SIZE-1)) / PAGE_SIZE);
+    if(!cont->event_ring_phys) return -NOT_ENOUGH_MEM;
+    cont->event_ring = iomap_bytes(cont->event_ring_phys, EVENT_RING_CAP*sizeof(TRB), KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_WRITE | KERNEL_PFLAG_CACHE_DISABLE);
     if(!cont->event_ring) return -NOT_ENOUGH_MEM;
+    memset(cont->event_ring, 0, EVENT_RING_CAP*sizeof(TRB));
     TRB* last = &cont->event_ring[EVENT_RING_CAP-1];
     last->cycle = 1;
-    last->data = phys+0*sizeof(TRB);
+    last->data = cont->event_ring_phys+0*sizeof(TRB);
     last->type = TRB_TYPE_LINK;
+    volatile ISREntry* irs = &xhci_runtime_regs(cont)->irs[0];
+    irs->event_ring_dequeue_ptr = cont->event_ring_phys;
     return 0;
 }
 static void deinit_event_ring(XhciController* cont) {
@@ -241,7 +279,7 @@ static size_t xhci_pages_native(XhciController* cont) {
     return 1 << (xhci_op_regs(cont)->page_size + (12-PAGE_SHIFT));
 }
 static uint32_t xhci_max_scratchpad(XhciController* cont) {
-    return (cont->capregs->max_scratchpad_high << 5) | (cont->capregs->max_scratchpad_low);
+    return (get_max_scratchpad_high(cont->capregs) << 5) | (get_max_scratchpad_low(cont->capregs));
 }
 static intptr_t init_scratchpad(XhciController* cont) {
     cont->scratchpad_len = xhci_max_scratchpad(cont);
@@ -291,7 +329,7 @@ static intptr_t xhci_bound_check(PciDevice* dev, XhciController* cont) {
         kerror("Bar0 too small for capregs + opregs");
         return -UNSUPPORTED;
     }
-    if(dev->bar0.size < cont->capregs->rtsoff + sizeof(RuntimeRegs) + sizeof(ISREntry) * cont->capregs->max_interrupters) {
+    if(dev->bar0.size < cont->capregs->rtsoff + sizeof(RuntimeRegs) + sizeof(ISREntry) * get_max_interrupters(cont->capregs)) {
         kerror("rtsoff out of bounds");
         return -UNSUPPORTED;
     }
@@ -339,9 +377,9 @@ intptr_t init_xhci(PciDevice* dev) {
         goto cont_add_err;
     }
     if((e=xhci_bound_check(dev, cont)) < 0) goto bound_check_err;
-    kinfo("max_device_slots: %zu", cont->capregs->max_device_slots);
-    kinfo("max_interrupters: %zu", cont->capregs->max_interrupters);
-    kinfo("max_ports: %zu", cont->capregs->max_ports);
+    kinfo("max_device_slots: %zu", get_max_device_slots(cont->capregs));
+    kinfo("max_interrupters: %zu", get_max_interrupters(cont->capregs));
+    kinfo("max_ports: %zu", get_max_ports(cont->capregs));
     kinfo("page size: %zu", 1<<(xhci_op_regs(cont)->page_size + 12));
     while(xhci_op_regs(cont)->usb_status & USBSTATUS_CNR);
     if((e=init_dcbaa(cont)) < 0) goto dcbaa_err;
@@ -352,11 +390,15 @@ intptr_t init_xhci(PciDevice* dev) {
     if((e=init_scratchpad(cont)) < 0) goto scratchpad_err;
     cont->erst[0].addr = cont->event_ring_phys;
     cont->erst[0].size = EVENT_RING_CAP;
+    volatile ISREntry* irs = &xhci_runtime_regs(cont)->irs[0];
+    irs->erst_size = 1;
+    irs->erst_addr = cont->erst_phys;
+    irs->iman |= IMAN_PENDING | IMAN_ENABLED;
     xhci_op_regs(cont)->usb_cmd |= USBCMD_INT_ENABLE;
 
     dev->handler = xhci_handler; 
+    dev->priv = cont;
     msi_register(&msi_manager, dev);
-
     xhci_op_regs(cont)->usb_cmd |= USBCMD_RUN;
     // NOTE: FLADJ is not set. Done by the BIOS? Could be an issue in the future.
     return 0;

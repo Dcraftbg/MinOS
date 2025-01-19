@@ -41,7 +41,9 @@ struct PciDevice {
     uint8_t base_class, subclass, prog_inferface, revision_id;
     uint8_t msi_offset, msi_x_offset;
     Bar bar0;
+    size_t irq;
     void (*handler)(PciDevice* dev);
+    void *priv;
 };
 void pci_device_enum_caps(PciDevice* dev);
 void pci_device_msi_disable(PciDevice* dev);
