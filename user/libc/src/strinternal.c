@@ -8,7 +8,7 @@ const char* strflip_internal(char* str, size_t len) {
     }
     return str;
 }
-size_t itoa_internal(char* buf, size_t cap, int value) {
+size_t lltoa_internal(char* buf, size_t cap, long long value) {
     size_t at=0;
     if(value == 0 && at < cap) {
         buf[at++] = '0';
@@ -27,6 +27,9 @@ size_t itoa_internal(char* buf, size_t cap, int value) {
     }
     strflip_internal(whole, (buf+at)-whole);
     return at;
+}
+size_t itoa_internal(char* buf, size_t cap, int value) {
+    return lltoa_internal(buf, cap, (long long) value);
 }
 size_t sztoa_internal(char* buf, size_t cap, size_t value) {
     size_t at=0;

@@ -119,18 +119,54 @@ static ssize_t print_base(void* user, PrintWriteFunc func, const char* fmt, va_l
             bytes = ibuf;
             count = itoa_internal(ibuf, sizeof(ibuf), va_arg(list, int));
         } break;
+        case 'l': {
+            fmt++;
+            switch(*fmt) {
+            case 'd':
+                fmt++;
+                bytes = ibuf;
+                count = lltoa_internal(ibuf, sizeof(ibuf), va_arg(list, long int));
+                break;
+            // TODO: llutoa_internal
+            case 'u':
+                fmt++;
+                bytes = ibuf;
+                count = sztoa_internal(ibuf, sizeof(ibuf), va_arg(list, size_t));
+                break;
+            case 'l':
+                fmt++;
+                switch(*fmt) {
+                case 'd':
+                    fmt++;
+                    bytes = ibuf;
+                    count = lltoa_internal(ibuf, sizeof(ibuf), va_arg(list, long long int));
+                    break;
+                // TODO: llutoa_internal
+                case 'u':
+                    fmt++;
+                    bytes = ibuf;
+                    count = sztoa_internal(ibuf, sizeof(ibuf), va_arg(list, size_t));
+                    break;
+                default:
+                    return -EINVAL;
+                }
+                break;
+            default:
+                return -EINVAL;
+            }
+        } break;
         case 'z': {
             fmt++;
             switch(*fmt) {
             case '\0': 
-                return -INVALID_PARAM; // -'z';
+                return -EINVAL; // -'z';
             case 'u': {
                 fmt++;
                 bytes = ibuf;
                 count = sztoa_internal(ibuf, sizeof(ibuf), va_arg(list, size_t));
             } break;
             default:
-                return -INVALID_PARAM; // -(*fmt);
+                return -EINVAL; // -(*fmt);
             }
         } break;
         case 'c': {
@@ -162,7 +198,7 @@ static ssize_t print_base(void* user, PrintWriteFunc func, const char* fmt, va_l
         default:
             fprintf(stderr, "Unknown formatter: %c\n", *fmt);
             exit(1);
-            return -INVALID_PARAM; // -(*fmt);
+            return -EINVAL; // -(*fmt);
         }
         if (pad < 0) {
             pad = (-pad) < count ? 0 : (pad+count);
