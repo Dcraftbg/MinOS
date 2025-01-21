@@ -100,7 +100,7 @@ static intptr_t args_push(Task* task, Args* args, char** stack_head, char*** arg
                 return e;
         }
     }
-    *stack_head -= sizeof(args_head) * args->argc; // Reserve space for argv
+    *stack_head -= sizeof(args_head) * (args->argc + 1); // Reserve space for argv + 1
     *argv = (char**)*stack_head;
     for(size_t i = 0; i < args->argc; ++i) {
         if(args->argv[i]) {
@@ -110,6 +110,10 @@ static intptr_t args_push(Task* task, Args* args, char** stack_head, char*** arg
         if((e = user_memcpy(task, (*argv)+i, &args_head, sizeof(args_head))) < 0)
             return e;
     }
+    // As per libc compliancy. Add NULL to the end 
+    char* null = NULL;
+    if((e = user_memcpy(task, (*argv)+args->argc, &null, sizeof(null))) < 0)
+         return e;
     return 0;
 }
 // TODO: Fix XD. XD may not be supported always so checks to remove it are necessary
