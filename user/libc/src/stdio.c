@@ -79,11 +79,12 @@ static ssize_t print_base(void* user, PrintWriteFunc func, const char* fmt, va_l
         size_t __len = len;\
         ssize_t _res = func(user, data, __len);\
         if(_res < 0) return -status_to_errno(_res);\
-        else if(_res != __len) {\
-            return (fmt+_res)-fmt_start;\
+        n += _res;\
+        if(_res != __len) {\
+            return n;\
         }\
     } while(0)
-    const char* fmt_start=fmt;
+    size_t n = 0;
     while(*fmt) {
         const char* begin = fmt;
         while(*fmt && *fmt != '%') fmt++;
@@ -215,7 +216,7 @@ static ssize_t print_base(void* user, PrintWriteFunc func, const char* fmt, va_l
             pad++;
         }
     }
-    return fmt-fmt_start;
+    return n;
 }
 
 ssize_t printf(const char* fmt, ...) {
