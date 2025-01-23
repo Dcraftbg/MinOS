@@ -158,9 +158,6 @@ void init_apic() {
         kinfo(" - type: %d", entry->type);
         kinfo(" - length: %zu", entry->length);
     }
-    for(size_t i = 0x20; i < 0xFF; ++i) {
-        ioapic_set_mask(i, 1);
-    }
     pit_set_hz(1000);
     irq_register(0, _tmp_pit_handler, IRQ_FLAG_FAST);
     // APIC divider of 16
