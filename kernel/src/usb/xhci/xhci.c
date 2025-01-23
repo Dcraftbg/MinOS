@@ -75,7 +75,7 @@ typedef struct {
     uint32_t page_size;
     uint64_t _reserved;
     uint32_t dnctrl;
-    uint32_t crcr;
+    uint64_t crcr;
     uint64_t _reserved2[2];
     uint64_t dcbaap;
     uint32_t config;
@@ -211,14 +211,15 @@ void xhci_handler(PciDevice* dev) {
 }
 #define CMD_RING_CAP 256
 static intptr_t init_cmd_ring(XhciController* cont) {
-    paddr_t phys = kernel_pages_alloc((CMD_RING_CAP*sizeof(TRB) + (PAGE_SIZE-1)) / PAGE_SIZE);
-    if(!phys) return -NOT_ENOUGH_MEM;
-    cont->cmd_ring = iomap_bytes(phys, CMD_RING_CAP*sizeof(TRB), KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_WRITE | KERNEL_PFLAG_CACHE_DISABLE);
+    cont->cmd_ring_phys = kernel_pages_alloc((CMD_RING_CAP*sizeof(TRB) + (PAGE_SIZE-1)) / PAGE_SIZE);
+    if(!cont->cmd_ring_phys) return -NOT_ENOUGH_MEM;
+    cont->cmd_ring = iomap_bytes(cont->cmd_ring_phys, CMD_RING_CAP*sizeof(TRB), KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_WRITE | KERNEL_PFLAG_CACHE_DISABLE);
     if(!cont->cmd_ring) return -NOT_ENOUGH_MEM;
     TRB* last = &cont->cmd_ring[CMD_RING_CAP-1];
     last->cycle = 1;
-    last->data = phys+0*sizeof(TRB);
+    last->data = cont->cmd_ring_phys+0*sizeof(TRB);
     last->type = TRB_TYPE_LINK;
+    xhci_op_regs(cont)->crcr = cont->cmd_ring_phys | 0b1;
     return 0;
 }
 static void deinit_cmd_ring(XhciController* cont) {
