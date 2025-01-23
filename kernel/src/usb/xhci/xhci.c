@@ -276,7 +276,13 @@ static void deinit_event_ring(XhciController* cont) {
     if(cont->event_ring_phys) kernel_pages_dealloc(cont->event_ring_phys, EVENT_RING_CAP*sizeof(TRB));
 }
 static size_t xhci_pages_native(XhciController* cont) {
-    return 1 << (xhci_op_regs(cont)->page_size + (12-PAGE_SHIFT));
+    static_assert(PAGE_SIZE == 4096, "Update xhci_pages_native");
+    uint16_t page_size = xhci_op_regs(cont)->page_size;
+    for(size_t i = 0; i < 16; ++i) {
+        if (page_size & (1 << i))
+            return 1 << i;
+    }
+    return 0;
 }
 static uint32_t xhci_max_scratchpad(XhciController* cont) {
     return (get_max_scratchpad_high(cont->capregs) << 5) | (get_max_scratchpad_low(cont->capregs));
@@ -294,6 +300,7 @@ static intptr_t init_scratchpad(XhciController* cont) {
     memset(cont->scratchpad, 0, cont->scratchpad_len * sizeof(uint64_t));
 
     size_t pages = xhci_pages_native(cont);
+    if(!pages) return -INVALID_TYPE;
     for(size_t i = 0; i < cont->scratchpad_len; ++i) {
         cont->scratchpad[i] = kernel_pages_alloc(pages);
         if(!cont->scratchpad[i]) return -NOT_ENOUGH_MEM;
@@ -380,7 +387,7 @@ intptr_t init_xhci(PciDevice* dev) {
     kinfo("max_device_slots: %zu", get_max_device_slots(cont->capregs));
     kinfo("max_interrupters: %zu", get_max_interrupters(cont->capregs));
     kinfo("max_ports: %zu", get_max_ports(cont->capregs));
-    kinfo("page size: %zu", 1<<(xhci_op_regs(cont)->page_size + 12));
+    kinfo("page size: %zu", xhci_pages_native(cont) << PAGE_SHIFT);
     while(xhci_op_regs(cont)->usb_status & USBSTATUS_CNR);
     if((e=init_dcbaa(cont)) < 0) goto dcbaa_err;
     if((e=init_cmd_ring(cont)) < 0) goto cmd_ring_err;
@@ -400,7 +407,7 @@ intptr_t init_xhci(PciDevice* dev) {
     dev->handler = xhci_handler; 
     dev->priv = cont;
     msi_register(&msi_manager, dev);
-    irq_clear(dev->irq);
+    // irq_clear(dev->irq);
     kinfo("xHCI Running");
     xhci_op_regs(cont)->usb_cmd |= USBCMD_RUN;
     // NOTE: FLADJ is not set. Done by the BIOS? Could be an issue in the future.
