@@ -367,14 +367,6 @@ intptr_t init_xhci(PciDevice* dev) {
         return -INVALID_TYPE;
     }
     kinfo("msi_offset=0x%02X", dev->msi_offset);
-    uint32_t reg1      = pci_config_read_dword(dev->bus, dev->slot, dev->func, dev->msi_offset + 0x4);
-    uint32_t bir       = reg1 & 0b111;
-    uint32_t table_off = reg1 & (~0b111);
-    if(bir) {
-        kerror("usb xHCI driver currently only supports BIR=0. BIR=%d", bir);
-        return -INVALID_TYPE;
-    }
-    (void)table_off;
     kinfo("(MMIO) %p %zu bytes", dev->bar0.as.mmio.addr, dev->bar0.size);
     if(!xhci_controller_cache && !(xhci_controller_cache = create_new_cache(sizeof(XhciController), "XhciController")))
         return -NOT_ENOUGH_MEM;
