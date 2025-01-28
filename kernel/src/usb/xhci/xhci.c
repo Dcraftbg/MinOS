@@ -82,6 +82,7 @@ typedef struct {
 } __attribute__((packed)) OperationalRegs;
 #define IMAN_PENDING 0b1
 #define IMAN_ENABLED 0b10
+#define EVENT_HANDLER_BUSY (1 << 3)
 typedef struct {
     uint32_t iman;
     uint16_t imi;
@@ -205,7 +206,7 @@ void xhci_handler(PciDevice* dev) {
     kinfo("Called xhci_handler %p", dev);
     XhciController* cont = dev->priv;
     volatile ISREntry* irs = &xhci_runtime_regs(cont)->irs[0];
-    irs->iman |= IMAN_PENDING | IMAN_ENABLED;
+    irs->iman = irs->iman | IMAN_PENDING | IMAN_ENABLED;
     irs->event_ring_dequeue_ptr = (irs->event_ring_dequeue_ptr + sizeof(TRB)) | 0b1000;
     irq_eoi(dev->irq);
 }
@@ -266,10 +267,11 @@ static intptr_t init_event_ring(XhciController* cont) {
     cont->event_ring = iomap_bytes(cont->event_ring_phys, EVENT_RING_CAP*sizeof(TRB), KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_WRITE | KERNEL_PFLAG_CACHE_DISABLE);
     if(!cont->event_ring) return -NOT_ENOUGH_MEM;
     memset(cont->event_ring, 0, EVENT_RING_CAP*sizeof(TRB));
-    TRB* last = &cont->event_ring[EVENT_RING_CAP-1];
-    last->cycle = 1;
-    last->data = cont->event_ring_phys+0*sizeof(TRB);
-    last->type = TRB_TYPE_LINK;
+    // NOTE: This maybe shouldn't be done by us
+    // TRB* last = &cont->event_ring[EVENT_RING_CAP-1];
+    // last->cycle = 1;
+    // last->data = cont->event_ring_phys+0*sizeof(TRB);
+    // last->type = TRB_TYPE_LINK;
     return 0;
 }
 static void deinit_event_ring(XhciController* cont) {
@@ -401,16 +403,16 @@ intptr_t init_xhci(PciDevice* dev) {
     volatile ISREntry* irs = &xhci_runtime_regs(cont)->irs[0];
     irs->erst_size = 1;
     irs->erst_addr = cont->erst_phys;
-    irs->event_ring_dequeue_ptr = cont->event_ring_phys;
-    irs->iman |= IMAN_PENDING | IMAN_ENABLED;
-    xhci_op_regs(cont)->usb_cmd |= USBCMD_INT_ENABLE;
+    irs->event_ring_dequeue_ptr = cont->event_ring_phys | EVENT_HANDLER_BUSY;
+    irs->iman = irs->iman | IMAN_PENDING | IMAN_ENABLED;
+    xhci_op_regs(cont)->usb_cmd = xhci_op_regs(cont)->usb_cmd | USBCMD_INT_ENABLE;
 
     dev->handler = xhci_handler; 
     dev->priv = cont;
     msi_register(&msi_manager, dev);
     // irq_clear(dev->irq);
     kinfo("xHCI Running");
-    xhci_op_regs(cont)->usb_cmd |= USBCMD_RUN;
+    xhci_op_regs(cont)->usb_cmd = xhci_op_regs(cont)->usb_cmd | USBCMD_RUN;
     // NOTE: FLADJ is not set. Done by the BIOS? Could be an issue in the future.
     return 0;
 scratchpad_err:
