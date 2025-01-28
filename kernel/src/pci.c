@@ -156,7 +156,7 @@ static uint16_t pci_device_msi_get_mctl(PciDevice* dev) {
     return pci_config_read_word(dev->bus, dev->slot, dev->func, dev->msi_offset + 2);
 }
 static void pci_device_msi_set_mctl(PciDevice* dev, uint16_t value) {
-    pci_config_write_dword(dev->bus, dev->slot, dev->func, dev->msi_offset + 2, (pci_config_read_dword(dev->bus, dev->slot, dev->func, dev->msi_offset) & (~0xFFFF0000)) | (((uint32_t)value) << 16));
+    pci_config_write_dword(dev->bus, dev->slot, dev->func, dev->msi_offset, (pci_config_read_dword(dev->bus, dev->slot, dev->func, dev->msi_offset) & (~0xFFFF0000)) | (((uint32_t)value) << 16));
 }
 #define MSI_MCTL_ENABLE 0b1
 #define MSI_MCTL_64_BIT 0b10000000
