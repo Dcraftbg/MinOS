@@ -108,6 +108,8 @@ intptr_t pci_scan(Pci* pci) {
                 func_len = 8;
             }
             for(size_t func = 0; func < func_len; ++func) {
+                uint16_t vendor_id = pci_config_read_word(bus, slot, 0, 0);
+                if(vendor_id == 0xFFFF) continue;
                 PciDevice* device = pci_device_new();
                 if(!device) {
                     kerror("(pci) Not enough memory to create PCI device");
