@@ -215,6 +215,7 @@ static intptr_t init_cmd_ring(XhciController* cont) {
     if(!cont->cmd_ring_phys) return -NOT_ENOUGH_MEM;
     cont->cmd_ring = iomap_bytes(cont->cmd_ring_phys, CMD_RING_CAP*sizeof(TRB), KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_WRITE | KERNEL_PFLAG_CACHE_DISABLE);
     if(!cont->cmd_ring) return -NOT_ENOUGH_MEM;
+    memset(cont->cmd_ring, 0, CMD_RING_CAP*sizeof(TRB));
     TRB* last = &cont->cmd_ring[CMD_RING_CAP-1];
     last->cycle = 1;
     last->data = cont->cmd_ring_phys+0*sizeof(TRB);
