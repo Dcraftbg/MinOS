@@ -100,32 +100,41 @@ intptr_t pci_scan(Pci* pci) {
         for(size_t slot = 0; slot < PCI_SLOT_COUNT; ++slot) {
             uint16_t vendor_id = pci_config_read_word(bus, slot, 0, 0);
             if(vendor_id == 0xFFFF) continue;
-            PciDevice* device = pci_device_new();
-            if(!device) {
-                kerror("(pci) Not enough memory to create PCI device");
-                return -NOT_ENOUGH_MEM;
+            uint32_t general2 = pci_config_read_dword(bus, slot, 0, 0xC);
+            uint8_t header_type = general2 >> 16;
+            size_t func_len = 1;
+            if(header_type & 0x80) {
+                kinfo("(pci) Multi-function device");
+                func_len = 8;
             }
-            device->bus  = bus;
-            device->slot = slot;
-            device->func = 0;
-            if(!pci_add(pci, device)) {
-                kerror("(pci) Failed to add device. Not enough memory");
-                pci->busses[bus][slot][0] = NULL;
-                pci_device_destroy(device);
-                return -NOT_ENOUGH_MEM;
-            }
-            device->vendor_id = vendor_id;
-            uint32_t status_cmd = pci_config_read_dword(bus, slot, 0, 0x4);
-            device->status  = (uint16_t)(status_cmd >> 16);
-            device->command = (uint16_t)(status_cmd & 0xFFFF);
-            device->device = pci_config_read_word(bus, slot, 0, 2);
+            for(size_t func = 0; func < func_len; ++func) {
+                PciDevice* device = pci_device_new();
+                if(!device) {
+                    kerror("(pci) Not enough memory to create PCI device");
+                    return -NOT_ENOUGH_MEM;
+                }
+                device->bus  = bus;
+                device->slot = slot;
+                device->func = func;
+                if(!pci_add(pci, device)) {
+                    kerror("(pci) Failed to add device. Not enough memory");
+                    pci->busses[bus][slot][func] = NULL;
+                    pci_device_destroy(device);
+                    return -NOT_ENOUGH_MEM;
+                }
+                device->vendor_id = vendor_id;
+                uint32_t status_cmd = pci_config_read_dword(bus, slot, func, 0x4);
+                device->status  = (uint16_t)(status_cmd >> 16);
+                device->command = (uint16_t)(status_cmd & 0xFFFF);
+                device->device = pci_config_read_word(bus, slot, func, 2);
 
-            uint32_t general = pci_config_read_dword(bus, slot, 0, 8);
-            device->base_class     = general >> 24;
-            device->subclass       = general >> 16;
-            device->prog_inferface = general >> 8;
-            device->revision_id    = general;
-            kinfo("(bus=%03d slot=%02d) vid=%04X device=%04X subclass=%02X", bus, slot, device->vendor_id, device->device, device->subclass);
+                uint32_t general = pci_config_read_dword(bus, slot, func, 8);
+                device->base_class     = general >> 24;
+                device->subclass       = general >> 16;
+                device->prog_inferface = general >> 8;
+                device->revision_id    = general;
+                kinfo("(bus=%03d slot=%02d) vid=%04X device=%04X subclass=%02X", bus, slot, device->vendor_id, device->device, device->subclass);
+            }
         }
     }
 
@@ -169,6 +178,7 @@ void pci_device_msi_disable(PciDevice* dev) {
 void pci_device_msi_enable(PciDevice* dev) {
     debug_assert(dev->msi_offset);
     uint16_t msgctl = pci_device_msi_get_mctl(dev);
+    msgctl = msgctl & (~(0b111 << 4));
     msgctl |= MSI_MCTL_ENABLE;
     pci_device_msi_set_mctl(dev, msgctl);
 }
