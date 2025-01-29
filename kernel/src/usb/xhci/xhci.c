@@ -383,7 +383,12 @@ intptr_t init_xhci(PciDevice* dev) {
     kinfo("max_interrupters: %zu", get_max_interrupters(cont->capregs));
     kinfo("max_ports: %zu", get_max_ports(cont->capregs));
     kinfo("page size: %zu", xhci_pages_native(cont) << PAGE_SHIFT);
+    kinfo("pci->command %04X", dev->command);
     while(xhci_op_regs(cont)->usb_status & USBSTATUS_CNR);
+    kinfo("Ready");
+    xhci_op_regs(cont)->usb_cmd = xhci_op_regs(cont)->usb_cmd | USBCMD_HCRST;
+    while(xhci_op_regs(cont)->usb_cmd & USBCMD_HCRST);
+    kinfo("Reset complete");
     if((e=init_dcbaa(cont)) < 0) goto dcbaa_err;
     if((e=init_cmd_ring(cont)) < 0) goto cmd_ring_err;
     // TODO: Technically incorrect. Its ERST per interrupter. But there's only 1 currently
