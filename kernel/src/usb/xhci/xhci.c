@@ -134,7 +134,40 @@ enum {
     TRB_TYPE_GET_EXT_PROPERTY_CMD,
     // @opregs
     TRB_TYPE_SET_EXT_PROPERTY_CMD,
+    TRB_TYPE_COUNT
 };
+static const char* trb_type_str_map[TRB_TYPE_COUNT] = {
+    "Undefined",
+    [TRB_TYPE_NORMAL]                    = "NORMAL",
+    [TRB_TYPE_SETUP_STAGE]               = "SETUP_STAGE",
+    [TRB_TYPE_DATA_STAGE]                = "DATA_STAGE",
+    [TRB_TYPE_STATUS_STAGE]              = "STATUS_STAGE",
+    [TRB_TYPE_ISOCH]                     = "ISOCH",
+    [TRB_TYPE_LINK]                      = "LINK",
+    [TRB_TYPE_EVENT_DATA]                = "EVENT_DATA",
+    [TRB_TYPE_NOOP]                      = "NOOP",
+    [TRB_TYPE_ENABLE_SLOT_CMD]           = "ENABLE_SLOT_CMD",
+    [TRB_TYPE_DISABLE_SLOT_CMD]          = "DISABLE_SLOT_CMD",
+    [TRB_TYPE_ADDRESS_DEVICE_CMD]        = "ADDRESS_DEVICE_CMD",
+    [TRB_TYPE_CONFIGURE_ENDPOINT_CMD]    = "CONFIGURE_ENDPOINT_CMD",
+    [TRB_TYPE_EVAL_CONTEXT_CMD]          = "EVAL_CONTEXT_CMD",
+    [TRB_TYPE_RESET_ENDPOINT_CMD]        = "RESET_ENDPOINT_CMD",
+    [TRB_TYPE_STOP_ENDPOINT_CMD]         = "STOP_ENDPOINT_CMD",
+    [TRB_TYPE_SET_TR_DEQUEUE_CMD]        = "SET_TR_DEQUEUE_CMD",
+    [TRB_TYPE_RESET_DEVICE_CMD]          = "RESET_DEVICE_CMD",
+    [TRB_TYPE_FORCE_EVENT_CMD]           = "FORCE_EVENT_CMD",
+    [TRB_TYPE_NEG_BANDWIDTH_CMD]         = "NEG_BANDWIDTH_CMD",
+    [TRB_TYPE_SET_LATENCY_TOL_VALUE_CMD] = "SET_LATENCY_TOL_VALUE_CMD",
+    [TRB_TYPE_GET_PORT_BANDWIDTH_CMD]    = "GET_PORT_BANDWIDTH_CMD",
+    [TRB_TYPE_FORCE_HEADER_CMD]          = "FORCE_HEADER_CMD",
+    [TRB_TYPE_NOOP_CMD]                  = "NOOP_CMD",
+    [TRB_TYPE_GET_EXT_PROPERTY_CMD]      = "GET_EXT_PROPERTY_CMD",
+    [TRB_TYPE_SET_EXT_PROPERTY_CMD]      = "SET_EXT_PROPERTY_CMD",
+};
+static const char* trb_type_str(uint8_t type) {
+    if(type >= TRB_TYPE_COUNT) return "Undefined";
+    return trb_type_str_map[type];
+}
 typedef struct {
     uint64_t data;
     uint16_t trb_length;
@@ -207,6 +240,7 @@ struct XhciController {
     // For ISR[0].erst[0]
     paddr_t event_ring_phys;
     TRB* event_ring;
+    bool event_ring_cycle;
     // TODO: Maybe keep track of the scratchpad buffers to deallocate ourselves
     // For Scratchpad
     size_t scratchpad_len;
@@ -247,10 +281,18 @@ static void xhci_trb_commit(XhciController* cont) {
 size_t n = 0;
 void xhci_handler(PciDevice* dev) {
     XhciController* cont = dev->priv;
-    kinfo("%zu> Called xhci_handler %p", n++, dev);
     volatile ISREntry* irs = &xhci_runtime_regs(cont)->irs[0];
-    size_t n = (((irs->event_ring_dequeue_ptr + sizeof(TRB)) - cont->event_ring_phys) / sizeof(TRB));
-    irs->event_ring_dequeue_ptr = (cont->event_ring_phys + (n % EVENT_RING_CAP) * sizeof(TRB)) | EVENT_HANDLER_BUSY; 
+    size_t i = (((irs->event_ring_dequeue_ptr) - cont->event_ring_phys) / sizeof(TRB));
+    // kinfo("%zu> Called xhci_handler %p %d", n++, dev, cont->event_ring[i].cycle);
+    while(cont->event_ring[i].cycle == cont->event_ring_cycle) {
+        kinfo("%zu> Event %s", n++, trb_type_str(cont->event_ring[i].type));
+        i++;
+        if(i >= EVENT_RING_CAP) {
+            cont->event_ring_cycle = !cont->event_ring_cycle;
+            i = 0;
+        }
+    }
+    irs->event_ring_dequeue_ptr = (cont->event_ring_phys + (i % EVENT_RING_CAP) * sizeof(TRB)) | EVENT_HANDLER_BUSY; 
     irs->iman = irs->iman | IMAN_PENDING | IMAN_ENABLED;
     irq_eoi(dev->irq);
 }
@@ -310,6 +352,7 @@ static intptr_t init_event_ring(XhciController* cont) {
     cont->event_ring = iomap_bytes(cont->event_ring_phys, EVENT_RING_CAP*sizeof(TRB), KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_WRITE | KERNEL_PFLAG_CACHE_DISABLE);
     if(!cont->event_ring) return -NOT_ENOUGH_MEM;
     memset(cont->event_ring, 0, EVENT_RING_CAP*sizeof(TRB));
+    cont->event_ring_cycle = 1;
     // NOTE: This maybe shouldn't be done by us
     // TRB* last = &cont->event_ring[EVENT_RING_CAP-1];
     // last->cycle = 1;
@@ -455,7 +498,7 @@ intptr_t init_xhci(PciDevice* dev) {
     xhci_op_regs(cont)->usb_cmd = xhci_op_regs(cont)->usb_cmd | USBCMD_RUN;
 
     volatile TRB* trb;
-    for(size_t i = 0; i < EVENT_RING_CAP-1; ++i) {
+    for(size_t i = 0; i < EVENT_RING_CAP+1; ++i) {
         trb = xhci_trb_head(cont);
         trb->type = TRB_TYPE_NOOP;
         trb->cycle = cont->cmd_ring_cycle;
