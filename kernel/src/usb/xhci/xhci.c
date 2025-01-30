@@ -132,8 +132,18 @@ enum {
     TRB_TYPE_NOOP_CMD,
     // @optional
     TRB_TYPE_GET_EXT_PROPERTY_CMD,
-    // @opregs
+    // @optional
     TRB_TYPE_SET_EXT_PROPERTY_CMD,
+    TRB_TYPE_TRANSFER_EVENT=32,
+    TRB_TYPE_CMD_COMPLETE_EVENT,
+    TRB_TYPE_PORT_STATUS_CHANGE_EVENT,
+    TRB_TYPE_BANDWIDTH_REQUETS_EVENT,
+    // @optional
+    TRB_TYPE_DOORBELL_EVENT,
+    TRB_TYPE_HOST_CONTROLLER_EVENT,
+    TRB_TYPE_DEVICE_NOTIF_EVENT,
+    TRB_TYPE_MFINDEX_WRAP_EVENT,
+
     TRB_TYPE_COUNT
 };
 static const char* trb_type_str_map[TRB_TYPE_COUNT] = {
@@ -163,6 +173,15 @@ static const char* trb_type_str_map[TRB_TYPE_COUNT] = {
     [TRB_TYPE_NOOP_CMD]                  = "NOOP_CMD",
     [TRB_TYPE_GET_EXT_PROPERTY_CMD]      = "GET_EXT_PROPERTY_CMD",
     [TRB_TYPE_SET_EXT_PROPERTY_CMD]      = "SET_EXT_PROPERTY_CMD",
+
+    [TRB_TYPE_TRANSFER_EVENT]            = "TRANSFER_EVENT",
+    [TRB_TYPE_CMD_COMPLETE_EVENT]        = "CMD_COMPLETE_EVENT",
+    [TRB_TYPE_PORT_STATUS_CHANGE_EVENT]  = "PORT_STATUS_CHANGE_EVENT",
+    [TRB_TYPE_BANDWIDTH_REQUETS_EVENT]   = "BANDWIDTH_REQUETS_EVENT",
+    [TRB_TYPE_DOORBELL_EVENT]            = "DOORBELL_EVENT",
+    [TRB_TYPE_HOST_CONTROLLER_EVENT]     = "HOST_CONTROLLER_EVENT",
+    [TRB_TYPE_DEVICE_NOTIF_EVENT]        = "DEVICE_NOTIF_EVENT",
+    [TRB_TYPE_MFINDEX_WRAP_EVENT]        = "MFINDEX_WRAP_EVENT",
 };
 static const char* trb_type_str(uint8_t type) {
     if(type >= TRB_TYPE_COUNT) return "Undefined";
@@ -182,7 +201,7 @@ typedef struct {
     uint16_t immediate : 1;
     uint16_t _rsvd2 : 2;
     uint16_t bei : 1;
-    uint16_t type : 5;
+    uint16_t type : 6;
     uint16_t _rsvd1;
 } __attribute__((packed)) TRB;
 static_assert(sizeof(TRB) == 4*sizeof(uint32_t), "TRB must be 4 registers wide");
