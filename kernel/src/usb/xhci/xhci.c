@@ -100,6 +100,7 @@ typedef struct {
     uint8_t _reserved[28];
     ISREntry irs[];
 } __attribute__((packed)) RuntimeRegs;
+
 enum {
     TRB_TYPE_NORMAL=1,
     TRB_TYPE_SETUP_STAGE,
@@ -109,9 +110,30 @@ enum {
     TRB_TYPE_LINK,
     TRB_TYPE_EVENT_DATA,
     TRB_TYPE_NOOP,
+    // NOTE: If you're confused:
+    // Checkout table on page 512 of the xhci spec
     TRB_TYPE_ENABLE_SLOT_CMD,
     TRB_TYPE_DISABLE_SLOT_CMD,
     TRB_TYPE_ADDRESS_DEVICE_CMD,
+    TRB_TYPE_CONFIGURE_ENDPOINT_CMD,
+    TRB_TYPE_EVAL_CONTEXT_CMD,
+    TRB_TYPE_RESET_ENDPOINT_CMD,
+    TRB_TYPE_STOP_ENDPOINT_CMD,
+    TRB_TYPE_SET_TR_DEQUEUE_CMD,
+    TRB_TYPE_RESET_DEVICE_CMD,
+    // @optional
+    TRB_TYPE_FORCE_EVENT_CMD,
+    TRB_TYPE_NEG_BANDWIDTH_CMD,
+    // @optional
+    TRB_TYPE_SET_LATENCY_TOL_VALUE_CMD,
+    // @optional
+    TRB_TYPE_GET_PORT_BANDWIDTH_CMD,
+    TRB_TYPE_FORCE_HEADER_CMD,
+    TRB_TYPE_NOOP_CMD,
+    // @optional
+    TRB_TYPE_GET_EXT_PROPERTY_CMD,
+    // @opregs
+    TRB_TYPE_SET_EXT_PROPERTY_CMD,
 };
 typedef struct {
     uint64_t data;
@@ -133,6 +155,7 @@ typedef struct {
 static_assert(sizeof(TRB) == 4*sizeof(uint32_t), "TRB must be 4 registers wide");
 typedef struct {
     uint64_t addr;
+    // FIXME: Make 32 bit
     uint16_t size;
     uint16_t _rsvd1;
     uint32_t _rsvd2;
@@ -175,6 +198,8 @@ struct XhciController {
     uint64_t* dcbaa;
     paddr_t cmd_ring_phys;
     TRB* cmd_ring;
+    size_t cmd_ring_doorbell;
+    bool cmd_ring_cycle;
     // For ISR[0]. The only one supported currently
     size_t erst_len;
     paddr_t erst_phys;
@@ -199,18 +224,36 @@ static inline volatile RuntimeRegs* xhci_runtime_regs(XhciController* c) {
 static inline volatile OperationalRegs* xhci_op_regs(XhciController* c) {
     return ((void*)c->capregs) + (c->capregs->caplen);
 }
+#define CMD_RING_CAP 256
+#define EVENT_RING_CAP 256
+// TODO: Handle multiple devices
+// TODO: Allow commiting multiple commands / trb_head accepting index of command (which wraps around)
+static volatile TRB* xhci_trb_head(XhciController* c) {
+    return &c->cmd_ring[c->cmd_ring_doorbell];
+}
+static void xhci_trb_commit(XhciController* cont) {
+    cont->cmd_ring_doorbell += 1;
+    if(cont->cmd_ring_doorbell >= (CMD_RING_CAP-1)) {
+        TRB* link = &cont->cmd_ring[CMD_RING_CAP-1];
+        link->cycle = cont->cmd_ring_cycle;
+        // NOTE: Toggle Cycle bit
+        link->eval_next = 1;
+        cont->cmd_ring_cycle = !cont->cmd_ring_cycle;
+        cont->cmd_ring_doorbell = 0;
+    }
+    xhci_doorbells(cont)[0] = 0;
+}
 
-
-
+size_t n = 0;
 void xhci_handler(PciDevice* dev) {
-    kinfo("Called xhci_handler %p", dev);
     XhciController* cont = dev->priv;
+    kinfo("%zu> Called xhci_handler %p", n++, dev);
     volatile ISREntry* irs = &xhci_runtime_regs(cont)->irs[0];
+    size_t n = (((irs->event_ring_dequeue_ptr + sizeof(TRB)) - cont->event_ring_phys) / sizeof(TRB));
+    irs->event_ring_dequeue_ptr = (cont->event_ring_phys + (n % EVENT_RING_CAP) * sizeof(TRB)) | EVENT_HANDLER_BUSY; 
     irs->iman = irs->iman | IMAN_PENDING | IMAN_ENABLED;
-    irs->event_ring_dequeue_ptr = (irs->event_ring_dequeue_ptr + sizeof(TRB)) | 0b1000;
     irq_eoi(dev->irq);
 }
-#define CMD_RING_CAP 256
 static intptr_t init_cmd_ring(XhciController* cont) {
     cont->cmd_ring_phys = kernel_pages_alloc((CMD_RING_CAP*sizeof(TRB) + (PAGE_SIZE-1)) / PAGE_SIZE);
     if(!cont->cmd_ring_phys) return -NOT_ENOUGH_MEM;
@@ -222,6 +265,7 @@ static intptr_t init_cmd_ring(XhciController* cont) {
     last->data = cont->cmd_ring_phys+0*sizeof(TRB);
     last->type = TRB_TYPE_LINK;
     xhci_op_regs(cont)->crcr = cont->cmd_ring_phys | 0b1;
+    cont->cmd_ring_cycle = 1;
     return 0;
 }
 static void deinit_cmd_ring(XhciController* cont) {
@@ -260,7 +304,6 @@ static void deinit_erst(XhciController* cont) {
     if(cont->erst_phys) kernel_pages_dealloc(cont->erst_phys, pages);
 }
 
-#define EVENT_RING_CAP 256
 static intptr_t init_event_ring(XhciController* cont) {
     cont->event_ring_phys = kernel_pages_alloc((EVENT_RING_CAP*sizeof(TRB) + (PAGE_SIZE-1)) / PAGE_SIZE);
     if(!cont->event_ring_phys) return -NOT_ENOUGH_MEM;
@@ -411,10 +454,13 @@ intptr_t init_xhci(PciDevice* dev) {
     kinfo("xHCI Running");
     xhci_op_regs(cont)->usb_cmd = xhci_op_regs(cont)->usb_cmd | USBCMD_RUN;
 
-    volatile TRB* trb = &cont->cmd_ring[0];
-    trb->type = 23;
-    trb->cycle = 1;
-    xhci_doorbells(cont)[0] = 0;
+    volatile TRB* trb;
+    for(size_t i = 0; i < EVENT_RING_CAP-1; ++i) {
+        trb = xhci_trb_head(cont);
+        trb->type = TRB_TYPE_NOOP;
+        trb->cycle = cont->cmd_ring_cycle;
+        xhci_trb_commit(cont);
+    }
     // NOTE: FLADJ is not set. Done by the BIOS? Could be an issue in the future.
     return 0;
 scratchpad_err:
