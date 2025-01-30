@@ -85,10 +85,10 @@ typedef struct {
 #define EVENT_HANDLER_BUSY (1 << 3)
 typedef struct {
     uint32_t iman;
-    uint16_t imi;
-    uint16_t idc;
-    uint16_t erst_size;
-    uint16_t _rsvd1;
+    // uint16_t imi;
+    // uint16_t idc;
+    uint32_t imod;
+    uint32_t erst_size;
     uint32_t _rsvd2;
     uint64_t erst_addr;
     // Also includes DESi and EHB in low bits
@@ -385,10 +385,10 @@ intptr_t init_xhci(PciDevice* dev) {
     kinfo("page size: %zu", xhci_pages_native(cont) << PAGE_SHIFT);
     kinfo("pci->command %04X", dev->command);
     while(xhci_op_regs(cont)->usb_status & USBSTATUS_CNR);
-    // kinfo("Ready");
-    // xhci_op_regs(cont)->usb_cmd = xhci_op_regs(cont)->usb_cmd | USBCMD_HCRST;
-    // while(xhci_op_regs(cont)->usb_cmd & USBCMD_HCRST);
-    // kinfo("Reset complete");
+    kinfo("Ready");
+    xhci_op_regs(cont)->usb_cmd = xhci_op_regs(cont)->usb_cmd | USBCMD_HCRST;
+    while(xhci_op_regs(cont)->usb_cmd & USBCMD_HCRST);
+    kinfo("Reset complete");
     if((e=init_dcbaa(cont)) < 0) goto dcbaa_err;
     if((e=init_cmd_ring(cont)) < 0) goto cmd_ring_err;
     // TODO: Technically incorrect. Its ERST per interrupter. But there's only 1 currently
@@ -398,7 +398,7 @@ intptr_t init_xhci(PciDevice* dev) {
     cont->erst[0].addr = cont->event_ring_phys;
     cont->erst[0].size = EVENT_RING_CAP;
     volatile ISREntry* irs = &xhci_runtime_regs(cont)->irs[0];
-    irs->erst_size = 1;
+    irs->erst_size = (irs->erst_size & ~0xFFFF) | 1;
     irs->erst_addr = cont->erst_phys;
     irs->event_ring_dequeue_ptr = cont->event_ring_phys | EVENT_HANDLER_BUSY;
     irs->iman = irs->iman | IMAN_PENDING | IMAN_ENABLED;
@@ -410,6 +410,11 @@ intptr_t init_xhci(PciDevice* dev) {
     // irq_clear(dev->irq);
     kinfo("xHCI Running");
     xhci_op_regs(cont)->usb_cmd = xhci_op_regs(cont)->usb_cmd | USBCMD_RUN;
+
+    volatile TRB* trb = &cont->cmd_ring[0];
+    trb->type = 23;
+    trb->cycle = 1;
+    xhci_doorbells(cont)[0] = 0;
     // NOTE: FLADJ is not set. Done by the BIOS? Could be an issue in the future.
     return 0;
 scratchpad_err:
