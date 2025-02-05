@@ -194,8 +194,8 @@ void init_apic() {
     outb(0x21, 0xFF);
     outb(0xA1, 0xFF);
     // Enable APIC
-    lapic_write(lapic_addr, 0x80, 0);
-    lapic_write(lapic_addr, 0xE0, 0xF << 28);
+    // lapic_write(lapic_addr, 0x80, 0);
+    // lapic_write(lapic_addr, 0xE0, 0xF << 28);
     lapic_write(lapic_addr, 0xF0, 0xFF | 0x100);
     kernel.interrupt_controller = &apic_controller;
     kernel.task_switch_irq = LAPIC_TIMER_IRQ;
