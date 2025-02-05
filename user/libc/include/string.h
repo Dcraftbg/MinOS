@@ -17,12 +17,14 @@ char* strdup (const char* str);
 char* strrchr(const char* str, int ch);
 char* strstr (const char* str, const char* substr);
 char* strncpy(char *restrict dest, const char *restrict src, size_t count);
-char* strcat (char *restrict dest, const char *restrict src);
 double strtod(const char* str, char** endptr);
 char* strpbrk(const char* str, const char* breakset);
 size_t strspn(const char* str, const char* charset);
 size_t strcspn(const char* str, const char* charset);
-static char* strcpy (char *restrict dest, const char *restrict src) {
+static char* strcpy(char *restrict dest, const char *restrict src) {
     return memcpy(dest, src, strlen(src)+1);
+}
+static char* strcat(char *restrict dest, const char *restrict src) {
+    return memcpy(dest+strlen(dest), src, strlen(src)+1);
 }
 
