@@ -146,7 +146,7 @@ void run_cmd(const char** argv, size_t argc) {
     assert(argc > 0);
     intptr_t e = fork();
     if(e == (-YOU_ARE_CHILD)) {
-        if((e=exec(argv[0], argv, argc)) < 0) {
+        if((e=execvp(argv[0], argv, argc)) < 0) {
             exit(-e);
         }
         // Unreachable
