@@ -136,12 +136,12 @@ end:
 // NOTE: Taken from the man page for strncpy
 char* strncpy(char* dest, const char* src, size_t n)
 {
-   size_t i;
-   for (i = 0; i < n && src[i] != '\0'; i++)
-        dest[i] = src[i];
-    for ( ; i < n; i++)
-        dest[i] = '\0';
-   return dest;
+    size_t i;
+    for (i = 0; i < n && src[i] != '\0'; i++)
+         dest[i] = src[i];
+     for ( ; i < n; i++)
+         dest[i] = '\0';
+    return dest;
 }
 char* strstr(const char* str, const char* substr) {
     if(substr[0] == '\0') return (char*)str;
