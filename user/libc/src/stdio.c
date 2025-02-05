@@ -194,6 +194,7 @@ static ssize_t print_base(void* user, PrintWriteFunc func, const char* fmt, va_l
         case 's': {
             fmt++;
             bytes = va_arg(list, const char*);
+            if(!bytes) bytes = "nil";
             count = strlen(bytes);
         } break;
         default:
