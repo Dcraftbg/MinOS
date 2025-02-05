@@ -15,7 +15,16 @@ typedef struct {
 enum {
     MADT_ENTRY_LOCAL_APIC = 0,
     MADT_ENTRY_IOAPIC = 1,
+    MADT_ENTRY_OVERRIDE = 2,
 };
+typedef struct {
+    APICEntry entry;
+    uint8_t bus_src;
+    uint8_t irq_src;
+    uint32_t gsi;
+    uint16_t flags;
+} __attribute__((packed)) InterruptOverrideEntry;
+static_assert(sizeof(InterruptOverrideEntry) == 10, "Invalid padding in InterruptOverrideEntry");
 typedef struct {
     APICEntry entry;
     uint8_t  ioapic_id;
@@ -136,6 +145,18 @@ void init_apic() {
         entry = (APICEntry*)(((char*)entry) + entry->length)
     ) {
         switch(entry->type) {
+        case MADT_ENTRY_OVERRIDE: {
+            if(entry->length < sizeof(InterruptOverrideEntry)) {
+                kerror("InterruptOverrideEntry entry with size < %zu (size=%zu)", sizeof(InterruptOverrideEntry), entry->length);
+                continue;
+            }
+            InterruptOverrideEntry* io_entry = (InterruptOverrideEntry*)entry;
+            kinfo("InterruptOverrideEntry:");
+            kinfo(" bus_src: %02X", io_entry->bus_src);
+            kinfo(" irq_src: %02X", io_entry->irq_src);
+            kinfo(" gsi: %08X", io_entry->gsi);
+            kinfo(" flags: %02X", io_entry->flags);
+        } break;
         case MADT_ENTRY_IOAPIC: {
             if(entry->length < sizeof(IOApicEntry)) {
                 kerror("IOAPIC entry with size < %zu (size=%zu)", sizeof(IOApicEntry), entry->length);
