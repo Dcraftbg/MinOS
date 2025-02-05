@@ -17,11 +17,12 @@ intptr_t readline(char* buf, size_t bufmax) {
 #define LINEBUF_MAX 1024
 int main() {
     printf("Before fork....\n");
+    setenv("PATH", "/user:", 0);
     intptr_t e = fork();
     const char* path = "/user/shell";
     if(e == (-YOU_ARE_CHILD)) {
         const char* argv[] = { path };
-        if((e=exec(path, argv, sizeof(argv)/sizeof(*argv))) < 0) {
+        if((e=execve(path, argv, sizeof(argv)/sizeof(*argv), (const char**)environ, __environ_size)) < 0) {
             printf("ERROR: Failed to do exec: %s\n", status_str(e));
             exit(-e);
         }
@@ -48,6 +49,7 @@ void _start(int argc, const char** argv, int envc, const char** envv) {
         exit(-e); 
     }
     _libc_internal_init_heap();
+    _libc_init_environ(envv, envc);
     _libc_init_streams();
     printf("Args dump:\n");
     for(size_t i = 0; i < argc; ++i) {
@@ -57,8 +59,6 @@ void _start(int argc, const char** argv, int envc, const char** envv) {
     for(size_t i = 0; i < envc; ++i) {
         printf("%zu> ",i+1); printf("%p",envv[i]); printf(" %s\n",envv[i]);
     }
-    environ=NULL;
-    __environ_size=0;
     int code = main();
     close(STDOUT_FILENO);
     if(STDIN_FILENO != STDOUT_FILENO) close(STDIN_FILENO);
