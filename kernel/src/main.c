@@ -89,7 +89,9 @@ void _start() {
     enable_cpu_features();
     // Interrupt controller Initialisation
     init_pic();
+    kernel.logger->level = LOG_WARN;
     init_acpi();
+    kernel.logger->level = LOG_ALL;
     enable_interrupts();
     // Caches
     init_cache_cache();
