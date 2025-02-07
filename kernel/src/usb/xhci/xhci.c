@@ -242,7 +242,7 @@ uint8_t supported_prot_cap_revision_major(const volatile SupportProtCap* cap) {
 }
 enum {
     EXT_CAP_ID_USB_LEGACY_SUPPORT=1,
-    EXT_CAP_ID_SUPPORT_PORTOCOL,
+    EXT_CAP_ID_SUPPORT_PROTOCOL,
 };
 uint8_t get_id(const volatile ExtCapEntry* entry) {
     return entry->id_and_next & 0xFF;
@@ -506,7 +506,7 @@ static intptr_t enum_ext_cap(XhciController* cont) {
         if(next_in_dwords == 0) break;
         kinfo("Extended Capability with id %d", id);
         switch(id) {
-        case EXT_CAP_ID_SUPPORT_PORTOCOL: {
+        case EXT_CAP_ID_SUPPORT_PROTOCOL: {
             volatile SupportProtCap* cap = (volatile SupportProtCap*)cap_entry;
             if(ptr + sizeof(SupportProtCap) >= cont->mmio_len) {
                 kerror("Invalid supported capability offset");
