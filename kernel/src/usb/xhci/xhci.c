@@ -224,9 +224,26 @@ typedef struct {
     uint32_t id_and_next;
     // uint8_t _id;
     // uint8_t _next_in_dwords;
-    char data[];
 } __attribute__((packed)) ExtCapEntry;
+typedef struct {
+    // [ Cap ID ] [ Next Cap ] [ Revision Minor ] [Revision Major]
+    uint32_t header;
+    uint32_t name;
+    uint32_t header2;
+    uint32_t slot_type;
+    uint32_t port_support[];
+} __attribute__((packed)) SupportProtCap;
 static_assert(sizeof(ExtCapEntry) == 1*sizeof(uint32_t), "ExtCapEntry must be 1 register wide");
+uint8_t supported_prot_cap_revision_minor(const volatile SupportProtCap* cap) {
+    return (cap->header >> 16) & 0xFF;
+}
+uint8_t supported_prot_cap_revision_major(const volatile SupportProtCap* cap) {
+    return (cap->header >> 24) & 0xFF;
+}
+enum {
+    EXT_CAP_ID_USB_LEGACY_SUPPORT=1,
+    EXT_CAP_ID_SUPPORT_PORTOCOL,
+};
 uint8_t get_id(const volatile ExtCapEntry* entry) {
     return entry->id_and_next & 0xFF;
 }
@@ -483,10 +500,25 @@ static intptr_t enum_ext_cap(XhciController* cont) {
             kerror("Invalid extended capability offset");
             return -INVALID_OFFSET;
         }
-        volatile ExtCapEntry* cap = (void*)(((uint8_t*)cont->capregs) + ptr);
-        uint8_t next_in_dwords = get_next_in_dwords(cap);
+        volatile ExtCapEntry* cap_entry = (void*)(((uint8_t*)cont->capregs) + ptr);
+        uint8_t next_in_dwords = get_next_in_dwords(cap_entry);
+        uint8_t id = get_id(cap_entry);
         if(next_in_dwords == 0) break;
-        kinfo("Extended Capability with id %d", get_id(cap));
+        kinfo("Extended Capability with id %d", id);
+        switch(id) {
+        case EXT_CAP_ID_SUPPORT_PORTOCOL: {
+            volatile SupportProtCap* cap = (volatile SupportProtCap*)cap_entry;
+            if(ptr + sizeof(SupportProtCap) >= cont->mmio_len) {
+                kerror("Invalid supported capability offset");
+                return -INVALID_OFFSET;
+            }
+            uint8_t revision_major = supported_prot_cap_revision_major(cap), revision_minor = supported_prot_cap_revision_minor(cap);
+            char name[10] = {0};
+            *((uint32_t*)name) = cap->name;
+            kinfo("SupportProtCap name: %s %d.%d", name, revision_major, revision_minor);
+        } break;
+        }
+        
         ptr += next_in_dwords * sizeof(uint32_t);
     }
     return 0;
