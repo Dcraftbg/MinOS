@@ -64,6 +64,13 @@ static uint32_t get_max_scratchpad_low(volatile CapabilityRegs* regs) {
     return (regs->hcs_params2 & MAX_SCRATCHPAD_LOW_MASK) >> MAX_SCRATCHPAD_LOW_SHIFT;
 }
 
+#define EXT_CAP_PTR_SHIFT 16
+#define EXT_CAP_PTR_MASK  (0b1111111111111111 << EXT_CAP_PTR_SHIFT)
+
+static uint32_t get_ext_cap_ptr(volatile CapabilityRegs* regs) {
+    return (regs->hcc_params1 & EXT_CAP_PTR_MASK) >> EXT_CAP_PTR_SHIFT;
+}
+
 #define USBCMD_RUN        (1 << 0)
 #define USBCMD_HCRST      (1 << 1)
 #define USBCMD_INT_ENABLE (1 << 2)
@@ -212,7 +219,20 @@ typedef struct {
     uint16_t _rsvd1;
     uint32_t _rsvd2;
 } __attribute__((packed)) ERSTEntry;
-static_assert(sizeof(ERSTEntry) == 4*sizeof(uint32_t), "ERSTEntry must be 4 registrers wide");
+static_assert(sizeof(ERSTEntry) == 4*sizeof(uint32_t), "ERSTEntry must be 4 registers wide");
+typedef struct {
+    uint32_t id_and_next;
+    // uint8_t _id;
+    // uint8_t _next_in_dwords;
+    char data[];
+} __attribute__((packed)) ExtCapEntry;
+static_assert(sizeof(ExtCapEntry) == 1*sizeof(uint32_t), "ExtCapEntry must be 1 register wide");
+uint8_t get_id(const volatile ExtCapEntry* entry) {
+    return entry->id_and_next & 0xFF;
+}
+uint8_t get_next_in_dwords(const volatile ExtCapEntry* entry) {
+    return (entry->id_and_next >> 8) & 0xFF;
+}
 
 typedef struct XhciController XhciController;
 typedef struct {
@@ -245,6 +265,7 @@ static inline XhciController* xhci_controllers_pop(XhciControllers* da) {
 
 struct XhciController {
     volatile CapabilityRegs* capregs;
+    size_t mmio_len;
     size_t dcbaa_len;
     paddr_t   dcbaa_phys;
     uint64_t* dcbaa;
@@ -454,6 +475,22 @@ static intptr_t xhci_bound_check(PciDevice* dev, XhciController* cont) {
     }
     return 0;
 }
+static intptr_t enum_ext_cap(XhciController* cont) {
+    uint32_t ptr = get_ext_cap_ptr(cont->capregs) * sizeof(uint32_t);
+    if(!ptr) return 0;
+    for(;;) {
+        if(ptr + sizeof(ExtCapEntry) >= cont->mmio_len) {
+            kerror("Invalid extended capability offset");
+            return -INVALID_OFFSET;
+        }
+        volatile ExtCapEntry* cap = (void*)(((uint8_t*)cont->capregs) + ptr);
+        uint8_t next_in_dwords = get_next_in_dwords(cap);
+        if(next_in_dwords == 0) break;
+        kinfo("Extended Capability with id %d", get_id(cap));
+        ptr += next_in_dwords * sizeof(uint32_t);
+    }
+    return 0;
+}
 intptr_t init_xhci(PciDevice* dev) {
     intptr_t e;
     kinfo("BAR:");
@@ -484,6 +521,7 @@ intptr_t init_xhci(PciDevice* dev) {
         goto cont_add_err;
     }
     if((e=xhci_bound_check(dev, cont)) < 0) goto bound_check_err;
+    cont->mmio_len = dev->bar0.size;
     kinfo("max_device_slots: %zu", get_max_device_slots(cont->capregs));
     kinfo("max_interrupters: %zu", get_max_interrupters(cont->capregs));
     kinfo("max_ports: %zu", get_max_ports(cont->capregs));
@@ -500,6 +538,10 @@ intptr_t init_xhci(PciDevice* dev) {
     if((e=init_erst(cont)) < 0) goto erst_err;
     if((e=init_event_ring(cont)) < 0) goto event_ring_err;
     if((e=init_scratchpad(cont)) < 0) goto scratchpad_err;
+    if((e=enum_ext_cap(cont)) < 0) goto enum_ext_cap_err;
+
+    
+
     cont->erst[0].addr = cont->event_ring_phys;
     cont->erst[0].size = EVENT_RING_CAP;
     volatile ISREntry* irs = &xhci_runtime_regs(cont)->irs[0];
@@ -516,6 +558,7 @@ intptr_t init_xhci(PciDevice* dev) {
     kinfo("xHCI Running");
     xhci_op_regs(cont)->usb_cmd = xhci_op_regs(cont)->usb_cmd | USBCMD_RUN;
 
+#if 0
     volatile TRB* trb;
     for(size_t i = 0; i < EVENT_RING_CAP+1; ++i) {
         trb = xhci_trb_head(cont);
@@ -523,8 +566,10 @@ intptr_t init_xhci(PciDevice* dev) {
         trb->cycle = cont->cmd_ring_cycle;
         xhci_trb_commit(cont);
     }
+#endif
     // NOTE: FLADJ is not set. Done by the BIOS? Could be an issue in the future.
     return 0;
+enum_ext_cap_err:
 scratchpad_err:
     deinit_scratchpad(cont);
 event_ring_err:
