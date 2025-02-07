@@ -240,6 +240,13 @@ uint8_t supported_prot_cap_revision_minor(const volatile SupportProtCap* cap) {
 uint8_t supported_prot_cap_revision_major(const volatile SupportProtCap* cap) {
     return (cap->header >> 24) & 0xFF;
 }
+uint8_t supported_prot_cop_port_offset(const volatile SupportProtCap* cap) {
+    return (cap->header2 >> 0) & 0xFF;
+}
+uint8_t supported_prot_cop_port_count(const volatile SupportProtCap* cap) {
+    return (cap->header2 >> 8) & 0xFF;
+}
+
 enum {
     EXT_CAP_ID_USB_LEGACY_SUPPORT=1,
     EXT_CAP_ID_SUPPORT_PROTOCOL,
@@ -279,9 +286,13 @@ static inline XhciController* xhci_controllers_pop(XhciControllers* da) {
     assert(da->len);
     return da->data[--da->len];
 }
-
+typedef struct {
+    uint8_t revision_major, revision_minor, slot_id;
+} Port;
 struct XhciController {
     volatile CapabilityRegs* capregs;
+    Port* ports_items;
+    size_t ports_count;
     size_t mmio_len;
     size_t dcbaa_len;
     paddr_t   dcbaa_phys;
@@ -503,7 +514,6 @@ static intptr_t enum_ext_cap(XhciController* cont) {
         volatile ExtCapEntry* cap_entry = (void*)(((uint8_t*)cont->capregs) + ptr);
         uint8_t next_in_dwords = get_next_in_dwords(cap_entry);
         uint8_t id = get_id(cap_entry);
-        if(next_in_dwords == 0) break;
         kinfo("Extended Capability with id %d", id);
         switch(id) {
         case EXT_CAP_ID_SUPPORT_PROTOCOL: {
@@ -513,12 +523,27 @@ static intptr_t enum_ext_cap(XhciController* cont) {
                 return -INVALID_OFFSET;
             }
             uint8_t revision_major = supported_prot_cap_revision_major(cap), revision_minor = supported_prot_cap_revision_minor(cap);
+            size_t ports_count = supported_prot_cop_port_count(cap), ports_offset = supported_prot_cop_port_offset(cap);
+            if(ports_count <= 0 || ports_offset <= 0) {
+                kerror("Invalid values for count = %zu offset = %zu", ports_count, ports_offset);
+                return -INVALID_OFFSET;
+            }
+            ports_offset--;
+            if(ports_offset + ports_count > cont->ports_count) {
+                kerror("Out of range");
+                return -INVALID_OFFSET;
+            }
             char name[10] = {0};
             *((uint32_t*)name) = cap->name;
-            kinfo("SupportProtCap name: %s %d.%d", name, revision_major, revision_minor);
+            kinfo("SupportProtCap name: %s %d.%d port off %zu count %zu", name, revision_major, revision_minor, ports_offset, ports_count);
+            for(size_t i = 0; i < ports_count; ++i) {
+                Port* port = &cont->ports_items[i + ports_offset];
+                port->revision_major = revision_major;
+                port->revision_minor = revision_minor;
+            }
         } break;
         }
-        
+        if(next_in_dwords == 0) break;
         ptr += next_in_dwords * sizeof(uint32_t);
     }
     return 0;
@@ -556,10 +581,13 @@ intptr_t init_xhci(PciDevice* dev) {
     cont->mmio_len = dev->bar0.size;
     kinfo("max_device_slots: %zu", get_max_device_slots(cont->capregs));
     kinfo("max_interrupters: %zu", get_max_interrupters(cont->capregs));
-    kinfo("max_ports: %zu", get_max_ports(cont->capregs));
+    kinfo("max_ports: %zu", cont->ports_count = get_max_ports(cont->capregs));
     kinfo("page size: %zu", xhci_pages_native(cont) << PAGE_SHIFT);
     kinfo("pci->command %04X", dev->command);
     while(xhci_op_regs(cont)->usb_status & USBSTATUS_CNR);
+    cont->ports_items = kernel_malloc(cont->ports_count * sizeof(Port));
+    if(!cont->ports_items) goto ports_items_err;
+    memset(cont->ports_items, 0, cont->ports_count * sizeof(*cont->ports_items));
     kinfo("Ready");
     xhci_op_regs(cont)->usb_cmd = xhci_op_regs(cont)->usb_cmd | USBCMD_HCRST;
     while(xhci_op_regs(cont)->usb_cmd & USBCMD_HCRST);
@@ -612,6 +640,8 @@ cmd_ring_err:
     deinit_cmd_ring(cont);
 dcbaa_err:
     deinit_dcbaa(cont);
+    kernel_dealloc(cont->ports_items, cont->ports_count * sizeof(*cont->ports_items));
+ports_items_err:
 bound_check_err:
     xhci_controllers_pop(&xhci_controllers);
 cont_add_err:
