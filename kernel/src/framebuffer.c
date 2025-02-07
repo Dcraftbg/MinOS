@@ -43,7 +43,7 @@ void fmbuf_scroll_up(Framebuffer* this, size_t rows, uint32_t bg) {
     size_t from  =this->height-rows;
     size_t row_bytes = this->width*(this->bpp/8);
     for(size_t y = 0; y < from; ++y) {
-        memmove(addr, head, row_bytes);
+        memcpy(addr, head, row_bytes);
         addr+=this->pitch_bytes;
         head+=this->pitch_bytes;
     }
