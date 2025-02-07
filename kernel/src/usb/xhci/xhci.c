@@ -71,6 +71,18 @@ static uint32_t get_ext_cap_ptr(volatile CapabilityRegs* regs) {
     return (regs->hcc_params1 & EXT_CAP_PTR_MASK) >> EXT_CAP_PTR_SHIFT;
 }
 
+#define STATUS_CONTROL_RESET (1 << 4)
+#define STATUS_CONTROL_RESET_CHANGED (1 << 21)
+#define STATUS_CONTROL_POWER (1 << 9)
+#define STATUS_CONTROL_CONNECT_STATUS_CHANGE (1 << 17)
+typedef struct {
+    uint32_t status_control;
+    uint32_t power_status_cont;
+    uint32_t link_info;
+    uint32_t hardware_lpm;
+} __attribute__((packed)) PortRegisterSet;
+static_assert(sizeof(PortRegisterSet) == 4 * sizeof(uint32_t), "Update PortRegisterSet");
+
 #define USBCMD_RUN        (1 << 0)
 #define USBCMD_HCRST      (1 << 1)
 #define USBCMD_INT_ENABLE (1 << 2)
@@ -86,6 +98,8 @@ typedef struct {
     uint64_t _reserved2[2];
     uint64_t dcbaap;
     uint32_t config;
+    uint32_t _reserved3[241];
+    PortRegisterSet port_regs[];
 } __attribute__((packed)) OperationalRegs;
 #define IMAN_PENDING 0b1
 #define IMAN_ENABLED 0b10
@@ -225,6 +239,17 @@ typedef struct {
     // uint8_t _id;
     // uint8_t _next_in_dwords;
 } __attribute__((packed)) ExtCapEntry;
+static_assert(sizeof(ExtCapEntry) == 1*sizeof(uint32_t), "ExtCapEntry must be 1 register wide");
+typedef struct {
+    uint32_t header;
+} __attribute__((packed)) USBLegacySupportCap;
+uint32_t usb_legacy_support_get_bios(const volatile USBLegacySupportCap* cap) {
+    return cap->header & (1 << 16); 
+}
+void usb_legacy_support_set_os(volatile USBLegacySupportCap* cap) {
+    cap->header = cap->header | (1 << 24); 
+}
+
 typedef struct {
     // [ Cap ID ] [ Next Cap ] [ Revision Minor ] [Revision Major]
     uint32_t header;
@@ -233,7 +258,6 @@ typedef struct {
     uint32_t slot_type;
     uint32_t port_support[];
 } __attribute__((packed)) SupportProtCap;
-static_assert(sizeof(ExtCapEntry) == 1*sizeof(uint32_t), "ExtCapEntry must be 1 register wide");
 uint8_t supported_prot_cap_revision_minor(const volatile SupportProtCap* cap) {
     return (cap->header >> 16) & 0xFF;
 }
@@ -503,6 +527,39 @@ static intptr_t xhci_bound_check(PciDevice* dev, XhciController* cont) {
     }
     return 0;
 }
+static intptr_t take_ownership(XhciController* cont) {
+    uint32_t ptr = get_ext_cap_ptr(cont->capregs) * sizeof(uint32_t);
+    if(!ptr) return 0;
+    for(;;) {
+        if(ptr + sizeof(ExtCapEntry) >= cont->mmio_len) {
+            kerror("Invalid extended capability offset");
+            return -INVALID_OFFSET;
+        }
+        volatile ExtCapEntry* cap_entry = (void*)(((uint8_t*)cont->capregs) + ptr);
+        uint8_t next_in_dwords = get_next_in_dwords(cap_entry);
+        uint8_t id = get_id(cap_entry);
+        if (id == EXT_CAP_ID_USB_LEGACY_SUPPORT) {
+            volatile USBLegacySupportCap* cap = (volatile USBLegacySupportCap*)cap_entry;
+            if(ptr + sizeof(USBLegacySupportCap) >= cont->mmio_len) {
+                kerror("Invalid legacy support capability offset");
+                return -INVALID_OFFSET;
+            }
+            if(!usb_legacy_support_get_bios(cap)) {
+                kinfo("BIOS doesn't work this");
+                return 0;
+            }
+            usb_legacy_support_set_os(cap);
+            while(usb_legacy_support_get_bios(cap)) {
+                kinfo("Still bios");
+            }
+            return 0;
+        }
+        if(next_in_dwords == 0) break;
+        ptr += next_in_dwords * sizeof(uint32_t);
+    }
+    return 0;
+}
+
 static intptr_t enum_ext_cap(XhciController* cont) {
     uint32_t ptr = get_ext_cap_ptr(cont->capregs) * sizeof(uint32_t);
     if(!ptr) return 0;
@@ -579,6 +636,7 @@ intptr_t init_xhci(PciDevice* dev) {
     }
     if((e=xhci_bound_check(dev, cont)) < 0) goto bound_check_err;
     cont->mmio_len = dev->bar0.size;
+    take_ownership(cont);
     kinfo("max_device_slots: %zu", get_max_device_slots(cont->capregs));
     kinfo("max_interrupters: %zu", get_max_interrupters(cont->capregs));
     kinfo("max_ports: %zu", cont->ports_count = get_max_ports(cont->capregs));
@@ -600,7 +658,6 @@ intptr_t init_xhci(PciDevice* dev) {
     if((e=init_scratchpad(cont)) < 0) goto scratchpad_err;
     if((e=enum_ext_cap(cont)) < 0) goto enum_ext_cap_err;
 
-    
 
     cont->erst[0].addr = cont->event_ring_phys;
     cont->erst[0].size = EVENT_RING_CAP;
@@ -618,9 +675,19 @@ intptr_t init_xhci(PciDevice* dev) {
     kinfo("xHCI Running");
     xhci_op_regs(cont)->usb_cmd = xhci_op_regs(cont)->usb_cmd | USBCMD_RUN;
 
-#if 0
+    for(size_t i = 0; i < cont->ports_count; ++i) {
+        volatile PortRegisterSet* reg = &xhci_op_regs(cont)->port_regs[i];
+        if(!(reg->status_control & STATUS_CONTROL_POWER)) {
+            kinfo("Skipping %zu", i);
+            continue;
+        }
+        // kinfo("Resetting %zu", i);
+        reg->status_control = /* STATUS_CONTROL_RESET_CHANGED | */ STATUS_CONTROL_POWER | STATUS_CONTROL_CONNECT_STATUS_CHANGE;
+        // reg->status_control = /*STATUS_CONTROL_RESET |*/ STATUS_CONTROL_POWER | STATUS_CONTROL_CONNECT_STATUS_CHANGE;
+    }
+#if 1
     volatile TRB* trb;
-    for(size_t i = 0; i < EVENT_RING_CAP+1; ++i) {
+    for(size_t i = 0; i < 2; ++i) {
         trb = xhci_trb_head(cont);
         trb->type = TRB_TYPE_NOOP;
         trb->cycle = cont->cmd_ring_cycle;
