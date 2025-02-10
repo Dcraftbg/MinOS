@@ -138,9 +138,7 @@ int main(int argc, const char** argv) {
     const char* exe = shift_args(&argc, &argv);
     assert(exe && "Expected exe. Found nothing");
     if(argc <= 0) {
-        fprintf(stderr, "Missing arguments\n");
-        usage(stderr, exe);
-        return 1;
+        ls("./");
     }
     while((arg=shift_args(&argc, &argv))) {
         ls(arg);
