@@ -21,7 +21,8 @@ intptr_t execvp(const char* exe_path, const char** argv, size_t argc) {
         if(!(*end)) break;
         if(end == path) continue;
         if((end-path) + 1 + exe_path_len >= sizeof(pathbuf)) continue;
-        strncpy(pathbuf, path, end-path);
+        memcpy(pathbuf, path, end-path);
+        pathbuf[end-path] = '\0';
         if((end-1)[0] != '/') strcat(pathbuf, "/");
         strcat(pathbuf, exe_path);
         Stats stats;
