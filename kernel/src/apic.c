@@ -101,7 +101,7 @@ static int vec_alloc(void) {
 }
 static void vec_reserve(size_t vec) {
     size_t byte = vec / 8, bit = vec % 8;
-    vec_bitmap[byte] |= bit;
+    vec_bitmap[byte] |= 1 << bit;
 }
 #define LAPIC_LVT_TIMER_OFFSET 0x320
 #define LAPIC_INITCNT_OFFSET   0x380
