@@ -1,5 +1,11 @@
 #include "keyboard.h"
+#include <stdint.h>
+#include <stdbool.h>
+#include <keyqueue.h>
 #include <interrupt.h>
+#include <port.h>
+#include <log.h>
+
 static uint16_t SCAN1_PS2[] = {
     0   ,MINOS_KEY_ESCAPE,'1' ,'2' ,'3' ,'4' ,'5' ,'6' ,'7' ,'8' ,'9' ,'0' ,'-' ,'=' ,MINOS_KEY_BACKSPACE, MINOS_KEY_TAB,
     'Q' ,'W' ,'E' ,'R' ,'T' ,'Y' ,'U' ,'I' ,'O' ,'P' ,'[' ,']' , MINOS_KEY_ENTER, MINOS_KEY_LEFT_CTRL, 'A' ,'S' ,
@@ -26,6 +32,7 @@ static uint16_t SCAN1_PS2_EX[128] = {
     0,                     0,                     0,                     0,                     0,                     0,                     0,                     0,                     
     0,                     0,                     0,                     0,                     0,                     0,                     0,                     0,                     
 };
+#if 0
 static void* max_memcpy(void* dest, const void* src, size_t destcap, size_t srclen) {
     if(destcap < srclen) srclen = destcap;
     return memcpy(dest, src, srclen);
@@ -118,8 +125,10 @@ static const char* keycode_display(uint16_t key, char* buf, size_t size) {
     }
     return buf;
 }
+#endif
 
-bool extended;
+static bool extended;
+static KeyQueue keyqueue;
 void ps2_keyboard_handler() {
     size_t i = 0;
     for(;i<PS2_MAX_RETRIES; ++i) {
@@ -142,7 +151,7 @@ void ps2_keyboard_handler() {
                 norm < ARRAY_LEN(SCAN1_PS2_EX) ? SCAN1_PS2_EX[norm] : 0 :
                 norm < ARRAY_LEN(SCAN1_PS2   ) ? SCAN1_PS2   [norm] : 0;
         if(key) {
-           ps2queue_push(&ps2queue, (Key) { key, released });
+           keyqueue_push(&keyqueue, (Key) { key, released });
         }
         extended = false;
         // else printf("Keyboard: <Unknown %02X>\n",code);
@@ -158,7 +167,7 @@ static intptr_t ps2keyboard_read(Inode* file, void* buf, size_t size, off_t offs
     size_t count = size / sizeof(Key);
     Key* keys = buf;
     for(size_t i = 0; i < count; ++i) {
-        if(!ps2queue_pop((PS2Queue*)file->priv, &keys[i])) return i*sizeof(Key);
+        if(!keyqueue_pop((KeyQueue*)file->priv, &keys[i])) return i*sizeof(Key);
     }
     return count * sizeof(Key);
 }
@@ -170,7 +179,16 @@ static intptr_t init_inode(Device* this, Inode* inode) {
     inode->ops = &inodeOps;
     return 0;
 }
+#define KEYQUEUE_CAP 4096
+void init_ps2_keyboard() {
+    static_assert(KEYQUEUE_CAP > 0 && is_power_of_two(KEYQUEUE_CAP), "KEYQUEUE_CAP must be a power of two!");
+    keyqueue = keyqueue_create(kernel_malloc(KEYQUEUE_CAP), KEYQUEUE_CAP-1);
+    if(!keyqueue.addr) {
+        kwarn("Failed to allocate ps2 key queue!");
+        return;
+    }
+}
 Device ps2keyboard_device = {
-    .priv=&ps2queue,
+    .priv=&keyqueue,
     .init_inode=init_inode,
 };
