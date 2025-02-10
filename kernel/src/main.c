@@ -138,6 +138,14 @@ void _start() {
         kabort();
     }
     kinfo("Spawning `%s` id=%zu", epath, (size_t)e);
+    // If you run into problems with PS2. Enable this:
+    // I have no idea why this shit works but I think it tells the controller
+    // I'm ready to listen for keyboard input or something when I haven't answered its interrupts before
+    // (i.e. it thinks it shouldn't send interrupts and this kind of wakes it up saying, hey dude, I'm listening)
+#if 0
+    while((inb(0x64) & 0x01) == 0);
+    kinfo("Got key code %02X", inb(0x60));
+#endif
     disable_interrupts();
     irq_clear(1);
     irq_clear(kernel.task_switch_irq);
