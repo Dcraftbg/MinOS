@@ -57,16 +57,30 @@ typedef uint8_t ioapic_flags_t;
 #define IOAPIC_FLAG_LEVEL 0b10
 #define IOAPIC_FLAG_EDGE  0b00
 #define IOAPIC_REDIRECTION_BASE 0x10
+
+#define IOAPIC_DELIVERY_MODE_SHIFT      8
+#define IOAPIC_DESTINATION_MODE_SHIFT   11
+#define IOAPIC_INTERRUPT_POLARITY_SHIFT 13
+#define IOAPIC_TRIGGER_LEVEL_SHIFT      15
+#define IOAPIC_DESTINATION_SHIFT        24
+
+#define IOAPIC_DELIVERY_MODE_MASK    (7 << IOAPIC_DELIVERY_MODE_SHIFT)
+#define IOAPIC_DESTINATION_MODE_MASK (1 << IOAPIC_DESTINATION_MODE_SHIFT)
 void ioapic_register(uint8_t vec, size_t irq, uint8_t lapic_id, ioapic_flags_t flags) {
     size_t number = ioapic.gsi + (irq * 2);
     uint32_t reg_low  = ioapic_read(ioapic.addr, IOAPIC_REDIRECTION_BASE + number),
              reg_high = ioapic_read(ioapic.addr, IOAPIC_REDIRECTION_BASE + number + 1);
     reg_low  = (reg_low  & ~0xFF) | vec;
     // Set delivery mode to normal + destination mode = physical
-    reg_low  = (reg_low  & ~(0x700 | 0x800));
-    reg_low  = (reg_low  & ~0x2000) | (flags & IOAPIC_FLAG_LOW);
-    reg_low  = (reg_low  & ~0x8000) | (flags & IOAPIC_FLAG_LEVEL);
-    reg_high = (reg_high & ~0xf0000000) | (((uint32_t)lapic_id) << 28);
+    reg_low  = (reg_low  & ~(IOAPIC_DELIVERY_MODE_MASK | IOAPIC_DESTINATION_MODE_MASK));
+    reg_low  &= ~((1 << IOAPIC_INTERRUPT_POLARITY_SHIFT) | (1 << IOAPIC_TRIGGER_LEVEL_SHIFT));
+    if(flags & IOAPIC_FLAG_LOW) {
+        reg_low |= 1 << IOAPIC_INTERRUPT_POLARITY_SHIFT;
+    }
+    if(flags & IOAPIC_FLAG_LEVEL) {
+        reg_low |= 1 << IOAPIC_TRIGGER_LEVEL_SHIFT;
+    }
+    reg_high = (reg_high & ~(0xFF << IOAPIC_DESTINATION_SHIFT)) | (((uint32_t)lapic_id) << IOAPIC_DESTINATION_SHIFT);
     ioapic_write(ioapic.addr, IOAPIC_REDIRECTION_BASE + number    , reg_low);
     ioapic_write(ioapic.addr, IOAPIC_REDIRECTION_BASE + number + 1, reg_high);
 }
