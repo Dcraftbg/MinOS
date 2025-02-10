@@ -110,9 +110,9 @@ static void vec_reserve(size_t vec) {
 #define LAPIC_DIV_OFFSET       0x3E0
 #define LAPIC_TIMER_IRQ        0x28
 
-#define LVT_MASK_SHIFT    (16)
-#define LVT_MASK          (1 << LVT_MASK_SHIFT) 
-#define LVT_TIMER_ONESHOT (0x20000)
+#define LVT_MASK_SHIFT     (16)
+#define LVT_MASK           (1 << LVT_MASK_SHIFT) 
+#define LVT_TIMER_PERIODIC (0x20000)
 static size_t tmp_pit_ticks = 0;
 __attribute__((interrupt)) 
 void _tmp_pit_handler(void *) {
@@ -188,7 +188,7 @@ void init_apic() {
     // NOTE: For a little more accuracy we sleep for 10ms and then divide by 10
     while(tmp_pit_ticks < 10) asm volatile("hlt");
     size_t ticks = (0xFFFFFFFF - lapic_read (lapic_addr, LAPIC_CURRCNT_OFFSET)) / 10;
-    lapic_write(lapic_addr, LAPIC_LVT_TIMER_OFFSET, LVT_TIMER_ONESHOT | LVT_MASK | LAPIC_TIMER_IRQ);
+    lapic_write(lapic_addr, LAPIC_LVT_TIMER_OFFSET, LVT_TIMER_PERIODIC | LVT_MASK | LAPIC_TIMER_IRQ);
     lapic_write(lapic_addr, LAPIC_INITCNT_OFFSET  , ticks);
     // Disable PIC
     outb(0x21, 0xFF);
