@@ -139,6 +139,9 @@ void ps2_keyboard_handler() {
         goto end;
     uint8_t code = inb(0x60);
     switch(code) {
+    case PS2_ACK:
+        ps2_handle_ack();
+        break;
     case 0xE0:
         extended = true;
         break;
@@ -187,6 +190,8 @@ void init_ps2_keyboard() {
         kwarn("Failed to allocate ps2 key queue!");
         return;
     }
+    assert(irq_register(1, idt_ps2_keyboard_handler, 0) >= 0);
+    irq_clear(1);
 }
 Device ps2keyboard_device = {
     .priv=&keyqueue,
