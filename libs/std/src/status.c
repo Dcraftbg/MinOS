@@ -25,6 +25,7 @@ static const char* status_map[STATUS_COUNT] = {
     [INVALID_PATH]       = "Invalid Path",
     [IS_NOT_DIRECTORY]   = "Is not Directory",
     [BUFFER_TOO_SMALL]   = "Buffer too small",
+    [TIMEOUT_REACHED]    = "Timeout Reached",
 };
 // static_assert(STATUS_COUNT==ARRAY_LEN(status_map), "You need to update the status map!");
 const char* status_str(intptr_t status) {
