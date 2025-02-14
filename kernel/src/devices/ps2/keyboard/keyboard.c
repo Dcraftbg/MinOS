@@ -142,6 +142,9 @@ void ps2_keyboard_handler() {
     case PS2_ACK:
         ps2_handle_ack();
         break;
+    case PS2_RESEND:
+        ps2_handle_resend();
+        break;
     case 0xE0:
         extended = true;
         break;
