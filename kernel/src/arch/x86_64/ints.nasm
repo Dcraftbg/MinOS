@@ -3,6 +3,7 @@
 section .text
 extern exception_handler
 extern ps2_keyboard_handler
+extern ps2_mouse_handler
 extern serial_handler
 extern xhci_handler
 extern unknown_handler
@@ -44,6 +45,7 @@ idt_%1:
 %endmacro
 
 register_irq ps2_keyboard_handler
+register_irq ps2_mouse_handler
 register_irq serial_handler
 register_irq unknown_handler
 register_irq xhci_handler
