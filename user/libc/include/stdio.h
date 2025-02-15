@@ -75,3 +75,6 @@ int fileno(FILE* f);
 
 void rewind(FILE* f);
 #define FILENAME_MAX 1024
+
+// Things defined by MinOS
+ssize_t _status_to_errno(intptr_t status);
