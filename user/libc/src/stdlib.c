@@ -35,7 +35,7 @@ struct _HeapNode {
 #define aligndown_to(n, size) (((n)/(size))*(size))
 bool libc_heap_extend(_LibcInternalHeap* heap, size_t extra) {
     // TODO: Maybe ask for page size instead
-    size_t page_extend = alignup_to(alignup_to(extra, sizeof(_HeapNode)), 4096);
+    size_t page_extend = alignup_to(alignup_to(extra + sizeof(_HeapNode), sizeof(_HeapNode)), 4096);
     intptr_t e;
     if((e=heap_extend(heap->id, page_extend)) < 0) return false;
     _HeapNode* end = (_HeapNode*)(heap->heap.address+heap->heap.size);
