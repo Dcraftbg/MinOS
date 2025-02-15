@@ -424,7 +424,7 @@ intptr_t sys_heap_get(uintptr_t id, MinOSHeap* result) {
 // TODO: Maybe make this into sys_heap_resize instead
 intptr_t sys_heap_extend(uintptr_t id, size_t extra_bytes) {
 #ifdef CONFIG_LOG_SYSCALLS
-    strace("sys_heap_get(%zu, %zu)", (size_t)id, extra_bytes);
+    strace("sys_heap_extend(%zu, %zu)", (size_t)id, extra_bytes);
 #endif
     size_t extra_pages = (extra_bytes+(PAGE_SIZE-1))/PAGE_SIZE;
     if(extra_pages == 0) return 0;
