@@ -147,7 +147,6 @@ void _start() {
     kinfo("Got key code %02X", inb(0x60));
 #endif
     disable_interrupts();
-    irq_clear(1);
     irq_clear(kernel.task_switch_irq);
     enable_interrupts();
     for(;;) {
