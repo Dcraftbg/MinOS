@@ -93,17 +93,21 @@ intptr_t init_ps2_mouse(void) {
     if((e=ps2_read_u8()) < 0) return e;
     uint8_t config = e;
     ktrace("ps2> Config %02X", config);
-    config |= 1 << 1;
-    if((e=ps2_cmd_controller2(PS2_CMD_SET_CONFIG, config)) < 0) return e;
-#if 0
-    if((e=ps2_cmd_controller(PS2_CMD_GET_CONFIG)) < 0) return e;
-    if((e=ps2_read_u8()) < 0) return e;
-    config = e;
-    kinfo("Config %02X", config);
-#endif
-    assert(irq_register(12, idt_ps2_mouse_handler, 0) >= 0);
-    irq_clear(12);
-    ps2_cmd_queue_issue(&ps2_cmd_queue, (PS2Cmd){PS2_CMD_FLAG_MOUSE, 0, PS2_MOUSE_ENABLE_PACKET_STREAM, 0});
+    if(!(config & (1 << 5))) {
+        if((e=ps2_cmd_controller(0xA7)) < 0) return e;
+        config |=  ((1 << 1) | (1 << 5));
+        if((e=ps2_cmd_controller2(PS2_CMD_SET_CONFIG, config)) < 0) return e;
+    #if 0
+        if((e=ps2_cmd_controller(PS2_CMD_GET_CONFIG)) < 0) return e;
+        if((e=ps2_read_u8()) < 0) return e;
+        config = e;
+        kinfo("Config %02X", config);
+    #endif
+        assert(irq_register(12, idt_ps2_mouse_handler, 0) >= 0);
+        irq_clear(12);
+        if((e=ps2_cmd_controller(PS2_CMD_ENABLE_PORT2)) < 0) return e;
+        ps2_cmd_queue_issue(&ps2_cmd_queue, (PS2Cmd){PS2_CMD_FLAG_MOUSE, 0, PS2_MOUSE_ENABLE_PACKET_STREAM, 0});
+    }
     return 0;
 }
 Device ps2mouse_device = {
