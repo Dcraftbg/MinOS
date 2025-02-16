@@ -256,7 +256,7 @@ int system(const char* command) {
     fprintf(stderr, "system() is a stub\n");
     exit(1);
 }
-void *bsearch(const void *key, const void *base, size_t nitems, size_t size, int (*compar)(const void *, const void *) {
+void *bsearch(const void *key, const void *base, size_t nitems, size_t size, int (*compar)(const void *, const void *)) {
     fprintf(stderr, "bsearch() is a stub\n");
     exit(1);
 }
