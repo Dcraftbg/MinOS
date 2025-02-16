@@ -105,6 +105,7 @@ intptr_t ps2_cmd_send(uint8_t prefix, uint8_t cmd) {
 }
 void init_ps2() {
     intptr_t e = 0;
+    while(ps2_read_u8() >= 0);
     if((e = init_ps2_mouse()) < 0) {
         kerror("Failed to initialise PS2 mouse: %s", status_str(e));
     }
