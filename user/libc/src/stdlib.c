@@ -204,6 +204,12 @@ float atof(const char *str) {
 int abs(int num) {
     return num < 0 ? -num : num;
 }
+long labs(long num) {
+    return num < 0 ? -num : num;
+}
+long long llabs(long long num) {
+    return num < 0 ? -num : num;
+}
 long int strtol (const char* str, char** endptr, int base) {
     fprintf(stderr, "I need to implement strtol. I'm too lazy rn: %s %p %d\n", str, endptr, base);
     exit(1);
@@ -248,5 +254,9 @@ void qsort(void* ptr, size_t count, size_t size, int (*comp)(const void*, const 
 
 int system(const char* command) {
     fprintf(stderr, "system() is a stub\n");
+    exit(1);
+}
+void *bsearch(const void *key, const void *base, size_t nitems, size_t size, int (*compar)(const void *, const void *) {
+    fprintf(stderr, "bsearch() is a stub\n");
     exit(1);
 }
