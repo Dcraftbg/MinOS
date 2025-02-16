@@ -694,3 +694,8 @@ int fileno(FILE* f) {
     if(f->tmp) return -1;
     return f->as.fd;
 }
+
+void perror(const char *s) {
+    if(s) fprintf(stderr, "%s: ", s);
+    fputs(strerror(errno), stderr);
+}
