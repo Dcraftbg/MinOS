@@ -11,11 +11,9 @@ typedef struct FILE FILE;
 extern FILE* stdout; 
 extern FILE* stdin ; 
 extern FILE* stderr; 
-enum {
-    _IOLBF,
-    _IONBF,
-    _IOFBF,
-};
+#define _IOLBF 0
+#define _IONBF 1
+#define _IOFBF 2
 extern FILE* stddbg;
 ssize_t printf  (const char* fmt, ...) __attribute__((format(printf,1,2)));
 ssize_t vprintf (const char* fmt, va_list va);
@@ -48,11 +46,9 @@ static int putchar(int ch) {
 int remove(const char* path);
 int rename(const char* old_filename, const char* new_filename);
 int fflush(FILE* f);
-enum {
-    SEEK_SET,
-    SEEK_CUR,
-    SEEK_END
-};
+#define SEEK_SET 0
+#define SEEK_CUR 1
+#define SEEK_END 2
 int fseek (FILE* f, long offset, int origin);
 #define fseeko fseek
 int sscanf(const char *restrict buffer, const char *restrict fmt, ...);
