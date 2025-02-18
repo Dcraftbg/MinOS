@@ -123,4 +123,10 @@ void init_ps2() {
     if((e = vfs_register_device("ps2mouse", &ps2mouse_device)) < 0) {
         kerror("Could not register ps2mouse device: %s", status_str(e));
     }
+    Inode* mouse_inode;
+    if((e= vfs_find_abs("/devices/ps2mouse", &mouse_inode)) < 0) {
+        kfatal("Registered ps2mouse device successfully but failed to get it?");
+        return;
+    }
+    multiplexer_add(&mouse_mp, mouse_inode);
 }
