@@ -47,7 +47,7 @@ Tty* tty_new(void) {
 }
 static Inode* get_init_keyboard() {
     intptr_t e;
-    const char* path="/devices/ps2keyboard";
+    const char* path="/devices/keyboard";
     Inode* inode;
     if((e=vfs_find_abs(path, &inode)) < 0) {
         kwarn("(tty) Failed to find `%s` (initial tty keyboard): %s", path, status_str(e));

@@ -1,4 +1,5 @@
 #include "ps2.h"
+#include <devices/multiplexer.h>
 #include "keyboard/keyboard.h"
 #include "mouse/mouse.h"
 #include <interrupt.h>
@@ -113,6 +114,12 @@ void init_ps2() {
     if((e = vfs_register_device("ps2keyboard", &ps2keyboard_device)) < 0) {
         kerror("Could not register ps2keyboard device: %s", status_str(e));
     }
+    Inode* keyboard_inode;
+    if((e= vfs_find_abs("/devices/ps2keyboard", &keyboard_inode)) < 0) {
+        kfatal("Registered ps2keyboard device successfully but failed to get it?");
+        return;
+    }
+    multiplexer_add(&keyboard_mp, keyboard_inode);
     if((e = vfs_register_device("ps2mouse", &ps2mouse_device)) < 0) {
         kerror("Could not register ps2mouse device: %s", status_str(e));
     }

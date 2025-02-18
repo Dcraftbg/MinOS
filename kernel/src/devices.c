@@ -1,6 +1,7 @@
 #include "log.h"
 #include <minos/status.h>
 #include "devices.h"
+#include "./devices/multiplexer.h"
 #include "./devices/serial/serial.h"
 #include "./devices/ps2/ps2.h"
 #include "./devices/fb/fb.h"
@@ -8,6 +9,9 @@
 void init_devices() {
     intptr_t e;
     serial_dev_init();
+    if((e=init_multiplexers()) < 0) {
+        kwarn("Failed to initialise multiplexers: %s", status_str(e));
+    }
     Device* device = (Device*)cache_alloc(kernel.device_cache);
     if(device) {
         if((e=serial_device_create(device)) < 0) {
