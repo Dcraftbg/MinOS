@@ -19,5 +19,6 @@ long long llabs(long long num);
 void qsort(void* ptr, size_t count, size_t size, int (*comp)(const void*, const void*));
 int system(const char* command);
 void *bsearch(const void *key, const void *base, size_t nitems, size_t size, int (*compar)(const void *, const void *));
+char *mktemp(char *templat);
 #define EXIT_SUCCESS 0
 #define EXIT_FAILURE 1

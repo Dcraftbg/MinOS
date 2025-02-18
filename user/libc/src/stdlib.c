@@ -260,3 +260,8 @@ void *bsearch(const void *key, const void *base, size_t nitems, size_t size, int
     fprintf(stderr, "bsearch() is a stub\n");
     exit(1);
 }
+
+char *mktemp(char *templat) {
+    fprintf(stderr, "mktemp() is a stub\n");
+    exit(1);
+}
