@@ -619,7 +619,11 @@ int fputc(int c, FILE* f) {
     return 0;
 }
 int sscanf(const char *restrict buffer, const char *restrict fmt, ...) {
-    fprintf(stderr, "ERROR: Unimplemented `sscanf` (%s, %s)", buffer, fmt);
+    fprintf(stderr, "ERROR: Unimplemented `sscanf` (%s, %s)\n", buffer, fmt);
+    return -1;
+}
+int fscanf(FILE *stream, const char *restrict fmt, ...) {
+    fprintf(stderr, "ERROR: Unimplemented `fscanf` (%p, %s)\n", stream, fmt);
     return -1;
 }
 FILE *fdopen(int fd, const char* mode_str) {

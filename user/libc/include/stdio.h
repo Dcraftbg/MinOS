@@ -53,6 +53,7 @@ int fflush(FILE* f);
 int fseek (FILE* f, long offset, int origin);
 #define fseeko fseek
 int sscanf(const char *restrict buffer, const char *restrict fmt, ...);
+int fscanf(FILE *stream, const char *restrict fmt, ...);
 #define EOF -1
 
 const char* strerror(int e);
