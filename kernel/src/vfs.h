@@ -16,6 +16,7 @@ typedef struct SuperblockOps SuperblockOps;
 typedef struct Superblock Superblock;
 typedef struct Fs Fs;
 typedef struct Inode {
+    struct list list;
     Superblock* superblock;
     _Atomic size_t shared;
     fmode_t mode;

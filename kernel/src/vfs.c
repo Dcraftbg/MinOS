@@ -12,6 +12,7 @@ Inode* new_inode() {
     Inode* inode = cache_alloc(kernel.inode_cache);
     if(inode) {
         memset(inode, 0, sizeof(*inode));
+        list_init(&inode->list);
         inode->shared = 1;
     }
     return inode;
