@@ -3,12 +3,12 @@
 #define PRIu8  PRIu32
 #define PRIu16 PRIu32
 #define PRIu32 "u"
-#define PRIu64 "llu"
+#define PRIu64 "lu"
 
 #define PRIi8  PRIi32
 #define PRIi16 PRIi32
 #define PRIi32 "d"
-#define PRIi64 "lld"
+#define PRIi64 "ld"
 
 #define PRId8  PRIi8 
 #define PRId16 PRIi16
