@@ -12,3 +12,11 @@ int epoll_create1(int flags) {
     if(e < 0) return -(errno = _status_to_errno(e));
     return e;
 }
+int epoll_wait(int epfd, struct epoll_event *events, int maxevents, int timeout) {
+    intptr_t e = _epoll_wait(epfd, events, maxevents, timeout);
+    if(e < 0) {
+        errno = _status_to_errno(e);
+        return -1;
+    }
+    return e;
+}
