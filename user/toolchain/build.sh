@@ -32,7 +32,7 @@ setup_sysroot () {
     cp -r $MINOSROOT/user/libc/include $MINOSROOT/libs/std/include $SYSROOT/usr
     mkdir -p $SYSROOT/usr/lib
     cp $MINOSROOT/bin/user/crt/start.o $SYSROOT/usr/lib/crt0.o
-    ar -cr $SYSROOT/usr/lib/libc.a $MINOSROOT/bin/user/libc/*.o $MINOSROOT/bin/std/*.o
+    ar -cr $SYSROOT/usr/lib/libc.a $MINOSROOT/bin/user/libc/*.o $MINOSROOT/bin/user/libc/sys/*.o $MINOSROOT/bin/std/*.o
 }
 build_binutils () {
     echo "Building ${BINUTILS_VERSION}"
