@@ -27,8 +27,22 @@ static intptr_t multiplexer_read(Inode* file, void* buf, size_t size, off_t offs
     rwlock_end_read(&mp->lock);
     return n;
 }
+static bool multiplexer_is_readable(Inode* file) {
+    Multiplexer* mp = file->priv;
+    rwlock_begin_read(&mp->lock);
+    for(struct list *head = mp->list.next; head != &mp->list; head = head->next) {
+        Inode* inode = (Inode*)head;
+        if(inode_is_readable(inode)) {
+            rwlock_end_read(&mp->lock);
+            return true;
+        }
+    }
+    rwlock_end_read(&mp->lock);
+    return false;
+}
 static InodeOps inodeOps = {
-    .read = multiplexer_read
+    .read = multiplexer_read,
+    .is_readable = multiplexer_is_readable,
 };
 static intptr_t init_inode(Device* me, Inode* inode) {
     inode->priv = me->priv;
