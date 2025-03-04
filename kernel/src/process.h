@@ -37,7 +37,8 @@ typedef struct {
 #define child_process_get_id(cp)              ((cp).id)
 #define child_process_set_id(cp, _id)         ((cp).id = (_id))
 
-typedef struct {
+typedef struct Process Process;
+struct Process {
     struct list list;
     size_t parentid;
     size_t id; 
@@ -49,7 +50,7 @@ typedef struct {
     Inode* curdir_inode;
     char* curdir /*[PATH_MAX]*/;
     ChildProcess children[MAX_CHILD_PROCESSES];
-} Process;
+};
 
 void init_processes();
 Process* kernel_process_add(); 
