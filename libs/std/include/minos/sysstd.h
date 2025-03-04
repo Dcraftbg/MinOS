@@ -4,6 +4,7 @@
 #include "fsdefs.h"
 #include "heap.h"
 #include "time.h"
+#include "epoll.h"
 
 static intptr_t open(const char* path, fmode_t mode, oflags_t flags) {
     return syscall3(SYS_OPEN, path, mode, flags);
@@ -77,4 +78,10 @@ static intptr_t gettime(MinOS_Time* time) {
 }
 static intptr_t truncate(uintptr_t handle, size_t size) {
     return syscall2(SYS_TRUNCATE, handle, size);
+}
+static intptr_t _epoll_create1(int flags) {
+    return syscall1(SYS_EPOLL_CREATE1, flags);
+}
+static intptr_t _epoll_ctl(int epfd, int op, int fd, struct epoll_event *event) {
+    return syscall4(SYS_EPOLL_CTL, epfd, op, fd, event);
 }
