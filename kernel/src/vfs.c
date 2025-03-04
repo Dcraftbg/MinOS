@@ -115,6 +115,16 @@ intptr_t inode_stat(Inode* inode, Stats* stats) {
     if(!inode->ops->stat) return -UNSUPPORTED;
     return inode->ops->stat(inode, stats);
 }
+
+bool inode_is_readable(Inode* inode) {
+    if(!inode->ops->is_readable) return true;
+    return inode->ops->is_readable(inode);
+}
+bool inode_is_writeable(Inode* inode) {
+    if(!inode->ops->is_writeable) return true;
+    return inode->ops->is_writeable(inode);
+} 
+
 void     inode_cleanup(Inode* inode) {
     if(inode->ops->cleanup) inode->ops->cleanup(inode);
 }

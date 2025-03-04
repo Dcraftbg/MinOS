@@ -75,7 +75,8 @@ struct InodeOps {
     intptr_t (*ioctl)(Inode* file, Iop op, void* arg);
     intptr_t (*mmap)(Inode* file, MmapContext* context, void** addr, size_t size_pages);
     intptr_t (*truncate)(Inode* file, size_t size);
-
+    bool (*is_readable)(Inode* file);
+    bool (*is_writeable)(Inode* file);
     intptr_t (*stat)(Inode* inode, Stats* stats);
     void (*cleanup)(Inode* inode); 
     // TODO: unlink which will free all memory of that inode. But only the inode itself, not its children (job of caller (vfs))
@@ -90,6 +91,10 @@ intptr_t inode_ioctl(Inode* file, Iop op, void* arg);
 intptr_t inode_mmap(Inode* file, MmapContext* context, void** addr, size_t size_pages);
 intptr_t inode_truncate(Inode* file, size_t size);
 intptr_t inode_stat(Inode* inode, Stats* stats);
+// By default returns true
+bool inode_is_readable(Inode* file); 
+// By default returns true
+bool inode_is_writeable(Inode* file); 
 static intptr_t inode_size(Inode* inode) {
     Stats stats;
     intptr_t e;
