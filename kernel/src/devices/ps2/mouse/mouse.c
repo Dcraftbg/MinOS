@@ -95,8 +95,13 @@ static intptr_t ps2mouse_read(Inode* file, void* buf, size_t size, off_t offset)
     }
     return count * sizeof(MouseEvent);
 }
+static bool ps2mouse_is_readable(Inode* file) {
+    MouseEventQueue* queue = (MouseEventQueue*)file->priv;
+    return queue->head != queue->tail;
+}
 static InodeOps inodeOps = {
     .read = ps2mouse_read,
+    .is_readable = ps2mouse_is_readable,
 };
 static intptr_t init_inode(Device* this, Inode* inode) {
     inode->priv = this->priv;
