@@ -23,4 +23,5 @@ enum {
     SYS_TRUNCATE,
     SYS_EPOLL_CREATE1,
     SYS_EPOLL_CTL,
+    SYS_EPOLL_WAIT,
 };

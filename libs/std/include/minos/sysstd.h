@@ -85,3 +85,6 @@ static intptr_t _epoll_create1(int flags) {
 static intptr_t _epoll_ctl(int epfd, int op, int fd, struct epoll_event *event) {
     return syscall4(SYS_EPOLL_CTL, epfd, op, fd, event);
 }
+static intptr_t _epoll_wait(int epfd, struct epoll_event *events, int maxevents, int timeout) {
+    return syscall4(SYS_EPOLL_WAIT, epfd, events, maxevents, timeout);
+}
