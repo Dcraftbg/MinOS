@@ -59,8 +59,8 @@ found:
         return e;
     }
     resource->kind = RESOURCE_INODE;
-    resource->inode = inode;
-    resource->offset = 0;
+    resource->as.inode.inode = inode;
+    resource->as.inode.offset = 0;
     return id;
 }
 intptr_t sys_write(uintptr_t handle, const void* buf, size_t size) {
@@ -72,8 +72,8 @@ intptr_t sys_write(uintptr_t handle, const void* buf, size_t size) {
     if(!res) return -INVALID_HANDLE;
     if(res->kind != RESOURCE_INODE) return -INVALID_TYPE;
     intptr_t e;
-    if((e=inode_write(res->inode, buf, size, res->offset)) < 0) return e;
-    res->offset += e;
+    if((e=inode_write(res->as.inode.inode, buf, size, res->as.inode.offset)) < 0) return e;
+    res->as.inode.offset += e;
     return e;
 }
 intptr_t sys_read(uintptr_t handle, void* buf, size_t size) {
@@ -89,20 +89,20 @@ intptr_t sys_read(uintptr_t handle, void* buf, size_t size) {
     intptr_t e;
     // TODO: its now redily apparent that we should have a separate syscall for
     // get_dir_entries
-    switch(res->inode->kind) {
+    switch(res->as.inode.inode->kind) {
     case INODE_DEVICE:
     case INODE_FILE:
-        if((e=inode_read(res->inode, buf, size, res->offset)) < 0) {
+        if((e=inode_read(res->as.inode.inode, buf, size, res->as.inode.offset)) < 0) {
             return e;
         }
-        res->offset += e;
+        res->as.inode.offset += e;
         return e;
     case INODE_DIR: {
         size_t read_bytes;
-        if((e=inode_get_dir_entries(res->inode, buf, size, res->offset, &read_bytes)) < 0) {
+        if((e=inode_get_dir_entries(res->as.inode.inode, buf, size, res->as.inode.offset, &read_bytes)) < 0) {
             return e;
         }
-        res->offset += e;
+        res->as.inode.offset += e;
         return read_bytes;
     } break;
     default:
@@ -118,7 +118,7 @@ intptr_t sys_ioctl(uintptr_t handle, Iop op, void* arg) {
     Resource* res = resource_find_by_id(current->resources, handle);
     if(!res) return -INVALID_HANDLE;
     if(res->kind != RESOURCE_INODE) return -INVALID_TYPE;
-    return inode_ioctl(res->inode, op, arg);
+    return inode_ioctl(res->as.inode.inode, op, arg);
 }
 
 intptr_t sys_mmap(uintptr_t handle, void** addr, size_t size) {
@@ -134,7 +134,7 @@ intptr_t sys_mmap(uintptr_t handle, void** addr, size_t size) {
         .page_table = task->image.cr3,
         .memlist = &task->image.memlist
     };
-    intptr_t e = inode_mmap(res->inode, &context, addr, size);
+    intptr_t e = inode_mmap(res->as.inode.inode, &context, addr, size);
     if(e < 0) return e;
     invalidate_pages(*addr, PAGE_ALIGN_UP(size)/PAGE_SIZE);
     return e;
@@ -147,20 +147,20 @@ intptr_t sys_seek(uintptr_t handle, off_t offset, seekfrom_t from) {
     Resource* res = resource_find_by_id(current->resources, handle);
     if(!res) return -INVALID_HANDLE;
     if(res->kind != RESOURCE_INODE) return -INVALID_TYPE;
-    if(res->inode->kind != INODE_FILE) return -INODE_IS_DIRECTORY;
+    if(res->as.inode.inode->kind != INODE_FILE) return -INODE_IS_DIRECTORY;
     // TODO: Convertions with lba
     switch(from) {
     case SEEK_START:
-        res->offset = offset;
-        return res->offset;
+        res->as.inode.offset = offset;
+        return res->as.inode.offset;
     case SEEK_CURSOR:
-        res->offset += offset;
-        return res->offset;
+        res->as.inode.offset += offset;
+        return res->as.inode.offset;
     case SEEK_EOF: {
         intptr_t e;
-        if((e=inode_size(res->inode)) < 0) return e;
-        res->offset = e+offset;
-        return res->offset;
+        if((e=inode_size(res->as.inode.inode)) < 0) return e;
+        res->as.inode.offset = e+offset;
+        return res->as.inode.offset;
     } break;
     default:
         return -INVALID_PARAM;
@@ -174,8 +174,8 @@ intptr_t sys_tell(uintptr_t handle) {
     Resource* res = resource_find_by_id(current->resources, handle);
     if(!res) return -INVALID_HANDLE;
     if(res->kind != RESOURCE_INODE) return -INVALID_TYPE;
-    if(res->inode->kind != INODE_FILE) return -INODE_IS_DIRECTORY;
-    return res->offset;
+    if(res->as.inode.inode->kind != INODE_FILE) return -INODE_IS_DIRECTORY;
+    return res->as.inode.offset;
 }
 // TODO: Smarter resource sharing logic. No longer sharing Resource itself but the Inode+offset.
 // The res->shared check is entirely useless
@@ -189,7 +189,7 @@ intptr_t sys_close(uintptr_t handle) {
     intptr_t e = 0;
     if(res->shared == 1) {
         e=0;
-        if(res->kind == RESOURCE_INODE) idrop(res->inode);
+        if(res->kind == RESOURCE_INODE) idrop(res->as.inode.inode);
     }
     resource_remove(current->resources, handle);
     return e;
@@ -536,5 +536,41 @@ intptr_t sys_truncate(uintptr_t handle, size_t size) {
     Resource* res = resource_find_by_id(current->resources, handle);
     if(!res) return -INVALID_HANDLE;
     if(res->kind != RESOURCE_INODE) return -INVALID_TYPE;
-    return inode_truncate(res->inode, size);
+    return inode_truncate(res->as.inode.inode, size);
+}
+// TODO: strace
+intptr_t sys_epoll_create1(int flags) {
+    // TODO: EPOLL_CLOEXEC I guess
+    (void)flags;
+    size_t id = 0;
+    Process* current = current_process();
+    Resource* resource = resource_add(current->resources, &id);
+    if(!resource) return -NOT_ENOUGH_MEM;
+    resource->kind = RESOURCE_EPOLL;
+    epoll_init(&resource->as.epoll);
+    return id;
+}
+// TODO: strace
+intptr_t sys_epoll_ctl(int epfd, int op, int fd, const struct epoll_event *event) {
+    Process* current = current_process();
+    if(epfd < 0 || fd < 0) return -INVALID_HANDLE;
+    Resource* res = resource_find_by_id(current->resources, epfd);
+    if(!res) return -INVALID_HANDLE;
+    if(res->kind != RESOURCE_EPOLL) return -INVALID_TYPE;
+    switch(op) {
+    case EPOLL_CTL_ADD: {
+        EpollFd* entry = epoll_fd_new(fd, event);
+        if(!entry) return -NOT_ENOUGH_MEM;
+        intptr_t e = epoll_add(&res->as.epoll, entry);
+        if(e < 0) epoll_fd_delete(entry);
+        return e;
+    } break;
+    case EPOLL_CTL_MOD: {
+        return epoll_mod(&res->as.epoll, fd, event);
+    } break;
+    case EPOLL_CTL_DEL: {
+        return epoll_del(&res->as.epoll, fd);
+    } break;
+    }
+    return -INVALID_PATH;
 }

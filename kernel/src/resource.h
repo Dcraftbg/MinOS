@@ -6,17 +6,22 @@
 #include "string.h"
 #include "mem/slab.h"
 #include <stdatomic.h>
+#include "epoll.h"
 enum {
     RESOURCE_INODE=1,
+    RESOURCE_EPOLL,
 };
 typedef uint32_t resourcekind_t;
 typedef struct {
     resourcekind_t kind;
     atomic_size_t shared;
     struct {
-        off_t offset;
-        Inode* inode;
-    };
+        struct {
+            off_t offset;
+            Inode* inode;
+        } inode;
+        Epoll epoll;
+    } as;
 } Resource;
 #define RESOURCES_PER_BLOCK 1022
 typedef struct ResourceBlock {
