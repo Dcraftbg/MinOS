@@ -2,6 +2,8 @@
 #include "mem/slab.h"
 #include "assert.h"
 #include <minos/status.h>
+#include "process.h"
+#include "log.h"
 static EpollFd* epoll_find(Epoll* epoll, int fd) {
     for(struct list* head = epoll->unready.next; head != &epoll->unready; head = head->next) {
         EpollFd* entry = (EpollFd*)head;
@@ -40,4 +42,38 @@ void epoll_fd_delete(EpollFd* fd) {
 }
 void init_epoll_cache(void) {
     assert(epoll_fd_cache = create_new_cache(sizeof(EpollFd), "EpollFd"));
+}
+bool epoll_poll(Epoll* epoll, Process* process) {
+    debug_assert(list_empty(&epoll->ready));
+    bool terminal = false;
+    struct list *next;
+    for(struct list *head = epoll->unready.next; head != &epoll->unready; head = next) {
+        next = head->next;
+        EpollFd* fd = (EpollFd*)head;
+        Resource* res = resource_find_by_id(process->resources, fd->fd);
+        if(!res) {
+            kwarn("epoll p%zu> Failed to find resource: %zu", process->id, fd->fd);
+            terminal = true;
+            continue;
+        }
+        switch(res->kind) {
+        case RESOURCE_INODE:
+            fd->result_events = 0;
+            if((fd->event.events & EPOLLIN) && inode_is_readable(res->as.inode.inode)) {
+                fd->result_events |= EPOLLIN;
+            } else if ((fd->event.events & EPOLLOUT) && inode_is_writeable(res->as.inode.inode)) {
+                fd->result_events |= EPOLLOUT;
+            } else continue; // <- We didn't get any event. Shortcircuit 
+            if(fd->result_events) {
+                list_remove(head);
+                list_insert(head, &epoll->ready);
+                terminal = true;
+            }
+            break;
+        default:
+            kwarn("epoll p%zu> Non inode resource in epoll: %zu", process->id, fd->fd);
+            terminal = true;
+        }
+    }
+    return terminal;
 }
