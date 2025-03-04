@@ -2,6 +2,8 @@
 #include "task.h"
 #include "process.h"
 #include "log.h"
+#include "epoll.h"
+
 bool try_resolve_waitpid(ThreadBlocker* blocker, Task* task) {
     Process* proc = get_process_by_id(task->processid);
     debug_assert(blocker->as.waitpid.child_index < ARRAY_LEN(proc->children) && "Invalid child_index");
@@ -13,7 +15,12 @@ bool try_resolve_waitpid(ThreadBlocker* blocker, Task* task) {
     }
     return false;
 }
+bool try_resolve_epoll(ThreadBlocker* blocker, Task* task) {
+    Process* proc = get_process_by_id(task->processid);
+    if(blocker->as.epoll.until <= kernel.pit_info.ticks || epoll_poll(blocker->as.epoll.epoll, proc)) return true;
+    return false;
 
+}
 bool try_resolve_sleep_until(ThreadBlocker* blocker, Task* task) {
     return blocker->as.sleep.until <= kernel.pit_info.ticks;
 }
@@ -32,4 +39,12 @@ int block_waitpid(Task* task, size_t child_index) {
     // TODO: thread yield
     while(task->image.flags & TASK_FLAG_BLOCKING) asm volatile("hlt");
     return task->image.blocker.as.waitpid.exit_code;
+}
+void block_epoll(Task* task, Epoll* epoll, size_t until) {
+    task->image.flags |= TASK_FLAG_BLOCKING;
+    task->image.blocker.as.epoll.epoll = epoll;
+    task->image.blocker.as.epoll.until = until;
+    task->image.blocker.try_resolve = try_resolve_epoll;
+    // TODO: thread yield
+    while(task->image.flags & TASK_FLAG_BLOCKING) asm volatile("hlt");
 }
