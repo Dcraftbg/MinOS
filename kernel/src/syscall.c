@@ -552,6 +552,9 @@ intptr_t sys_epoll_create1(int flags) {
 }
 // TODO: strace
 intptr_t sys_epoll_ctl(int epfd, int op, int fd, const struct epoll_event *event) {
+#ifdef CONFIG_LOG_SYSCALLS
+    strace("sys_epoll_ctl(%d, %d, %d, %p)", epfd, op, fd, event);
+#endif
     Process* current = current_process();
     if(epfd < 0 || fd < 0) return -INVALID_HANDLE;
     Resource* res = resource_find_by_id(current->resources, epfd);
@@ -573,4 +576,31 @@ intptr_t sys_epoll_ctl(int epfd, int op, int fd, const struct epoll_event *event
     } break;
     }
     return -INVALID_PATH;
+}
+// TODO: strace
+intptr_t sys_epoll_wait(int epfd, struct epoll_event *events, int maxevents, int timeout) {
+    if(maxevents < 0 || epfd < 0) return -INVALID_PARAM;
+    Process* current = current_process();
+    Resource* res = resource_find_by_id(current->resources, epfd);
+    if(!res) return -INVALID_HANDLE;
+    if(res->kind != RESOURCE_EPOLL) return -INVALID_TYPE;
+    Epoll* epoll = &res->as.epoll;
+    if(timeout == 0) epoll_poll(epoll, current);
+    else {
+        size_t until = 0xFFFFFFFFFFFFFFFFL;
+        if(timeout > 0) until = kernel.pit_info.ticks + timeout;
+        block_epoll(current_task(), epoll, until);
+    }
+    size_t event_count = 0;
+    struct list *next;
+    for(struct list *head = epoll->ready.next; head != &epoll->ready && event_count < (size_t)maxevents; head = next) {
+        next = head->next;
+        EpollFd* entry = (EpollFd*)head;
+        size_t i = event_count++;
+        events[i].events = entry->result_events;
+        events[i].data = entry->event.data;
+        list_remove(head);
+        list_insert(head, &epoll->unready);
+    }
+    return event_count;
 }
