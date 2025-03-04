@@ -22,6 +22,8 @@ extern sys_stat
 extern sys_sleepfor
 extern sys_gettime
 extern sys_truncate
+extern sys_epoll_create1
+extern sys_epoll_ctl
 %define KERNEL_UNSUPPORTED 7
 section .text
 global syscall_base
@@ -48,6 +50,8 @@ syscall_table:
    dq sys_sleepfor
    dq sys_gettime
    dq sys_truncate
+   dq sys_epoll_create1
+   dq sys_epoll_ctl
 syscall_table_end:
 section .text
 syscall_base:
