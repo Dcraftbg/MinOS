@@ -77,3 +77,12 @@ bool epoll_poll(Epoll* epoll, Process* process) {
     }
     return terminal;
 }
+
+void epoll_destroy(Epoll* epoll) {
+    struct list *next;
+    for(struct list *head = epoll->unready.next; head != &epoll->unready; head = next) {
+        next = head->next;
+        list_remove(head);
+        cache_dealloc(epoll_fd_cache, (EpollFd*)head);
+    }
+}

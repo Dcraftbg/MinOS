@@ -25,5 +25,6 @@ static void epoll_init(Epoll* epoll) {
     list_init(&epoll->unready);
     list_init(&epoll->ready);
 }
+void epoll_destroy(Epoll* epoll);
 bool epoll_poll(Epoll* epoll, Process* process);
 void init_epoll_cache(void);

@@ -189,7 +189,14 @@ intptr_t sys_close(uintptr_t handle) {
     intptr_t e = 0;
     if(res->shared == 1) {
         e=0;
-        if(res->kind == RESOURCE_INODE) idrop(res->as.inode.inode);
+        switch(res->kind) {
+        case RESOURCE_INODE:
+            idrop(res->as.inode.inode);
+            break;
+        case RESOURCE_EPOLL:
+            epoll_destroy(&res->as.epoll);
+            break;
+        }
     }
     resource_remove(current->resources, handle);
     return e;
