@@ -28,6 +28,7 @@ typedef enum {
     INODE_DIR,
     INODE_FILE,
     INODE_DEVICE,
+    INODE_MINOS_SOCKET,
     INODE_COUNT,
 } InodeKind;
 typedef int inodekind_t;

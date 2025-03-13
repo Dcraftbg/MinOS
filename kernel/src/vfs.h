@@ -159,4 +159,13 @@ static intptr_t vfs_creat_abs(const char* path, oflags_t flags) {
     return vfs_creat(&abs, flags);
 }
 
+typedef struct Socket Socket;
+intptr_t vfs_socket_create(Path* path, Socket* sock);
+static intptr_t vfs_socket_create_abs(const char* path, Socket* sock) {
+    Path abs;
+    intptr_t e;
+    if((e=parse_abs(path, &abs)) < 0) return e;
+    return vfs_socket_create(&abs, sock);
+
+}
 intptr_t fetch_inode(Superblock* sb, inodeid_t id, Inode** result);

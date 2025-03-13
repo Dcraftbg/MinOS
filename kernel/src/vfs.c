@@ -195,6 +195,20 @@ intptr_t vfs_register_device(const char* name, Device* device) {
     idrop(devices);
     return e;
 }
+intptr_t vfs_socket_create(Path* path, Socket* sock) {
+    intptr_t e;
+    const char* pathend;
+    Inode* parent;
+    if((e=vfs_find_parent(path, &pathend, &parent)) < 0) return e;
+    if(pathend[0] == '\0') {
+        idrop(parent);
+        return -ALREADY_EXISTS;
+    }
+    if(parent->superblock->fs != &tmpfs) return -UNSUPPORTED;
+    e = tmpfs_socket_creat(parent, sock, pathend, strlen(pathend));
+    idrop(parent);
+    return e;
+}
 intptr_t parse_abs(const char* path, Path* res) {
     if(path[0] != '/') return -INVALID_PATH;
     path++;

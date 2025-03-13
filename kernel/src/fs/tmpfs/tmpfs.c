@@ -56,6 +56,9 @@ static TmpfsInode* file_new(const char* name, size_t namelen) {
 static TmpfsInode* device_new(Device* device, const char* name, size_t namelen) {
     return tmpfs_new_inode(0, INODE_DEVICE, device, name, namelen);
 }
+static TmpfsInode* socket_new(Socket* sock, const char* name, size_t namelen) {
+    return tmpfs_new_inode(0, INODE_MINOS_SOCKET, sock, name, namelen);
+}
 static intptr_t tmpfs_put(TmpfsInode* dir, TmpfsInode* entry) {
     TmpfsData* prev = (TmpfsData*)(&(dir->data));
     TmpfsData* head = dir->data;
@@ -74,6 +77,17 @@ static intptr_t tmpfs_put(TmpfsInode* dir, TmpfsInode* entry) {
     }
     ((TmpfsInode**)head->data)[size] = entry;
     dir->size++;
+    return 0;
+}
+intptr_t tmpfs_socket_creat(Inode* parent, Socket* sock, const char* name, size_t namelen) {
+    if(parent->kind != INODE_DIR) return -IS_NOT_DIRECTORY;
+    TmpfsInode* inode = socket_new(sock, name, namelen);
+    if(!inode) return -NOT_ENOUGH_MEM;
+    intptr_t e;
+    if((e=tmpfs_put(parent->priv, inode)) < 0) {
+        tmpfs_inode_destroy(inode);
+        return e;
+    }
     return 0;
 }
 // TODO: Check whether entry already exists or not
