@@ -7,9 +7,11 @@
 #include "mem/slab.h"
 #include <stdatomic.h>
 #include "epoll.h"
+#include "socket.h"
 enum {
     RESOURCE_INODE=1,
     RESOURCE_EPOLL,
+    RESOURCE_SOCKET,
 };
 typedef uint32_t resourcekind_t;
 typedef struct {
@@ -21,6 +23,7 @@ typedef struct {
             Inode* inode;
         } inode;
         Epoll epoll;
+        Socket socket;
     } as;
 } Resource;
 #define RESOURCES_PER_BLOCK 1022

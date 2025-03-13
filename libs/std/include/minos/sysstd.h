@@ -5,6 +5,7 @@
 #include "heap.h"
 #include "time.h"
 #include "epoll.h"
+#include "socket.h"
 
 static intptr_t open(const char* path, fmode_t mode, oflags_t flags) {
     return syscall3(SYS_OPEN, path, mode, flags);
@@ -87,4 +88,25 @@ static intptr_t _epoll_ctl(int epfd, int op, int fd, struct epoll_event *event) 
 }
 static intptr_t _epoll_wait(int epfd, struct epoll_event *events, int maxevents, int timeout) {
     return syscall4(SYS_EPOLL_WAIT, epfd, events, maxevents, timeout);
+}
+static intptr_t _socket(uint32_t domain, uint32_t type, uint32_t prototype) {
+    return syscall3(SYS_SOCKET, domain, type, prototype);
+}
+static intptr_t _send(uintptr_t sockfd, const void *buf, size_t len) {
+    return syscall3(SYS_SEND, sockfd, buf, len);
+}
+static intptr_t _recv(uintptr_t sockfd,       void *buf, size_t len) {
+    return syscall3(SYS_RECV, sockfd, buf, len);
+}
+static intptr_t _accept(uintptr_t sockfd, struct sockaddr* addr, size_t *addrlen) {
+    return syscall3(SYS_ACCEPT, sockfd, addr, addrlen);
+}
+static intptr_t _bind(uintptr_t sockfd, struct sockaddr* addr, size_t addrlen) {
+    return syscall3(SYS_BIND, sockfd, addr, addrlen);
+}
+static intptr_t _listen(uintptr_t sockfd, size_t n) {
+    return syscall2(SYS_LISTEN, sockfd, n);
+}
+static intptr_t _connect(uintptr_t sockfd, const struct sockaddr* addr, size_t addrlen) {
+    return syscall3(SYS_CONNECT, sockfd, addr, addrlen);
 }

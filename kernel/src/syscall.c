@@ -196,6 +196,9 @@ intptr_t sys_close(uintptr_t handle) {
         case RESOURCE_EPOLL:
             epoll_destroy(&res->as.epoll);
             break;
+        case RESOURCE_SOCKET:
+            socket_close(&res->as.socket);
+            break;
         }
     }
     resource_remove(current->resources, handle);
@@ -610,4 +613,82 @@ intptr_t sys_epoll_wait(int epfd, struct epoll_event *events, int maxevents, int
         list_insert(head, &epoll->unready);
     }
     return event_count;
+}
+// TODO: strace
+intptr_t sys_socket(uint32_t domain, uint32_t type, uint32_t prototype) {
+    (void)prototype; // <- prototype is unused
+    if(domain >= _AF_COUNT) return -INVALID_PARAM;
+    if(type != SOCK_STREAM) return -UNSUPPORTED_SOCKET_TYPE;
+    SocketFamily* family = &socket_families[domain];
+    if(!family->init) return -UNSUPPORTED_DOMAIN;
+    Process* current = current_process();
+    size_t id;
+    Resource* res = resource_add(current->resources, &id);
+    if(!res) return -NOT_ENOUGH_MEM;
+    res->kind = RESOURCE_SOCKET;
+    intptr_t e = family->init(&res->as.socket);
+    if(e < 0) {
+        resource_remove(current->resources, id);
+        return e;
+    }
+    return id;
+}
+// TODO: strace
+intptr_t sys_send(uintptr_t sockfd, const void *buf, size_t len) {
+    Process* current = current_process();
+    Resource* res = resource_find_by_id(current->resources, sockfd);
+    if(!res) return -INVALID_HANDLE;
+    if(res->kind != RESOURCE_SOCKET) return -INVALID_TYPE;
+    return socket_send(&res->as.socket, buf, len);
+}
+// TODO: strace
+intptr_t sys_recv(uintptr_t sockfd,       void *buf, size_t len) {
+    Process* current = current_process();
+    Resource* res = resource_find_by_id(current->resources, sockfd);
+    if(!res) return -INVALID_HANDLE;
+    if(res->kind != RESOURCE_SOCKET) return -INVALID_TYPE;
+    return socket_recv(&res->as.socket, buf, len);
+}
+
+// TODO: strace
+intptr_t sys_accept(uintptr_t sockfd, struct sockaddr* addr, size_t *addrlen) {
+    Process* current = current_process();
+    Resource* res = resource_find_by_id(current->resources, sockfd);
+    if(!res) return -INVALID_HANDLE;
+    if(res->kind != RESOURCE_SOCKET) return -INVALID_TYPE;
+    size_t id;
+    Resource* result = resource_add(current->resources, &id);
+    if(!result) return -NOT_ENOUGH_MEM;
+    result->kind = RESOURCE_SOCKET;
+    intptr_t e = socket_accept(&res->as.socket, &result->as.socket, addr, addrlen);
+    if(e < 0) {
+        resource_remove(current->resources, id);
+        return e;
+    }
+    return id;
+}
+
+// TODO: strace
+intptr_t sys_bind(uintptr_t sockfd, struct sockaddr* addr, size_t addrlen) {
+    Process* current = current_process();
+    Resource* res = resource_find_by_id(current->resources, sockfd);
+    if(!res) return -INVALID_HANDLE;
+    if(res->kind != RESOURCE_SOCKET) return -INVALID_TYPE;
+    return socket_bind(&res->as.socket, addr, addrlen);
+}
+// TODO: strace
+intptr_t sys_listen(uintptr_t sockfd, size_t n) {
+    Process* current = current_process();
+    Resource* res = resource_find_by_id(current->resources, sockfd);
+    if(!res) return -INVALID_HANDLE;
+    if(res->kind != RESOURCE_SOCKET) return -INVALID_TYPE;
+    return socket_listen(&res->as.socket, n);
+}
+// TODO: strace
+intptr_t sys_connect(uintptr_t sockfd, const struct sockaddr* addr, size_t addrlen) {
+    Process* current = current_process();
+    Resource* res = resource_find_by_id(current->resources, sockfd);
+    if(!res) return -INVALID_HANDLE;
+    if(res->kind != RESOURCE_SOCKET) return -INVALID_TYPE;
+    return socket_connect(&res->as.socket, addr, addrlen);
 }

@@ -42,6 +42,7 @@
 #include "interrupt.h"
 #include "general_caches.h"
 #include "epoll.h"
+#include "sockets/minos.h"
 
 #include "term/fb/fb.h"
 // TODO: create a symlink "/devices/keyboard" which will be a link to the currently selected keyboard
@@ -97,6 +98,7 @@ void _start() {
     // Caches
     init_cache_cache();
     assert(kernel.device_cache = create_new_cache(sizeof(Device), "Device"));
+    minos_socket_init_cache();
     init_epoll_cache();
     init_general_caches();
     init_charqueue();

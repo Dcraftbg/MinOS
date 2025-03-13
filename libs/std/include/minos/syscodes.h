@@ -24,4 +24,11 @@ enum {
     SYS_EPOLL_CREATE1,
     SYS_EPOLL_CTL,
     SYS_EPOLL_WAIT,
+    SYS_SOCKET,
+    SYS_SEND,
+    SYS_RECV,
+    SYS_ACCEPT,
+    SYS_BIND,
+    SYS_LISTEN,
+    SYS_CONNECT,
 };
