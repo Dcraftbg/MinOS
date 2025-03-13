@@ -29,6 +29,7 @@ static const char* status_map[STATUS_COUNT] = {
     [ADDR_SOCKET_FAMILY_MISMATCH] = "Mismatch between Address and socket family",
     [UNSUPPORTED_DOMAIN] = "Unsupported Domain",
     [UNSUPPORTED_SOCKET_TYPE] = "Unsupported Socket type",
+    [WOULD_BLOCK] = "Would Block",
 };
 // static_assert(STATUS_COUNT==ARRAY_LEN(status_map), "You need to update the status map!");
 const char* status_str(intptr_t status) {
