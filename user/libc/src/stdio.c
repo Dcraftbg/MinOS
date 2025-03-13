@@ -643,7 +643,8 @@ static const char* strerror_str_map[] = {
     [EADDRINUSE] = "Address in Use",
     [EIO]        = "IO Error",
     [EPERM]      = "Permission Denied",
-    [ENOENT]     = "Not Found"
+    [ENOENT]     = "Not Found",
+    [ENOSYS]     = "Function not implemented",
 };
 const char* strerror(int e) {
     if(e < 0) return "UNKNOWN";
