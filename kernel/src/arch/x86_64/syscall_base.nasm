@@ -25,6 +25,13 @@ extern sys_truncate
 extern sys_epoll_create1
 extern sys_epoll_ctl
 extern sys_epoll_wait
+extern sys_socket
+extern sys_send
+extern sys_recv
+extern sys_accept
+extern sys_bind
+extern sys_listen
+extern sys_connect
 %define KERNEL_UNSUPPORTED 7
 section .text
 global syscall_base
@@ -54,6 +61,13 @@ syscall_table:
    dq sys_epoll_create1
    dq sys_epoll_ctl
    dq sys_epoll_wait
+   dq sys_socket
+   dq sys_send
+   dq sys_recv
+   dq sys_accept
+   dq sys_bind
+   dq sys_listen
+   dq sys_connect
 syscall_table_end:
 section .text
 syscall_base:
