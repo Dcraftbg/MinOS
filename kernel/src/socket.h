@@ -13,6 +13,8 @@ struct SocketOps {
     intptr_t (*listen)(Socket* sock, size_t n);
     intptr_t (*connect)(Socket* sock, const struct sockaddr* addr, size_t addrlen);
 };
+// TODO: Think about: maybe its a good idea to have a connection pool and backlog here
+// as its the same for most sockets but then again I'm not entirely sure
 struct Socket {
     sa_family_t family;
     void* priv;
