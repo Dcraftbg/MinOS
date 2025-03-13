@@ -14,14 +14,19 @@ static MinOSSocket* minos_socket_new(void) {
     memset(socket, 0, sizeof(*socket));
     return socket;
 }
+static bool contains_null(const char* str, size_t n) {
+    for(size_t i = 0; i < n; ++i) {
+        if(str[i] == '\0') return true;
+    }
+    return false;
+}
 static intptr_t minos_bind(Socket* sock, struct sockaddr* addr, size_t addrlen) {
     if(addrlen != sizeof(struct sockaddr_minos)) return -SIZE_MISMATCH;
     if(addr->sa_family != AF_MINOS) return -ADDR_SOCKET_FAMILY_MISMATCH;
+    if(!contains_null(((MinOSSocket*)sock->priv)->addr, SOCKADDR_MINOS_PATH_MAX)) return -INVALID_PATH;
     // TODO: verify the path is null terminated
     memcpy(((MinOSSocket*)sock->priv)->addr, ((struct sockaddr_minos*)addr)->sminos_path, SOCKADDR_MINOS_PATH_MAX);
-    kwarn("TODO: actually register %s in the file system", ((struct sockaddr_minos*)addr)->sminos_path);
-    // TODO: actually register it in the file system
-    return 0;
+    return vfs_socket_create_abs(((MinOSSocket*)sock->priv)->addr, sock);
 }
 static intptr_t minos_close_unspec(Socket* sock) {
     cache_dealloc(minos_socket_cache, sock->priv);
