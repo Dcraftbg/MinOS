@@ -32,17 +32,68 @@ static intptr_t minos_close_unspec(Socket* sock) {
     cache_dealloc(minos_socket_cache, sock->priv);
     return 0;
 }
+static intptr_t minos_accept(Socket* sock, Socket* result, struct sockaddr* addr, size_t *addrlen) {
+    (void)sock;
+    (void)result;
+    (void)addr;
+    (void)addrlen;
+    kwarn("TBD minos_accept!");
+    return -PERMISION_DENIED;
+}
 static SocketOps minos_server_ops = {
-    NULL
+    .accept = minos_accept
 };
 static SocketOps minos_client_ops = {
     NULL
 };
+// TODO: Maybe round up N to the nearest page. I'm not sure
+static intptr_t minos_cp_reserve_exact(MinOSConnectionPool* cp, size_t n) {
+    void* old_items = cp->items;
+    cp->items = kernel_malloc(n * sizeof(*cp->items));
+    if(!cp->items) {
+        cp->items = old_items;
+        return -NOT_ENOUGH_MEM;
+    }
+    cp->cap = n;
+    if(old_items) kernel_dealloc(old_items, n * sizeof(*cp->items));
+    return 0;
+}
+static intptr_t minos_cp_reserve(MinOSConnectionPool* cp, size_t extra) {
+    if(cp->len + extra >= MINOS_SOCKET_MAX_CONNECTIONS) return -LIMITS;
+    intptr_t e = 0;
+    if(cp->len + extra > cp->cap) e = minos_cp_reserve_exact(cp, cp->cap * 2 + extra);
+    return e;
+}
 static intptr_t minos_listen(Socket* sock, size_t n) {
-    (void)n;
+    intptr_t e;
+    MinOSServer* server = sock->priv;
+#if 0 // <- Debug testing I guess
+    if(strlen(server->addr) == 0) {
+        // TODO: better error status for this:
+        kwarn("minos socket: called listen before bind!");
+        return -INVALID_TYPE;
+    }
+#endif
+    if(n > MINOS_SOCKET_MAX_CONNECTIONS) {
+        kwarn("minos socket: called listen with n (%zu) > %zu", n, MINOS_SOCKET_MAX_CONNECTIONS);
+        return -LIMITS;
+    }
+
+    rwlock_begin_write(&server->pools[MINOS_POOL_BACKLOGGED].lock);
+    if(server->pools[MINOS_POOL_BACKLOGGED].len > n) {
+        kwarn("minos socket: called listen but backlog is bigger");
+        rwlock_end_write(&server->pools[MINOS_POOL_BACKLOGGED].lock);
+        return -LIMITS;
+    }
+    if(server->pools[MINOS_POOL_BACKLOGGED].cap < n) {
+        if((e=minos_cp_reserve_exact(&server->pools[MINOS_POOL_BACKLOGGED], n)) < 0) {
+            rwlock_end_write(&server->pools[MINOS_POOL_BACKLOGGED].lock);
+            return e;
+        }
+    }
+    rwlock_end_write(&server->pools[MINOS_POOL_BACKLOGGED].lock);
     sock->ops = &minos_server_ops;
-    kwarn("TBD minos_listen");
-    return -UNSUPPORTED;
+    return 0;
 }
 static intptr_t minos_connect(Socket* sock, const struct sockaddr* addr, size_t addrlen) {
     (void)sock;

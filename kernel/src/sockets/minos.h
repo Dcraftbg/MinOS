@@ -18,6 +18,7 @@ enum {
     MINOS_POOL_CONNECTED,
     MINOS_POOL_COUNT
 };
+#define MINOS_SOCKET_MAX_CONNECTIONS ((4*PAGE_SIZE)/sizeof(MinOSClient))
 struct MinOSServer {
     char addr[SOCKADDR_MINOS_PATH_MAX];
     MinOSConnectionPool pools[MINOS_POOL_COUNT];
