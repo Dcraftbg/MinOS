@@ -59,8 +59,8 @@ static intptr_t minos_accept(Socket* sock, Socket* result, struct sockaddr* addr
         return -WOULD_BLOCK;
     }
     MinOSClient* client = server->pools[MINOS_POOL_BACKLOGGED].items[0];
-    sock->priv = client;
-    sock->ops = &minos_client_ops;
+    result->priv = client;
+    result->ops = &minos_client_ops;
     server->pools[MINOS_POOL_BACKLOGGED].len--;
     memmove(server->pools, server->pools + 1, server->pools[MINOS_POOL_BACKLOGGED].len * sizeof(server->pools[0]));
     rwlock_end_write(&server->pools[MINOS_POOL_BACKLOGGED].lock);
