@@ -37,6 +37,7 @@ void resource_remove(ResourceBlock* first, size_t id) {
     block->data[id] = NULL;
 }
 Resource* resource_add(ResourceBlock* block, size_t* id) {
+    *id = 0;
     debug_assert(block);
     debug_assert(id);
     while(block->occupied == RESOURCES_PER_BLOCK) {
