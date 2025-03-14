@@ -18,3 +18,4 @@ struct sockaddr_minos {
     /* only used for client address */
     size_t sminos_pid;
 };
+#define _sockaddr_max sizeof(union { struct sockaddr _any; struct sockaddr_minos _minos; })
