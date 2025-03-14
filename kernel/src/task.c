@@ -57,9 +57,14 @@ static Task* task_select(Task* ct) {
     Task* task = (Task*)(ct->list.next);
     while(task != ct) {
         if(task == (Task*)&kernel.tasks.prev || task->id == 0) goto skip;
-        if((task->image.flags & TASK_FLAG_BLOCKING) && task->image.blocker.try_resolve(&task->image.blocker, task)) {
-            task->image.flags &= ~TASK_FLAG_BLOCKING;
-            return task;
+        if((task->image.flags & TASK_FLAG_BLOCKING)) {
+            // I have been burnt by this shit already. I don't care if the assertion
+            // is slightly slower
+            debug_assert(task->image.blocker.try_resolve);
+            if(task->image.blocker.try_resolve(&task->image.blocker, task)) {
+                task->image.flags &= ~TASK_FLAG_BLOCKING;
+                return task;
+            }
         }
         if(task->image.flags & TASK_FLAG_PRESENT && (task->image.flags & TASK_FLAG_RUNNING) == 0)
             return task;
