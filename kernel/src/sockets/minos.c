@@ -2,6 +2,7 @@
 #include <assert.h>
 #include <mem/slab.h>
 #include <minos/status.h>
+#include <fs/tmpfs/tmpfs.h>
 #include "log.h"
 // TODO: Maybe round up N to the nearest page. I'm not sure
 static intptr_t minos_cp_reserve_exact(MinOSConnectionPool* cp, size_t n) {
@@ -106,9 +107,50 @@ static intptr_t minos_connect(Socket* sock, const struct sockaddr* addr, size_t 
     (void)sock;
     (void)addr;
     (void)addrlen;
+    MinOSClient* mc = sock->priv;
+    if(addrlen != sizeof(struct sockaddr_minos) || addr->sa_family != AF_MINOS) return -INVALID_PARAM;
+    if(!contains_null(((struct sockaddr_minos*)addr)->sminos_path, SOCKADDR_MINOS_PATH_MAX)) return -INVALID_PATH;
+    Path path;
+    intptr_t e = parse_abs(((struct sockaddr_minos*)addr)->sminos_path, &path);
+    if(e < 0) return e;
+    Inode* inode;
+    if((e=vfs_find(&path, &inode)) < 0) return e;
+    if(inode->superblock->fs != &tmpfs) {
+        idrop(inode);
+        return -INVALID_PATH;
+    }
+    if(inode->kind != INODE_MINOS_SOCKET) {
+        idrop(inode);
+        return -INVALID_TYPE;
+    }
+    Socket* server_socket = tmpfs_get_socket(inode);
+    idrop(inode);
+    assert(server_socket);
+    assert(server_socket->family == AF_MINOS);
+    if(server_socket->ops == &minos_client_ops) {
+        kwarn("minos_connect tried to connect to client socket");
+        return -INVALID_TYPE;
+    }
+    // FIXME: WOULD_BLOCK here and a thread blocker
+    while(server_socket->ops != &minos_server_ops) {
+        kwarn("server_socket->ops = %p", server_socket->ops);
+        asm volatile("hlt");
+    }
+    MinOSServer* server = server_socket->priv;
+    rwlock_begin_write(&server->pools[MINOS_POOL_BACKLOGGED].lock);
+    if(server->pools[MINOS_POOL_BACKLOGGED].len >= server->pools[MINOS_POOL_BACKLOGGED].cap) {
+        rwlock_end_write(&server->pools[MINOS_POOL_BACKLOGGED].lock);
+        // TODO: better status message for this
+        return -BUFFER_TOO_SMALL;
+    }
+    size_t idx = server->pools[MINOS_POOL_BACKLOGGED].len++;
+    mc->server = server;
+    mc->server_pool = MINOS_POOL_BACKLOGGED;
+    mc->server_idx = idx;
+    server->pools[MINOS_POOL_BACKLOGGED].items[idx] = mc;
+    rwlock_end_write(&server->pools[MINOS_POOL_BACKLOGGED].lock);
     sock->ops = &minos_client_ops;
-    kwarn("TBD minos_connect");
-    return -UNSUPPORTED;
+    return 0;
 }
 static intptr_t minos_close_unspec(Socket* sock) {
     cache_dealloc(minos_socket_cache, sock->priv);
@@ -122,6 +164,7 @@ static SocketOps minos_socket_init_ops = {
 };
 intptr_t minos_socket_init(Socket* sock) {
     if(!(sock->priv = minos_socket_new())) return -NOT_ENOUGH_MEM;
+    sock->family = AF_MINOS;
     sock->ops = &minos_socket_init_ops;
     return 0;
 }
