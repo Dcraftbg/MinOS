@@ -647,7 +647,10 @@ intptr_t sys_recv(uintptr_t sockfd,       void *buf, size_t len) {
     Resource* res = resource_find_by_id(current->resources, sockfd);
     if(!res) return -INVALID_HANDLE;
     if(res->kind != RESOURCE_SOCKET) return -INVALID_TYPE;
-    return socket_recv(&res->as.socket, buf, len);
+    intptr_t e;
+    if(res->flags & FFLAGS_NONBLOCK) e = socket_recv(&res->as.socket, buf, len);
+    else while((e = socket_recv(&res->as.socket, buf, len)) == -WOULD_BLOCK) asm volatile("hlt"); // <- TODO: thread yield        
+    return e;
 }
 
 // TODO: strace
