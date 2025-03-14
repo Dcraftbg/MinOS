@@ -90,6 +90,11 @@ intptr_t tmpfs_socket_creat(Inode* parent, Socket* sock, const char* name, size_
     }
     return 0;
 }
+Socket* tmpfs_get_socket(Inode* inode) {
+    if(inode->kind != INODE_MINOS_SOCKET) return NULL;
+    TmpfsInode* tmp_inode = inode->priv;
+    return (Socket*)tmp_inode->data;
+}
 // TODO: Check whether entry already exists or not
 static intptr_t tmpfs_creat(Inode* parent, const char* name, size_t namelen, oflags_t flags) {
     if(parent->kind != INODE_DIR) return -IS_NOT_DIRECTORY;
