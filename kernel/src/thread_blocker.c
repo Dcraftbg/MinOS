@@ -39,8 +39,8 @@ intptr_t block_accept(Task* task, Socket* sock, Socket* result, struct sockaddr*
     task->image.blocker.as.accept.result = result;
     task->image.blocker.try_resolve = try_resolve_accept;
     task_block(task);
-    *addrlen = task->image.blocker.as.accept.addrlen;
-    memcpy(addr, task->image.blocker.as.accept.addr_buf, task->image.blocker.as.accept.addrlen);
+    if(addrlen) *addrlen = task->image.blocker.as.accept.addrlen;
+    if(addr) memcpy(addr, task->image.blocker.as.accept.addr_buf, task->image.blocker.as.accept.addrlen);
     return task->image.blocker.as.accept.e;
 }
 void block_sleepuntil(Task* task, size_t until) {
