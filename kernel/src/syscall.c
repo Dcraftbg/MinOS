@@ -656,11 +656,14 @@ intptr_t sys_accept(uintptr_t sockfd, struct sockaddr* addr, size_t *addrlen) {
     Resource* res = resource_find_by_id(current->resources, sockfd);
     if(!res) return -INVALID_HANDLE;
     if(res->kind != RESOURCE_SOCKET) return -INVALID_TYPE;
+    // TODO: verify addrlen + addr
     size_t id;
     Resource* result = resource_add(current->resources, &id);
     if(!result) return -NOT_ENOUGH_MEM;
     result->kind = RESOURCE_SOCKET;
-    intptr_t e = socket_accept(&res->as.socket, &result->as.socket, addr, addrlen);
+    intptr_t e;
+    if(res->flags & FFLAGS_NONBLOCK) e = socket_accept(&res->as.socket, &result->as.socket, addr, addrlen);
+    else e = block_accept(current_task(), &res->as.socket, &result->as.socket, addr, addrlen);
     if(e < 0) {
         resource_remove(current->resources, id);
         return e;
