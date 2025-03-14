@@ -8,6 +8,7 @@
 #include <stdatomic.h>
 #include "epoll.h"
 #include "socket.h"
+#include <minos/fsdefs.h>
 enum {
     RESOURCE_INODE=1,
     RESOURCE_EPOLL,
@@ -16,6 +17,7 @@ enum {
 typedef uint32_t resourcekind_t;
 typedef struct {
     resourcekind_t kind;
+    fflags_t flags;
     atomic_size_t shared;
     struct {
         struct {
