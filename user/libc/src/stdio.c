@@ -64,6 +64,11 @@ static ssize_t status_map[] = {
     [INVALID_PATH]       = EINVAL,
     [IS_NOT_DIRECTORY]   = ENOTDIR,
     [BUFFER_TOO_SMALL]   = ENOBUFS,
+    [TIMEOUT_REACHED]    = ETIME,
+    [ADDR_SOCKET_FAMILY_MISMATCH] = EINVAL,
+    [UNSUPPORTED_DOMAIN] = EDOM,
+    [UNSUPPORTED_SOCKET_TYPE] = EINVAL,
+    [WOULD_BLOCK]        = EWOULDBLOCK,
 };
 ssize_t _status_to_errno(intptr_t status) {
     if(status >= 0) return 0;
