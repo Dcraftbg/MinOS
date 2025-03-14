@@ -15,7 +15,6 @@ enum {
     O_TRUNC    =0b100,
 };
 typedef uint32_t oflags_t;
-
 enum {
     SEEK_START,
     SEEK_CURSOR,
@@ -45,3 +44,7 @@ typedef struct {
     inodekind_t kind;
     char name[];
 } DirEntry;
+typedef uint32_t fflags_t;
+enum {
+    FFLAGS_NONBLOCK,
+};
