@@ -99,6 +99,11 @@ static SocketOps minos_client_ops = {
     .recv = minos_recv,
     .send = minos_send,
 };
+// FIXME: close
+struct SocketOps minos_server_client_ops = {
+    .recv = minos_recv,
+    .send = minos_send,
+};
 // Server Ops
 static intptr_t minos_accept(Socket* sock, Socket* result, struct sockaddr* addr, size_t *addrlen) {
     MinOSServer* server = sock->priv;
@@ -109,7 +114,7 @@ static intptr_t minos_accept(Socket* sock, Socket* result, struct sockaddr* addr
     }
     MinOSClient* client = server->pools[MINOS_POOL_BACKLOGGED].items[0];
     result->priv = client;
-    result->ops = &minos_client_ops;
+    result->ops = &minos_server_client_ops;
     server->pools[MINOS_POOL_BACKLOGGED].len--;
     memmove(server->pools, server->pools + 1, server->pools[MINOS_POOL_BACKLOGGED].len * sizeof(server->pools[0]));
     rwlock_end_write(&server->pools[MINOS_POOL_BACKLOGGED].lock);
