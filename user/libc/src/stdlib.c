@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <string.h>
+#include <ctype.h>
 #include <minos/sysstd.h>
 #include <strinternal.h>
 #include <collections/list.h>
@@ -222,9 +223,41 @@ long labs(long num) {
 long long llabs(long long num) {
     return num < 0 ? -num : num;
 }
-long int strtol (const char* str, char** endptr, int base) {
-    fprintf(stderr, "I need to implement strtol. I'm too lazy rn: %s %p %d\n", str, endptr, base);
-    exit(1);
+long strtol(const char* nptr, char** endptr, int base) {
+    return strtoll(nptr, endptr, base);
+}
+
+long long strtoll(const char* nptr, char** endptr, int base) {
+    if(base == 0) {
+        if(nptr[0] == '0' && nptr[1] == 'x') base = 16;
+        else if(nptr[0] == '0') base = 8;
+        else base = 10;
+    }
+    assert(base >= 2);
+    while(isspace(*nptr)) nptr++;
+    long long sign = 1;
+    if(nptr[0] == '-') {
+        sign = -1;
+        nptr++;
+    }
+    if(base == 16 && nptr[0] == '0' && nptr[1] == 'x') nptr += 2;
+    long long result = 0;
+    while(*nptr) {
+        unsigned long long d = 10000;
+        char c = *nptr;
+        if(c >= '0' && c <= '9') d = c-'0';
+        else if (c >= 'A' && c <= 'Z') d = c-'A' + 10;
+        else if (c >= 'a' && c <= 'z') d = c-'a' + 10;
+        if(d >= base) {
+            if(endptr) *endptr = (char*)nptr;
+            return result;
+        }
+        result *= (unsigned long long)base;
+        result += d * sign;
+        nptr++;
+    }
+    if(endptr) *endptr = (char*)nptr;
+    return result;
 }
 
 static void qsort_swap(void* p1, void* p2, size_t size) {
@@ -275,5 +308,50 @@ void *bsearch(const void *key, const void *base, size_t nitems, size_t size, int
 
 char *mktemp(char *templat) {
     fprintf(stderr, "mktemp() is a stub\n");
+    exit(1);
+}
+
+char *realpath(const char *path, char *resolved_path) {
+    fprintf(stderr, "realpath() is a stub\n");
+    exit(1);
+}
+
+unsigned long strtoul(const char *nptr, char **endptr, int base) {
+    return strtoull(nptr, endptr, base);
+}
+unsigned long long strtoull(const char *nptr, char **endptr, int base) {
+    if(base == 0) {
+        if(nptr[0] == '0' && nptr[1] == 'x') base = 16;
+        else if(nptr[0] == '0') base = 8;
+        else base = 10;
+    }
+    assert(base >= 2);
+    while(isspace(*nptr)) nptr++;
+    if(base == 16 && nptr[0] == '0' && nptr[1] == 'x') nptr += 2;
+    unsigned long long result = 0;
+    while(*nptr) {
+        unsigned long long d = 10000;
+        char c = *nptr;
+        if(c >= '0' && c <= '9') d = c-'0';
+        else if (c >= 'A' && c <= 'Z') d = c-'A' + 10;
+        else if (c >= 'a' && c <= 'z') d = c-'a' + 10;
+        if(d >= base) {
+            if(endptr) *endptr = (char*)nptr;
+            return result;
+        }
+        result *= (unsigned long long)base;
+        result += d;
+        nptr++;
+    }
+    if(endptr) *endptr = (char*)nptr;
+    return result;
+}
+
+double strtold(const char *nptr, char **endptr) {
+    fprintf(stderr, "strtold() is a stub\n");
+    exit(1);
+}
+float strtof(const char *nptr, char **endptr) {
+    fprintf(stderr, "strtof() is a stub\n");
     exit(1);
 }

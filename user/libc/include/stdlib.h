@@ -9,7 +9,6 @@ void* realloc(void* ptr, size_t newsize);
 void free(void* addr);
 void _libc_internal_init_heap();
 void abort() __attribute__ ((noreturn));
-long int strtol (const char* str, char** endptr, int base);
 
 int atoi(const char *str);
 float atof(const char *str);
@@ -20,5 +19,13 @@ void qsort(void* ptr, size_t count, size_t size, int (*comp)(const void*, const 
 int system(const char* command);
 void *bsearch(const void *key, const void *base, size_t nitems, size_t size, int (*compar)(const void *, const void *));
 char *mktemp(char *templat);
+char *realpath(const char *path, char *resolved_path);
+
+long strtol(const char* nptr, char** endptr, int base);
+long long strtoll(const char* nptr, char** endptr, int base);
+unsigned long strtoul(const char *nptr, char **endptr, int base);
+unsigned long long strtoull(const char *nptr, char **endptr, int base);
+double strtod(const char *nptr, char **endptr);
+float strtof(const char *nptr, char **endptr);
 #define EXIT_SUCCESS 0
 #define EXIT_FAILURE 1
