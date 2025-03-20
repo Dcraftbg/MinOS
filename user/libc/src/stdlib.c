@@ -39,20 +39,22 @@ bool libc_heap_extend(_LibcInternalHeap* heap, size_t extra) {
     intptr_t e;
     if((e=heap_extend(heap->id, page_extend)) < 0) return false;
     _HeapNode* end = (_HeapNode*)(heap->heap.address+heap->heap.size);
+    size_t n = heap->heap.size;
+    assert((e=heap_get(heap->id, &heap->heap)) >= 0);
     list_init(&end->list);
-    end->size = extra;
+    end->size = heap->heap.size-n-sizeof(_HeapNode);
     end->free = true;
     list_append(&end->list, heap->alloc_list.prev);
-    heap->heap.size += extra;
     return true;
 }
 void* libc_heap_allocate_within(_LibcInternalHeap* heap, size_t size) {
     for(_HeapNode* node=(_HeapNode*)heap->alloc_list.next; &node->list != &heap->alloc_list; node = (_HeapNode*)node->list.next) {
         if(node->size >= size && node->free) {
             size_t left = node->size-size;
+            _HeapNode* next = NULL;
             if(left > MIN_HEAP_BLOCK_SIZE) {
+                next = (_HeapNode*)(node->data+size);
                 // TODO: Align to 16
-                _HeapNode* next = (_HeapNode*)(node->data+size);
                 list_init(&next->list);
                 next->free = true;
                 next->size = left-sizeof(_HeapNode);
@@ -101,10 +103,20 @@ void libc_heap_deallocate(_LibcInternalHeap* heap, void* address) {
             assert((!node->free) && "Double free");
             node->free = true;
             _HeapNode* next = (_HeapNode*)node->list.next;
-            assert((char*)next == node->data+node->size);
-            if(&next->list != &heap->alloc_list && next->free) {
+            while(&next->list != &heap->alloc_list && next->free) {
+                struct list* next_ptr = next->list.next;
                 list_remove(&next->list);
-                node->size+=next->size+sizeof(_HeapNode);
+                assert((char*)next == node->data+node->size);
+                node->size += next->size + sizeof(_HeapNode);
+                next = (_HeapNode*)next_ptr;
+            }
+            _HeapNode* prev = (_HeapNode*)node->list.prev;
+            while(&prev->list != &heap->alloc_list && prev->free) {
+                assert((char*)node == prev->data+prev->size);
+                prev->size += node->size + sizeof(_HeapNode);
+                list_remove(&node->list);
+                node = prev;
+                prev = (_HeapNode*)node->list.prev;
             }
             return;
         }
