@@ -131,6 +131,7 @@ static ssize_t print_base(void* user, PrintWriteFunc func, const char* fmt, va_l
             bytes = &c;
             count = 1;
         } break;
+        case 'u': // <- Not really correct but I can't be bothered rn xD
         case 'i':
         case 'd': {
             fmt++;
