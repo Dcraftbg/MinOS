@@ -111,6 +111,18 @@ static ssize_t print_base(void* user, PrintWriteFunc func, const char* fmt, va_l
         fmt=end;
         char ibuf[30];
 
+        // TODO: use precision
+        if(*fmt == '.') {
+            int prec = 0;
+            fmt++;
+            if(*fmt == '*') {
+                prec = va_arg(list, int);
+            } else {
+                prec = atoi_internal(fmt, &end);
+                fmt = end;
+            }
+            (void)prec;
+        }
         switch(*fmt) {
         case '%':
             fmt++;
