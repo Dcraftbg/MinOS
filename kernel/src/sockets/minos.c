@@ -180,12 +180,12 @@ static intptr_t minos_connect(Socket* sock, const struct sockaddr* addr, size_t 
     idrop(inode);
     assert(server_socket);
     assert(server_socket->family == AF_MINOS);
-    if(server_socket->ops == &minos_client_ops) {
-        kwarn("minos_connect tried to connect to client socket");
-        return -INVALID_TYPE;
-    }
     // FIXME: WOULD_BLOCK here and a thread blocker
     while(server_socket->ops != &minos_server_ops) {
+        if(server_socket->ops == &minos_client_ops) {
+            kwarn("minos_connect tried to connect to client socket");
+            return -INVALID_TYPE;
+        }
         kwarn("server_socket->ops = %p", server_socket->ops);
         asm volatile("hlt");
     }
