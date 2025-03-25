@@ -72,6 +72,13 @@ static intptr_t minos_bind(Inode* sock, struct sockaddr* addr, size_t addrlen) {
 }
 
 // Client Ops
+static intptr_t minos_is_writable(MinOSClient* mc, MinOSData* data, Mutex* mutex) {
+    if(mc->closed) return true;
+    mutex_lock(mutex);
+    size_t n = data->len;
+    mutex_unlock(mutex);
+    return n < MINOS_SOCKET_MAX_DATABUF;
+}
 static intptr_t minos_write(MinOSClient* mc, MinOSData* data, Mutex* mutex, const void* buf, size_t size) {
     mutex_lock(mutex);
     intptr_t e;
@@ -91,10 +98,18 @@ static intptr_t minos_write(MinOSClient* mc, MinOSData* data, Mutex* mutex, cons
     mutex_unlock(mutex);
     return size;
 }
+static bool minos_client_is_writable(Inode* sock) {
+    MinOSClient* mc = &((MinOSSocket*)sock->priv)->client;
+    return minos_is_writable(mc, &mc->client_write_buf, &mc->client_write_buf_lock);
+}
 static intptr_t minos_client_write(Inode* sock, const void* data, size_t size, off_t _off) {
     (void)_off;
     MinOSClient* mc = &((MinOSSocket*)sock->priv)->client;
     return minos_write(mc, &mc->client_write_buf, &mc->client_write_buf_lock, data, size);
+}
+static bool minos_server_client_is_writable(Inode* sock) {
+    MinOSClient* mc = &((MinOSSocket*)sock->priv)->client;
+    return minos_is_writable(mc, &mc->client_read_buf, &mc->client_read_buf_lock);
 }
 static intptr_t minos_server_client_write(Inode* sock, const void* data, size_t size, off_t _off) {
     (void)_off;
