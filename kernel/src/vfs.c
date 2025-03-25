@@ -21,14 +21,19 @@ Inode* iget(Inode* inode) {
     inode->shared++;
     return inode;
 }
+void idestroy(Inode* inode) {
+    inode_cleanup(inode);
+    cache_dealloc(kernel.inode_cache, inode);
+}
 void idrop(Inode* inode) {
     debug_assert(inode->shared);
     if(inode->shared == 1) {
-        mutex_lock(&inode->superblock->inodemap_lock);
-        assert(inodemap_remove(&inode->superblock->inodemap, inode->id));
-        mutex_unlock(&inode->superblock->inodemap_lock);
-        inode_cleanup(inode);
-        cache_dealloc(kernel.inode_cache, inode);
+        if(inode->superblock) {
+            mutex_lock(&inode->superblock->inodemap_lock);
+            assert(inodemap_remove(&inode->superblock->inodemap, inode->id));
+            mutex_unlock(&inode->superblock->inodemap_lock);
+        }
+        idestroy(inode);
         return;
     }
     inode->shared--;
@@ -53,7 +58,7 @@ intptr_t fetch_inode(Superblock* sb, inodeid_t id, Inode** result) {
     }
     if(!inodemap_insert(&sb->inodemap, id, *result)) {
         mutex_unlock(&sb->inodemap_lock);
-        idrop(*result);
+        idestroy(*result);
         return -NOT_ENOUGH_MEM;
     }
     mutex_unlock(&sb->inodemap_lock);
@@ -112,7 +117,24 @@ intptr_t inode_stat(Inode* inode, Stats* stats) {
     if(!inode->ops->stat) return -UNSUPPORTED;
     return inode->ops->stat(inode, stats);
 }
-
+// Socket Wrappers
+intptr_t inode_accept(Inode* sock, Inode* result, struct sockaddr* addr, size_t *addrlen) {
+    if(!sock->ops->accept) return -UNSUPPORTED;
+    return sock->ops->accept(sock, result, addr, addrlen);
+}
+intptr_t inode_bind(Inode* sock, struct sockaddr* addr, size_t addrlen) {
+    if(!sock->ops->bind) return -UNSUPPORTED;
+    return sock->ops->bind(sock, addr, addrlen);
+}
+intptr_t inode_listen(Inode* sock, size_t n) {
+    if(!sock->ops->listen) return -UNSUPPORTED;
+    return sock->ops->listen(sock, n);
+}
+intptr_t inode_connect(Inode* sock, const struct sockaddr* addr, size_t addrlen) {
+    if(!sock->ops->connect) return -UNSUPPORTED;
+    return sock->ops->connect(sock, addr, addrlen);
+}
+// end Socket Wrappers
 bool inode_is_readable(Inode* inode) {
     if(!inode->ops->is_readable) return true;
     return inode->ops->is_readable(inode);
@@ -192,7 +214,7 @@ intptr_t vfs_register_device(const char* name, Device* device) {
     idrop(devices);
     return e;
 }
-intptr_t vfs_socket_create(Path* path, Socket* sock) {
+intptr_t vfs_socket_create(Path* path, Inode* sock) {
     intptr_t e;
     const char* pathend;
     Inode* parent;

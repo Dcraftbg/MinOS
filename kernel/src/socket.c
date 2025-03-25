@@ -7,33 +7,34 @@ SocketFamily socket_families[_AF_COUNT] = {
     [AF_UNSPEC] = { NULL },
     [AF_MINOS ] = { minos_socket_init }
 };
-// Wrappers
-intptr_t socket_send(Socket* sock, const void* data, size_t size) {
-    if(!sock->ops->send) return -UNSUPPORTED;
-    return sock->ops->send(sock, data, size);
+
+#if 0
+static intptr_t socket_get_inode(Superblock* sb, inodeid_t id, Inode** result) {
+    (void)sb;
+    *result = (Inode*)id;
+    return 0;
 }
-intptr_t socket_recv(Socket* sock,       void* data, size_t size) {
-    if(!sock->ops->recv) return -UNSUPPORTED;
-    return sock->ops->recv(sock, data, size);
+static SuperblockOps socket_ops = {
+    .get_inode = socket_get_inode,
+};
+Superblock socket_sb = {
+    .fs = NULL,
+    .root = 0,
+    .ops = &socket_ops
+};
+Inode* new_socket_inode(void) {
+    Inode* inode = new_inode();
+    // Not really correct but ykwim
+    inode->kind = INODE_MINOS_SOCKET;
+    inode->superblock = &socket_sb;
+    mutex_lock(&socket_sb->inodemap_lock);
+    if(!inodemap_insert(&socket_sb, (inodeid_t)inode, inode)) {
+        mutex_unlock(&socket_sb->inodemap_lock);
+        idestroy(inode);
+        return NULL;
+    }
+    mutex_unlock(&socket_sb->inodemap_lock);
+    inode->id = (inodeid_t)inode;
+    return inode;
 }
-intptr_t socket_accept(Socket* sock, Socket* result, struct sockaddr* addr, size_t *addrlen) {
-    if(!sock->ops->accept) return -UNSUPPORTED;
-    return sock->ops->accept(sock, result, addr, addrlen);
-}
-intptr_t socket_close(Socket* sock) {
-    if(!sock->ops->close) return -UNSUPPORTED;
-    return sock->ops->close(sock);
-}
-intptr_t socket_bind(Socket* sock, struct sockaddr* addr, size_t addrlen) {
-    if(!sock->ops->bind) return -UNSUPPORTED;
-    return sock->ops->bind(sock, addr, addrlen);
-}
-intptr_t socket_listen(Socket* sock, size_t n) {
-    if(!sock->ops->listen) return -UNSUPPORTED;
-    return sock->ops->listen(sock, n);
-}
-intptr_t socket_connect(Socket* sock, const struct sockaddr* addr, size_t addrlen) {
-    if(!sock->ops->connect) return -UNSUPPORTED;
-    return sock->ops->connect(sock, addr, addrlen);
-}
-// end Wrappers
+#endif

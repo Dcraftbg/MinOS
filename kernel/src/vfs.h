@@ -3,6 +3,7 @@
 #include <stddef.h>
 #include <minos/status.h>
 #include <minos/fsdefs.h>
+#include <minos/socket.h>
 #include <collections/list.h>
 #include "utils.h"
 #include "page.h"
@@ -68,28 +69,41 @@ struct InodeOps {
     // Ops for directories
     intptr_t (*creat)(Inode* parent, const char* name, size_t namelen, oflags_t flags);
     intptr_t (*get_dir_entries)(Inode* dir, DirEntry* entries, size_t size, off_t offset, size_t* read_bytes);
-    intptr_t (*find)(Inode* dir, const char* name, size_t namelen, inodeid_t* id);
+    intptr_t (*find)(Inode* dir, const char* name, size_t namelen, Inode** inode);
     // Ops for files
     intptr_t (*read) (Inode* file, void* buf, size_t size, off_t offset);
     intptr_t (*write)(Inode* file, const void* buf, size_t size, off_t offset);
     intptr_t (*ioctl)(Inode* file, Iop op, void* arg);
     intptr_t (*mmap)(Inode* file, MmapContext* context, void** addr, size_t size_pages);
     intptr_t (*truncate)(Inode* file, size_t size);
+    // Sockets
+    intptr_t (*accept)(Inode* sock, Inode* result, struct sockaddr* addr, size_t *addrlen);
+    intptr_t (*bind)(Inode* sock, struct sockaddr* addr, size_t addrlen);
+    intptr_t (*listen)(Inode* sock, size_t n);
+    intptr_t (*connect)(Inode* sock, const struct sockaddr* addr, size_t addrlen);
+    // General API
+    void (*cleanup)(Inode* inode); 
     bool (*is_readable)(Inode* file);
     bool (*is_writeable)(Inode* file);
     intptr_t (*stat)(Inode* inode, Stats* stats);
-    void (*cleanup)(Inode* inode); 
     // TODO: unlink which will free all memory of that inode. But only the inode itself, not its children (job of caller (vfs))
 };
-
+// Wrappers for directories
 intptr_t inode_creat(Inode* parent, const char* name, size_t namelen, oflags_t flags);
 intptr_t inode_get_dir_entries(Inode* dir, DirEntry* entries, size_t size, off_t offset, size_t* read_bytes);
 intptr_t inode_find(Inode* dir, const char* name, size_t namelen, Inode** inode);
+// Wrappers for files
 intptr_t inode_read(Inode* file, void* buf, size_t size, off_t offset);
 intptr_t inode_write(Inode* file, const void* buf, size_t size, off_t offset);
 intptr_t inode_ioctl(Inode* file, Iop op, void* arg);
 intptr_t inode_mmap(Inode* file, MmapContext* context, void** addr, size_t size_pages);
 intptr_t inode_truncate(Inode* file, size_t size);
+// Wrappers for Sockets
+intptr_t inode_accept(Inode* sock, Inode* result, struct sockaddr* addr, size_t *addrlen);
+intptr_t inode_bind(Inode* sock, struct sockaddr* addr, size_t addrlen);
+intptr_t inode_listen(Inode* sock, size_t n);
+intptr_t inode_connect(Inode* sock, const struct sockaddr* addr, size_t addrlen);
+// Wrappers for generic API
 intptr_t inode_stat(Inode* inode, Stats* stats);
 // By default returns true
 bool inode_is_readable(Inode* file); 
@@ -127,6 +141,9 @@ intptr_t vfs_register_device(const char* name, Device* device);
 // Inode* vfs_alloc_inode(Superblock* superblock);
 Inode* new_inode();
 Inode* iget(Inode* inode);
+
+// Internal function. Destroys inode but doesn't remove it from the superblock list
+void idestroy(Inode* inode);
 #if 0
 #define idrop(inode) _idrop(__func__, inode)
 void _idrop(const char* func, Inode* inode);
@@ -160,8 +177,8 @@ static intptr_t vfs_creat_abs(const char* path, oflags_t flags) {
 }
 
 typedef struct Socket Socket;
-intptr_t vfs_socket_create(Path* path, Socket* sock);
-static intptr_t vfs_socket_create_abs(const char* path, Socket* sock) {
+intptr_t vfs_socket_create(Path* path, Inode* sock);
+static intptr_t vfs_socket_create_abs(const char* path, Inode* sock) {
     Path abs;
     intptr_t e;
     if((e=parse_abs(path, &abs)) < 0) return e;

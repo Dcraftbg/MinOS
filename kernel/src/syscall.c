@@ -196,9 +196,6 @@ intptr_t sys_close(uintptr_t handle) {
         case RESOURCE_EPOLL:
             epoll_destroy(&res->as.epoll);
             break;
-        case RESOURCE_SOCKET:
-            socket_close(&res->as.socket);
-            break;
         }
     }
     resource_remove(current->resources, handle);
@@ -625,31 +622,39 @@ intptr_t sys_socket(uint32_t domain, uint32_t type, uint32_t prototype) {
     size_t id;
     Resource* res = resource_add(current->resources, &id);
     if(!res) return -NOT_ENOUGH_MEM;
-    res->kind = RESOURCE_SOCKET;
-    intptr_t e = family->init(&res->as.socket);
+    res->as.inode.inode = new_inode();
+    if(!res->as.inode.inode) {
+        resource_remove(current->resources, id);
+        return -NOT_ENOUGH_MEM;
+    }
+    res->as.inode.inode->kind = INODE_MINOS_SOCKET;
+    res->kind = RESOURCE_INODE;
+    intptr_t e = family->init(res->as.inode.inode);
     if(e < 0) {
+        idrop(res->as.inode.inode);
         resource_remove(current->resources, id);
         return e;
     }
     return id;
 }
+// TODO: Completely remove these:
 // TODO: strace
 intptr_t sys_send(uintptr_t sockfd, const void *buf, size_t len) {
     Process* current = current_process();
     Resource* res = resource_find_by_id(current->resources, sockfd);
     if(!res) return -INVALID_HANDLE;
-    if(res->kind != RESOURCE_SOCKET) return -INVALID_TYPE;
-    return socket_send(&res->as.socket, buf, len);
+    if(res->kind != RESOURCE_INODE) return -INVALID_TYPE;
+    return inode_write(res->as.inode.inode, buf, len, res->as.inode.offset);
 }
 // TODO: strace
 intptr_t sys_recv(uintptr_t sockfd,       void *buf, size_t len) {
     Process* current = current_process();
     Resource* res = resource_find_by_id(current->resources, sockfd);
     if(!res) return -INVALID_HANDLE;
-    if(res->kind != RESOURCE_SOCKET) return -INVALID_TYPE;
+    if(res->kind != RESOURCE_INODE) return -INVALID_TYPE;
     intptr_t e;
-    if(res->flags & FFLAGS_NONBLOCK) e = socket_recv(&res->as.socket, buf, len);
-    else while((e = socket_recv(&res->as.socket, buf, len)) == -WOULD_BLOCK) asm volatile("hlt"); // <- TODO: thread yield        
+    if(res->flags & FFLAGS_NONBLOCK) e = inode_read(res->as.inode.inode, buf, len, res->as.inode.offset);
+    else while((e = inode_read(res->as.inode.inode, buf, len, res->as.inode.offset)) == -WOULD_BLOCK) asm volatile("hlt"); // <- TODO: thread yield        
     return e;
 }
 
@@ -658,16 +663,22 @@ intptr_t sys_accept(uintptr_t sockfd, struct sockaddr* addr, size_t *addrlen) {
     Process* current = current_process();
     Resource* res = resource_find_by_id(current->resources, sockfd);
     if(!res) return -INVALID_HANDLE;
-    if(res->kind != RESOURCE_SOCKET) return -INVALID_TYPE;
+    if(res->kind != RESOURCE_INODE) return -INVALID_TYPE;
     // TODO: verify addrlen + addr
     size_t id;
     Resource* result = resource_add(current->resources, &id);
     if(!result) return -NOT_ENOUGH_MEM;
-    result->kind = RESOURCE_SOCKET;
+    result->kind = RESOURCE_INODE;
+    result->as.inode.inode = new_inode();
+    if(!result->as.inode.inode) {
+        resource_remove(current->resources, id);
+        return -NOT_ENOUGH_MEM;
+    }
     intptr_t e;
-    if(res->flags & FFLAGS_NONBLOCK) e = socket_accept(&res->as.socket, &result->as.socket, addr, addrlen);
-    else e = block_accept(current_task(), &res->as.socket, &result->as.socket, addr, addrlen);
+    if(res->flags & FFLAGS_NONBLOCK) e = inode_accept(res->as.inode.inode, result->as.inode.inode, addr, addrlen);
+    else e = block_accept(current_task(), res->as.inode.inode, result->as.inode.inode, addr, addrlen);
     if(e < 0) {
+        idrop(result->as.inode.inode);
         resource_remove(current->resources, id);
         return e;
     }
@@ -679,22 +690,22 @@ intptr_t sys_bind(uintptr_t sockfd, struct sockaddr* addr, size_t addrlen) {
     Process* current = current_process();
     Resource* res = resource_find_by_id(current->resources, sockfd);
     if(!res) return -INVALID_HANDLE;
-    if(res->kind != RESOURCE_SOCKET) return -INVALID_TYPE;
-    return socket_bind(&res->as.socket, addr, addrlen);
+    if(res->kind != RESOURCE_INODE) return -INVALID_TYPE;
+    return inode_bind(res->as.inode.inode, addr, addrlen);
 }
 // TODO: strace
 intptr_t sys_listen(uintptr_t sockfd, size_t n) {
     Process* current = current_process();
     Resource* res = resource_find_by_id(current->resources, sockfd);
     if(!res) return -INVALID_HANDLE;
-    if(res->kind != RESOURCE_SOCKET) return -INVALID_TYPE;
-    return socket_listen(&res->as.socket, n);
+    if(res->kind != RESOURCE_INODE) return -INVALID_TYPE;
+    return inode_listen(res->as.inode.inode, n);
 }
 // TODO: strace
 intptr_t sys_connect(uintptr_t sockfd, const struct sockaddr* addr, size_t addrlen) {
     Process* current = current_process();
     Resource* res = resource_find_by_id(current->resources, sockfd);
     if(!res) return -INVALID_HANDLE;
-    if(res->kind != RESOURCE_SOCKET) return -INVALID_TYPE;
-    return socket_connect(&res->as.socket, addr, addrlen);
+    if(res->kind != RESOURCE_INODE) return -INVALID_TYPE;
+    return inode_connect(res->as.inode.inode, addr, addrlen);
 }

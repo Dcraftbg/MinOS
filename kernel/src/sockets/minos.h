@@ -15,14 +15,13 @@ struct MinOSConnectionPool {
 };
 enum {
     MINOS_POOL_BACKLOGGED,
-    MINOS_POOL_CONNECTED,
     MINOS_POOL_COUNT
 };
 #define MINOS_SOCKET_MAX_CONNECTIONS ((4*PAGE_SIZE)/sizeof(MinOSClient*))
 #define MINOS_SOCKET_MAX_DATABUF     (4*PAGE_SIZE)
 struct MinOSServer {
     char addr[SOCKADDR_MINOS_PATH_MAX];
-    MinOSConnectionPool pools[MINOS_POOL_COUNT];
+    MinOSConnectionPool pending;
     // TODO: maybe have a RwLock thats 99% of the time read locked
     // and only on deletion is it write locked
 };
@@ -32,19 +31,18 @@ typedef struct {
 } MinOSData;
 struct MinOSClient {
     char addr[SOCKADDR_MINOS_PATH_MAX];
+    atomic_bool closed, pending; 
     MinOSData data;
     Mutex data_lock;
-    MinOSServer* server;
-    uint8_t server_pool; // Which pool are we in
-    size_t server_idx; // Which connection in the list are we
-    Mutex server_lock;
 };
 struct MinOSSocket {
     union {
-        char addr[SOCKADDR_MINOS_PATH_MAX];
+        struct {
+            char addr[SOCKADDR_MINOS_PATH_MAX];
+        };
         MinOSClient client;
         MinOSServer server;
     };
 };
-intptr_t minos_socket_init(Socket* sock);
+intptr_t minos_socket_init(Inode* sock);
 void minos_socket_init_cache(void);

@@ -56,7 +56,7 @@ static TmpfsInode* file_new(const char* name, size_t namelen) {
 static TmpfsInode* device_new(Device* device, const char* name, size_t namelen) {
     return tmpfs_new_inode(0, INODE_DEVICE, device, name, namelen);
 }
-static TmpfsInode* socket_new(Socket* sock, const char* name, size_t namelen) {
+static TmpfsInode* socket_new(Inode* sock, const char* name, size_t namelen) {
     return tmpfs_new_inode(0, INODE_MINOS_SOCKET, sock, name, namelen);
 }
 static intptr_t tmpfs_put(TmpfsInode* dir, TmpfsInode* entry) {
@@ -79,7 +79,7 @@ static intptr_t tmpfs_put(TmpfsInode* dir, TmpfsInode* entry) {
     dir->size++;
     return 0;
 }
-intptr_t tmpfs_socket_creat(Inode* parent, Socket* sock, const char* name, size_t namelen) {
+intptr_t tmpfs_socket_creat(Inode* parent, Inode* sock, const char* name, size_t namelen) {
     if(parent->kind != INODE_DIR) return -IS_NOT_DIRECTORY;
     TmpfsInode* inode = socket_new(sock, name, namelen);
     if(!inode) return -NOT_ENOUGH_MEM;
@@ -89,11 +89,6 @@ intptr_t tmpfs_socket_creat(Inode* parent, Socket* sock, const char* name, size_
         return e;
     }
     return 0;
-}
-Socket* tmpfs_get_socket(Inode* inode) {
-    if(inode->kind != INODE_MINOS_SOCKET) return NULL;
-    TmpfsInode* tmp_inode = inode->priv;
-    return (Socket*)tmp_inode->data;
 }
 // TODO: Check whether entry already exists or not
 static intptr_t tmpfs_creat(Inode* parent, const char* name, size_t namelen, oflags_t flags) {
@@ -275,7 +270,7 @@ static intptr_t tmpfs_find(Inode* dir, const char* name, size_t namelen, Inode**
         for(size_t i = 0; i < to_read; ++i) {
             TmpfsInode* entry = ((TmpfsInode**)head->data)[i];
             if(strlen(entry->name) == namelen && memcmp(entry->name, name, namelen) == 0) {
-                return fetch_inode(dir->superblock, (inodeid_t)entry, result);
+                return entry->kind == INODE_MINOS_SOCKET ? (*result = iget(entry->data), 0) : fetch_inode(dir->superblock, (inodeid_t)entry, result);
             }
         }
         head = head->next;
@@ -318,6 +313,10 @@ static InodeOps tmpfs_inode_ops = {
 static intptr_t tmpfs_get_inode(Superblock* sb, inodeid_t id, Inode** result) {
     intptr_t e;
     TmpfsInode* tmp_inode = (TmpfsInode*)id;
+    if(tmp_inode->kind == INODE_MINOS_SOCKET) {
+        *result = tmp_inode->data;
+        return 0;
+    }
     Inode* inode;
     *result = (inode = new_inode());
     if(!inode) return -NOT_ENOUGH_MEM;

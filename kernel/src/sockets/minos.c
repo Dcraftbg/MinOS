@@ -22,6 +22,12 @@ static intptr_t minos_cp_reserve(MinOSConnectionPool* cp, size_t extra) {
     if(cp->len + extra > cp->cap) e = minos_cp_reserve_exact(cp, cp->cap * 2 + extra);
     return e;
 }
+static void minos_cp_free(MinOSConnectionPool* cp) {
+    kernel_dealloc(cp->items, cp->cap * sizeof(*cp->items));
+    cp->items = NULL;
+    cp->cap = 0;
+    cp->len = 0;
+}
 static intptr_t minos_data_reserve_at_least(MinOSData* dp, size_t n) {
     void* old_addr = dp->addr;
     dp->addr = kernel_malloc(n * sizeof(*dp->addr));
@@ -50,17 +56,18 @@ static bool contains_null(const char* str, size_t n) {
     return false;
 }
 // Generic operations:
-static intptr_t minos_bind(Socket* sock, struct sockaddr* addr, size_t addrlen) {
+static intptr_t minos_bind(Inode* sock, struct sockaddr* addr, size_t addrlen) {
     if(addrlen != sizeof(struct sockaddr_minos)) return -SIZE_MISMATCH;
     if(addr->sa_family != AF_MINOS) return -ADDR_SOCKET_FAMILY_MISMATCH;
     if(!contains_null(((MinOSSocket*)sock->priv)->addr, SOCKADDR_MINOS_PATH_MAX)) return -INVALID_PATH;
     // TODO: verify the path is null terminated
     memcpy(((MinOSSocket*)sock->priv)->addr, ((struct sockaddr_minos*)addr)->sminos_path, SOCKADDR_MINOS_PATH_MAX);
-    return vfs_socket_create_abs(((MinOSSocket*)sock->priv)->addr, sock);
+    return vfs_socket_create_abs(((MinOSSocket*)sock->priv)->addr, iget(sock));
 }
 // Client Ops
-static intptr_t minos_send(Socket* sock, const void* data, size_t size) {
-    MinOSClient* mc = sock->priv;
+static intptr_t minos_write(Inode* sock, const void* data, size_t size, off_t _off) {
+    (void)_off;
+    MinOSClient* mc = &((MinOSSocket*)sock->priv)->client;
     mutex_lock(&mc->data_lock);
     intptr_t e;
     if(mc->data.len == MINOS_SOCKET_MAX_DATABUF) {
@@ -80,9 +87,12 @@ static intptr_t minos_send(Socket* sock, const void* data, size_t size) {
     mutex_unlock(&mc->data_lock);
     return n;
 }
-static intptr_t minos_recv(Socket* sock, void* data, size_t size) {
-    MinOSClient* mc = sock->priv;
+static intptr_t minos_read(Inode* sock, void* data, size_t size, off_t _off) {
+    (void)_off;
+    MinOSClient* mc = &((MinOSSocket*)sock->priv)->client;
     mutex_lock(&mc->data_lock);
+
+    if(mc->data.len == 0 && mc->closed) return -CONNECTION_TERM;
     if(mc->data.len == 0) {
         mutex_unlock(&mc->data_lock);
         return -WOULD_BLOCK;
@@ -94,40 +104,48 @@ static intptr_t minos_recv(Socket* sock, void* data, size_t size) {
     mutex_unlock(&mc->data_lock);
     return size;
 }
+static void minos_client_cleanup(Inode* sock) {
+    MinOSClient* client = &((MinOSSocket*)sock->priv)->client;
+    // TODO: use exchange or set_flag_and_test.
+    if(!client->closed) {
+        mutex_lock(&client->data_lock);
+        kernel_dealloc(client->data.addr, client->data.cap * sizeof(*client->data.addr));
+        mutex_unlock(&client->data_lock);
+        cache_dealloc(minos_socket_cache, client);
+    }
+    client->closed = true;
+}
 // FIXME: close
-static SocketOps minos_client_ops = {
-    .recv = minos_recv,
-    .send = minos_send,
-};
-// FIXME: close
-struct SocketOps minos_server_client_ops = {
-    .recv = minos_recv,
-    .send = minos_send,
+static InodeOps minos_client_ops = {
+    .read = minos_read,
+    .write = minos_write,
+    .cleanup = minos_client_cleanup,
 };
 // Server Ops
-static intptr_t minos_accept(Socket* sock, Socket* result, struct sockaddr* addr, size_t *addrlen) {
-    MinOSServer* server = sock->priv;
-    rwlock_begin_write(&server->pools[MINOS_POOL_BACKLOGGED].lock);
-    if(server->pools[MINOS_POOL_BACKLOGGED].len == 0) {
-        rwlock_end_write(&server->pools[MINOS_POOL_BACKLOGGED].lock);
+static intptr_t minos_accept(Inode* sock, Inode* result, struct sockaddr* addr, size_t *addrlen) {
+    MinOSServer* server = &((MinOSSocket*)sock->priv)->server;
+    rwlock_begin_write(&server->pending.lock);
+    if(server->pending.len == 0) {
+        rwlock_end_write(&server->pending.lock);
         return -WOULD_BLOCK;
     }
-    MinOSClient* client = server->pools[MINOS_POOL_BACKLOGGED].items[0];
+    MinOSClient* client = server->pending.items[0];
     result->priv = client;
-    result->ops = &minos_server_client_ops;
-    server->pools[MINOS_POOL_BACKLOGGED].len--;
-    memmove(server->pools, server->pools + 1, server->pools[MINOS_POOL_BACKLOGGED].len * sizeof(server->pools[0]));
-    rwlock_end_write(&server->pools[MINOS_POOL_BACKLOGGED].lock);
+    result->ops = &minos_client_ops;
+    server->pending.len--;
+    memmove(server->pending.items, server->pending.items + 1, server->pending.len * sizeof(*server->pending.items));
+    client->pending = false;
+    rwlock_end_write(&server->pending.lock);
     return 0;
 }
 // FIXME: close
-static SocketOps minos_server_ops = {
+static InodeOps minos_server_ops = {
     .accept = minos_accept
 };
 // Unspecified operations.
-static intptr_t minos_listen(Socket* sock, size_t n) {
+static intptr_t minos_listen(Inode* sock, size_t n) {
     intptr_t e;
-    MinOSServer* server = sock->priv;
+    MinOSServer* server = &((MinOSSocket*)sock->priv)->server;
 #if 0 // <- Debug testing I guess
     if(strlen(server->addr) == 0) {
         // TODO: better error status for this:
@@ -140,84 +158,74 @@ static intptr_t minos_listen(Socket* sock, size_t n) {
         return -LIMITS;
     }
 
-    rwlock_begin_write(&server->pools[MINOS_POOL_BACKLOGGED].lock);
-    if(server->pools[MINOS_POOL_BACKLOGGED].len > n) {
+    rwlock_begin_write(&server->pending.lock);
+    if(server->pending.len > n) {
         kwarn("minos socket: called listen but backlog is bigger");
-        rwlock_end_write(&server->pools[MINOS_POOL_BACKLOGGED].lock);
+        rwlock_end_write(&server->pending.lock);
         return -LIMITS;
     }
-    if(server->pools[MINOS_POOL_BACKLOGGED].cap < n) {
-        if((e=minos_cp_reserve_exact(&server->pools[MINOS_POOL_BACKLOGGED], n)) < 0) {
-            rwlock_end_write(&server->pools[MINOS_POOL_BACKLOGGED].lock);
+    if(server->pending.cap < n) {
+        if((e=minos_cp_reserve_exact(&server->pending, n)) < 0) {
+            rwlock_end_write(&server->pending.lock);
             return e;
         }
     }
-    rwlock_end_write(&server->pools[MINOS_POOL_BACKLOGGED].lock);
+    rwlock_end_write(&server->pending.lock);
     sock->ops = &minos_server_ops;
     return 0;
 }
-static intptr_t minos_connect(Socket* sock, const struct sockaddr* addr, size_t addrlen) {
+static intptr_t minos_connect(Inode* sock, const struct sockaddr* addr, size_t addrlen) {
     (void)sock;
     (void)addr;
     (void)addrlen;
-    MinOSClient* mc = sock->priv;
-    if(addrlen != sizeof(struct sockaddr_minos) || addr->sa_family != AF_MINOS) return -INVALID_PARAM;
-    if(!contains_null(((struct sockaddr_minos*)addr)->sminos_path, SOCKADDR_MINOS_PATH_MAX)) return -INVALID_PATH;
+    MinOSClient* mc = &((MinOSSocket*)sock->priv)->client;
+    if(addrlen != sizeof(struct sockaddr_minos) || addr->sa_family != AF_MINOS) {
+        return -INVALID_PARAM;
+    }
+    if(!contains_null(((struct sockaddr_minos*)addr)->sminos_path, SOCKADDR_MINOS_PATH_MAX)) {
+        return -INVALID_PATH;
+    }
     Path path;
     intptr_t e = parse_abs(((struct sockaddr_minos*)addr)->sminos_path, &path);
     if(e < 0) return e;
-    Inode* inode;
-    if((e=vfs_find(&path, &inode)) < 0) return e;
-    if(inode->superblock->fs != &tmpfs) {
-        idrop(inode);
-        return -INVALID_PATH;
-    }
-    if(inode->kind != INODE_MINOS_SOCKET) {
-        idrop(inode);
+    Inode* server_socket;
+    if((e=vfs_find(&path, &server_socket)) < 0) return e;
+    if(server_socket->kind != INODE_MINOS_SOCKET) {
+        idrop(server_socket);
         return -INVALID_TYPE;
     }
-    Socket* server_socket = tmpfs_get_socket(inode);
-    idrop(inode);
-    assert(server_socket);
-    assert(server_socket->family == AF_MINOS);
-    // FIXME: WOULD_BLOCK here and a thread blocker
+    // FIXME: thread blocker for this
     while(server_socket->ops != &minos_server_ops) {
         if(server_socket->ops == &minos_client_ops) {
-            kwarn("minos_connect tried to connect to client socket");
+            idrop(server_socket);
             return -INVALID_TYPE;
         }
-        kwarn("server_socket->ops = %p", server_socket->ops);
         asm volatile("hlt");
     }
-    MinOSServer* server = server_socket->priv;
-    rwlock_begin_write(&server->pools[MINOS_POOL_BACKLOGGED].lock);
-    if(server->pools[MINOS_POOL_BACKLOGGED].len >= server->pools[MINOS_POOL_BACKLOGGED].cap) {
-        rwlock_end_write(&server->pools[MINOS_POOL_BACKLOGGED].lock);
+    MinOSServer* server = &((MinOSSocket*)server_socket->priv)->server;
+    rwlock_begin_write(&server->pending.lock);
+    if(server->pending.len >= server->pending.cap) {
+        rwlock_end_write(&server->pending.lock);
+        idrop(server_socket);
         // TODO: better status message for this
         return -BUFFER_TOO_SMALL;
     }
-    size_t idx = server->pools[MINOS_POOL_BACKLOGGED].len++;
-    mc->server = server;
-    mc->server_pool = MINOS_POOL_BACKLOGGED;
-    mc->server_idx = idx;
-    server->pools[MINOS_POOL_BACKLOGGED].items[idx] = mc;
-    rwlock_end_write(&server->pools[MINOS_POOL_BACKLOGGED].lock);
+    mc->pending = true;
+    server->pending.items[server->pending.len++] = mc;
+    rwlock_end_write(&server->pending.lock);
+    // TODO: thread_blocker for this
+    while(mc->pending && !mc->closed) asm volatile("hlt");
     sock->ops = &minos_client_ops;
+    idrop(server_socket);
     return 0;
 }
-static intptr_t minos_close_unspec(Socket* sock) {
-    cache_dealloc(minos_socket_cache, sock->priv);
-    return 0;
-}
-static SocketOps minos_socket_init_ops = { 
+static InodeOps minos_socket_init_ops = { 
     .bind = minos_bind,
     .listen  = minos_listen,
     .connect = minos_connect, 
-    .close = minos_close_unspec,
 };
-intptr_t minos_socket_init(Socket* sock) {
+intptr_t minos_socket_init(Inode* sock) {
     if(!(sock->priv = minos_socket_new())) return -NOT_ENOUGH_MEM;
-    sock->family = AF_MINOS;
     sock->ops = &minos_socket_init_ops;
     return 0;
 }
