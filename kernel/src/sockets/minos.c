@@ -39,6 +39,12 @@ static intptr_t minos_data_reserve_at_least(MinOSData* dp, size_t n) {
     if(old_addr) kernel_dealloc(old_addr, n * sizeof(*dp->addr));
     return 0;
 }
+static void minos_data_free(MinOSData* dp) {
+    kernel_dealloc(dp->addr, dp->cap * sizeof(*dp->addr));
+    dp->addr = NULL;
+    dp->cap = 0;
+    dp->len = 0;
+}
 static Cache* minos_socket_cache = NULL;
 void minos_socket_init_cache(void) {
     assert(minos_socket_cache = create_new_cache(sizeof(MinOSSocket), "MinOSSocket"));
@@ -64,61 +70,101 @@ static intptr_t minos_bind(Inode* sock, struct sockaddr* addr, size_t addrlen) {
     memcpy(((MinOSSocket*)sock->priv)->addr, ((struct sockaddr_minos*)addr)->sminos_path, SOCKADDR_MINOS_PATH_MAX);
     return vfs_socket_create_abs(((MinOSSocket*)sock->priv)->addr, iget(sock));
 }
+
 // Client Ops
-static intptr_t minos_write(Inode* sock, const void* data, size_t size, off_t _off) {
-    (void)_off;
-    MinOSClient* mc = &((MinOSSocket*)sock->priv)->client;
-    mutex_lock(&mc->data_lock);
+static intptr_t minos_write(MinOSClient* mc, MinOSData* data, Mutex* mutex, const void* buf, size_t size) {
+    mutex_lock(mutex);
     intptr_t e;
-    if(mc->data.len == MINOS_SOCKET_MAX_DATABUF) {
-        mutex_lock(&mc->data_lock);
+    if(data->len == MINOS_SOCKET_MAX_DATABUF) {
+        mutex_lock(mutex);
         return -WOULD_BLOCK;
     }
-    size_t n = size;
-    if(mc->data.len + n > MINOS_SOCKET_MAX_DATABUF) {
-        n = MINOS_SOCKET_MAX_DATABUF - mc->data.len;
+    if(data->len + size > MINOS_SOCKET_MAX_DATABUF) {
+        size = MINOS_SOCKET_MAX_DATABUF - data->len;
     }
-    if((e=minos_data_reserve_at_least(&mc->data, n)) < 0) {
-        mutex_lock(&mc->data_lock);
+    if((e=minos_data_reserve_at_least(data, size)) < 0) {
+        mutex_lock(mutex);
         return e;
     }
-    memcpy(mc->data.addr + mc->data.len, data, n);
-    mc->data.len += n;
-    mutex_unlock(&mc->data_lock);
-    return n;
+    memcpy(data->addr + data->len, buf, size);
+    data->len += size;
+    mutex_unlock(mutex);
+    return size;
 }
-static intptr_t minos_read(Inode* sock, void* data, size_t size, off_t _off) {
+static intptr_t minos_client_write(Inode* sock, const void* data, size_t size, off_t _off) {
     (void)_off;
     MinOSClient* mc = &((MinOSSocket*)sock->priv)->client;
-    mutex_lock(&mc->data_lock);
-
-    if(mc->data.len == 0 && mc->closed) return -CONNECTION_TERM;
-    if(mc->data.len == 0) {
-        mutex_unlock(&mc->data_lock);
+    return minos_write(mc, &mc->client_write_buf, &mc->client_write_buf_lock, data, size);
+}
+static intptr_t minos_server_client_write(Inode* sock, const void* data, size_t size, off_t _off) {
+    (void)_off;
+    MinOSClient* mc = &((MinOSSocket*)sock->priv)->client;
+    intptr_t e = minos_write(mc, &mc->client_read_buf, &mc->client_read_buf_lock, data, size);
+    return e;
+}
+static intptr_t minos_read(MinOSClient* mc, MinOSData* data, Mutex* mutex, void* buf, size_t size) {
+    mutex_lock(mutex);
+    if(data->len == 0 && mc->closed) return 0;
+    if(data->len == 0) {
+        mutex_unlock(mutex);
         return -WOULD_BLOCK;
     }
-    if(mc->data.len < size) size = mc->data.len;
-    memcpy(data, mc->data.addr, size);
-    mc->data.len -= size;
-    memmove(mc->data.addr, mc->data.addr + size, mc->data.len);
-    mutex_unlock(&mc->data_lock);
+    if(data->len < size) size = data->len;
+    memcpy(buf, data->addr, size);
+    data->len -= size;
+    memmove(data->addr, data->addr + size, data->len);
+    mutex_unlock(mutex);
     return size;
+}
+static bool minos_is_readable(MinOSClient* mc, MinOSData* data, Mutex* mutex) {
+    if(mc->closed) return true;
+    mutex_lock(mutex);
+    size_t n = data->len;
+    mutex_unlock(mutex);
+    return n > 0;
+}
+static bool minos_client_is_readable(Inode* sock) {
+    MinOSClient* mc = &((MinOSSocket*)sock->priv)->client;
+    return minos_is_readable(mc, &mc->client_read_buf, &mc->client_read_buf_lock);
+}
+static intptr_t minos_client_read(Inode* sock, void* data, size_t size, off_t _off) {
+    (void)_off;
+    MinOSClient* mc = &((MinOSSocket*)sock->priv)->client;
+    return minos_read(mc, &mc->client_read_buf, &mc->client_read_buf_lock, data, size);
+}
+static bool minos_server_client_is_readable(Inode* sock) {
+    MinOSClient* mc = &((MinOSSocket*)sock->priv)->client;
+    return minos_is_readable(mc, &mc->client_write_buf, &mc->client_write_buf_lock);
+}
+static intptr_t minos_server_client_read(Inode* sock, void* data, size_t size, off_t _off) {
+    (void)_off;
+    MinOSClient* mc = &((MinOSSocket*)sock->priv)->client;
+    return minos_read(mc, &mc->client_write_buf, &mc->client_write_buf_lock, data, size);
 }
 static void minos_client_cleanup(Inode* sock) {
     MinOSClient* client = &((MinOSSocket*)sock->priv)->client;
     // TODO: use exchange or set_flag_and_test.
-    if(!client->closed) {
-        mutex_lock(&client->data_lock);
-        kernel_dealloc(client->data.addr, client->data.cap * sizeof(*client->data.addr));
-        mutex_unlock(&client->data_lock);
+    if(client->closed) {
+        mutex_lock(&client->client_write_buf_lock);
+            minos_data_free(&client->client_write_buf);
+        mutex_unlock(&client->client_write_buf_lock);
+        mutex_lock(&client->client_read_buf_lock);
+            minos_data_free(&client->client_read_buf);
+        mutex_unlock(&client->client_read_buf_lock);
         cache_dealloc(minos_socket_cache, client);
     }
     client->closed = true;
 }
-// FIXME: close
 static InodeOps minos_client_ops = {
-    .read = minos_read,
-    .write = minos_write,
+    .is_readable = minos_client_is_readable,
+    .read = minos_client_read,
+    .write = minos_client_write,
+    .cleanup = minos_client_cleanup,
+};
+static InodeOps minos_server_client_ops = {
+    .is_readable = minos_server_client_is_readable,
+    .read = minos_server_client_read,
+    .write = minos_server_client_write,
     .cleanup = minos_client_cleanup,
 };
 // Server Ops
@@ -131,7 +177,7 @@ static intptr_t minos_accept(Inode* sock, Inode* result, struct sockaddr* addr, 
     }
     MinOSClient* client = server->pending.items[0];
     result->priv = client;
-    result->ops = &minos_client_ops;
+    result->ops = &minos_server_client_ops;
     server->pending.len--;
     memmove(server->pending.items, server->pending.items + 1, server->pending.len * sizeof(*server->pending.items));
     client->pending = false;

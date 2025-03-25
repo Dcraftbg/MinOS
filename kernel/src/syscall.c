@@ -652,10 +652,8 @@ intptr_t sys_recv(uintptr_t sockfd,       void *buf, size_t len) {
     Resource* res = resource_find_by_id(current->resources, sockfd);
     if(!res) return -INVALID_HANDLE;
     if(res->kind != RESOURCE_INODE) return -INVALID_TYPE;
-    intptr_t e;
-    if(res->flags & FFLAGS_NONBLOCK) e = inode_read(res->as.inode.inode, buf, len, res->as.inode.offset);
-    else while((e = inode_read(res->as.inode.inode, buf, len, res->as.inode.offset)) == -WOULD_BLOCK) asm volatile("hlt"); // <- TODO: thread yield        
-    return e;
+    if(!(res->flags & FFLAGS_NONBLOCK)) block_is_readable(current_task(), res->as.inode.inode);
+    return inode_read(res->as.inode.inode, buf, len, res->as.inode.offset);
 }
 
 // TODO: strace
