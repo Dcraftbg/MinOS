@@ -24,25 +24,12 @@ bool try_resolve_epoll(ThreadBlocker* blocker, Task* task) {
 bool try_resolve_sleep_until(ThreadBlocker* blocker, Task* task) {
     return blocker->as.sleep.until <= kernel.pit_info.ticks;
 }
-// TODO: This will just be inode_is_readable
-bool try_resolve_accept(ThreadBlocker* blocker, Task* task) {
-    return (blocker->as.accept.e = inode_accept(blocker->as.accept.sock, blocker->as.accept.result, (struct sockaddr*)blocker->as.accept.addr_buf, &blocker->as.accept.addrlen)) != -WOULD_BLOCK;
+bool try_resolve_is_readable(ThreadBlocker* blocker, Task* task) {
+    return inode_is_readable(blocker->as.inode);
 }
 static void task_block(Task* task) {
     // TODO: thread yield
     while(task->image.flags & TASK_FLAG_BLOCKING) asm volatile("hlt");
-}
-intptr_t block_accept(Task* task, Inode* sock, Inode* result, struct sockaddr* addr, size_t* addrlen) {
-    if(addrlen && (task->image.blocker.as.accept.addrlen=(*addrlen)) > _sockaddr_max) return -LIMITS;
-    memcpy(task->image.blocker.as.accept.addr_buf, addr, task->image.blocker.as.accept.addrlen);
-    task->image.blocker.as.accept.sock = sock;
-    task->image.blocker.as.accept.result = result;
-    task->image.blocker.try_resolve = try_resolve_accept;
-    task->image.flags |= TASK_FLAG_BLOCKING;
-    task_block(task);
-    if(addrlen) *addrlen = task->image.blocker.as.accept.addrlen;
-    if(addr) memcpy(addr, task->image.blocker.as.accept.addr_buf, task->image.blocker.as.accept.addrlen);
-    return task->image.blocker.as.accept.e;
 }
 void block_sleepuntil(Task* task, size_t until) {
     task->image.blocker.as.sleep.until = until;
@@ -61,6 +48,12 @@ void block_epoll(Task* task, Epoll* epoll, size_t until) {
     task->image.blocker.as.epoll.epoll = epoll;
     task->image.blocker.as.epoll.until = until;
     task->image.blocker.try_resolve = try_resolve_epoll;
+    task->image.flags |= TASK_FLAG_BLOCKING;
+    task_block(task);
+}
+void block_is_readable(Task* task, Inode* inode) {
+    task->image.blocker.as.inode = inode;
+    task->image.blocker.try_resolve = try_resolve_is_readable;
     task->image.flags |= TASK_FLAG_BLOCKING;
     task_block(task);
 }

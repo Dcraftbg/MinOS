@@ -72,7 +72,7 @@ static intptr_t minos_write(Inode* sock, const void* data, size_t size, off_t _o
     intptr_t e;
     if(mc->data.len == MINOS_SOCKET_MAX_DATABUF) {
         mutex_lock(&mc->data_lock);
-        return 0;
+        return -WOULD_BLOCK;
     }
     size_t n = size;
     if(mc->data.len + n > MINOS_SOCKET_MAX_DATABUF) {
@@ -138,9 +138,17 @@ static intptr_t minos_accept(Inode* sock, Inode* result, struct sockaddr* addr, 
     rwlock_end_write(&server->pending.lock);
     return 0;
 }
+static bool minos_server_is_readable(Inode* sock) {
+    MinOSServer* server = &((MinOSSocket*)sock->priv)->server;
+    rwlock_begin_write(&server->pending.lock);
+    size_t pending_count = server->pending.len;
+    rwlock_end_write(&server->pending.lock);
+    return pending_count > 0;
+}
 // FIXME: close
 static InodeOps minos_server_ops = {
-    .accept = minos_accept
+    .accept = minos_accept,
+    .is_readable = minos_server_is_readable,
 };
 // Unspecified operations.
 static intptr_t minos_listen(Inode* sock, size_t n) {

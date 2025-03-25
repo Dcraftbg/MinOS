@@ -32,6 +32,9 @@ typedef struct {
 struct MinOSClient {
     char addr[SOCKADDR_MINOS_PATH_MAX];
     atomic_bool closed, pending; 
+    // FIXME:
+    // write buffer / read buffer
+    // server clients and normal clients will have these flipped
     MinOSData data;
     Mutex data_lock;
 };

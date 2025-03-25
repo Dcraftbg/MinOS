@@ -675,8 +675,8 @@ intptr_t sys_accept(uintptr_t sockfd, struct sockaddr* addr, size_t *addrlen) {
         return -NOT_ENOUGH_MEM;
     }
     intptr_t e;
-    if(res->flags & FFLAGS_NONBLOCK) e = inode_accept(res->as.inode.inode, result->as.inode.inode, addr, addrlen);
-    else e = block_accept(current_task(), res->as.inode.inode, result->as.inode.inode, addr, addrlen);
+    if(!(res->flags & FFLAGS_NONBLOCK)) block_is_readable(current_task(), res->as.inode.inode);
+    e = inode_accept(res->as.inode.inode, result->as.inode.inode, addr, addrlen);
     if(e < 0) {
         idrop(result->as.inode.inode);
         resource_remove(current->resources, id);
