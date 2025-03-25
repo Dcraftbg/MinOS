@@ -265,7 +265,7 @@ static intptr_t tmpfs_truncate(Inode* file, size_t size) {
     }
     return 0;
 }
-static intptr_t tmpfs_find(Inode* dir, const char* name, size_t namelen, inodeid_t* id) {
+static intptr_t tmpfs_find(Inode* dir, const char* name, size_t namelen, Inode** result) {
     TmpfsInode* inode = dir->priv;
     if(inode->kind != INODE_DIR) return -IS_NOT_DIRECTORY;
     TmpfsData* head = inode->data;
@@ -275,8 +275,7 @@ static intptr_t tmpfs_find(Inode* dir, const char* name, size_t namelen, inodeid
         for(size_t i = 0; i < to_read; ++i) {
             TmpfsInode* entry = ((TmpfsInode**)head->data)[i];
             if(strlen(entry->name) == namelen && memcmp(entry->name, name, namelen) == 0) {
-                *id = (inodeid_t)entry;
-                return 0;
+                return fetch_inode(dir->superblock, (inodeid_t)entry, result);
             }
         }
         head = head->next;

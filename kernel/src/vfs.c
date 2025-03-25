@@ -86,10 +86,7 @@ intptr_t inode_get_dir_entries(Inode* dir, DirEntry* entries, size_t size, off_t
 }
 intptr_t inode_find(Inode* dir, const char* name, size_t namelen, Inode** inode) {
     if(!dir->ops->find) return -UNSUPPORTED;
-    intptr_t e;
-    inodeid_t id;
-    if((e=dir->ops->find(dir, name, namelen, &id)) < 0) return e;
-    return fetch_inode(dir->superblock, id, inode);
+    return dir->ops->find(dir, name, namelen, inode);
 }
 intptr_t inode_read(Inode* file, void* buf, size_t size, off_t offset) {
     if(!file->ops->read) return -UNSUPPORTED;
