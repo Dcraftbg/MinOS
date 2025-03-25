@@ -572,11 +572,15 @@ size_t fwrite(const void* restrict buffer, size_t size, size_t count, FILE* rest
         break;
     case _IOLBF:
         for(size_t i = 0; i < bytes; ++i) {
-            if(f->buf_len >= BUFSIZ || ((const char*)buffer)[i] == '\n') {
+            if(f->buf_len >= BUFSIZ) {
                 e = fflush(f);
                 if(e < 0) break;
             }
             f->buf[f->buf_len++] = ((const char*)buffer)[i];
+            if(((const char*)buffer)[i] == '\n') {
+                e = fflush(f);
+                if(e < 0) break;
+            }
         }
         e = bytes;
         break;
