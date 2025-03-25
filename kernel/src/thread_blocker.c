@@ -27,6 +27,9 @@ bool try_resolve_sleep_until(ThreadBlocker* blocker, Task* task) {
 bool try_resolve_is_readable(ThreadBlocker* blocker, Task* task) {
     return inode_is_readable(blocker->as.inode);
 }
+bool try_resolve_is_writeable(ThreadBlocker* blocker, Task* task) {
+    return inode_is_writeable(blocker->as.inode);
+}
 static void task_block(Task* task) {
     // TODO: thread yield
     while(task->image.flags & TASK_FLAG_BLOCKING) asm volatile("hlt");
@@ -54,6 +57,12 @@ void block_epoll(Task* task, Epoll* epoll, size_t until) {
 void block_is_readable(Task* task, Inode* inode) {
     task->image.blocker.as.inode = inode;
     task->image.blocker.try_resolve = try_resolve_is_readable;
+    task->image.flags |= TASK_FLAG_BLOCKING;
+    task_block(task);
+}
+void block_is_writeable(Task* task, Inode* inode) {
+    task->image.blocker.as.inode = inode;
+    task->image.blocker.try_resolve = try_resolve_is_writeable;
     task->image.flags |= TASK_FLAG_BLOCKING;
     task_block(task);
 }
