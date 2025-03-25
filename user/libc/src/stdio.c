@@ -759,7 +759,7 @@ void _libc_init_streams(void) {
     stdout = fdopen(STDOUT_FILENO, "wb");
     stdin  = fdopen( STDIN_FILENO, "rb");
     stderr = fdopen(STDERR_FILENO, "wb");
-    stdout->buf_mode = _IONBF;
+    stdout->buf_mode = _IOLBF;
     stderr->buf_mode = _IONBF;
     assert(stdout);
     assert(stdin);
