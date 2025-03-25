@@ -1,5 +1,5 @@
 #include <minos/status.h>
-static const char* status_map[STATUS_COUNT] = {
+static const char* status_map[] = {
     "OK",
     [NOT_ENOUGH_MEM]     = "Not enough memory",
     [BAD_INODE]          = "Bad Inode",
@@ -30,8 +30,9 @@ static const char* status_map[STATUS_COUNT] = {
     [UNSUPPORTED_DOMAIN] = "Unsupported Domain",
     [UNSUPPORTED_SOCKET_TYPE] = "Unsupported Socket type",
     [WOULD_BLOCK] = "Would Block",
+    [CONNECTION_TERM] = "Disconnected",
 };
-// static_assert(STATUS_COUNT==ARRAY_LEN(status_map), "You need to update the status map!");
+// static_assert(STATUS_COUNT == (sizeof(status_map)/sizeof(*status_map)), "You need to update the status map!");
 const char* status_str(intptr_t status) {
     if(status >= 0) return "OK";
     status = -status;
