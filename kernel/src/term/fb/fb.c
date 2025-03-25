@@ -348,6 +348,7 @@ static void fbtty_draw_char(FbTty* fbtty, uint32_t code) {
     fbtty_fill_blink(fbtty, fbtty->blink ? fbtty->fg : fbtty->bg);
 }
 static void fbtty_putchar(Tty* device, uint32_t code) {
+    mutex_lock(&device->mutex);
     FbTty* fbtty = device->priv;
     switch(fbtty->state) {
     case STATE_NORMAL:
@@ -377,6 +378,7 @@ static void fbtty_putchar(Tty* device, uint32_t code) {
                 fbtty->csi.nums_count = 0;
                 fbtty->state = STATE_NORMAL;
                 memset(fbtty->csi.nums, 0, MAX_CSI_NUMS*sizeof(fbtty->csi.nums[0]));
+                mutex_unlock(&device->mutex);
                 return;
             }
             break;
@@ -410,6 +412,7 @@ static void fbtty_putchar(Tty* device, uint32_t code) {
     default:
         kerror("Invalid state: %d", fbtty->state);
     }
+    mutex_unlock(&device->mutex);
 }
 static intptr_t fbtty_deinit(Tty* device) {
     FbTty* fbtty = device->priv;

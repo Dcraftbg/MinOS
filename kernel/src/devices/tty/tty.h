@@ -41,6 +41,7 @@ typedef struct Tty Tty;
 struct Tty {
     TtyScratch scratch;
     ttyflags_t flags;
+    Mutex mutex;
     void* priv;
     uint32_t (*getchar)(Tty* device);
     void     (*putchar)(Tty* device, uint32_t code);
