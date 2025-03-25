@@ -7,6 +7,7 @@
    do { \
       if(!(x)) { \
          kpanic(__FILE__ ":" STRINGIFY(__LINE__) " Assertion failed: " STRINGIFY(x)); \
+         asm volatile("cli");\
          for(;;) asm volatile("hlt");\
       }\
    } while(0)
