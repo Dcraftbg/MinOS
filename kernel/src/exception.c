@@ -11,15 +11,17 @@ void unknown_handler() {
     kwarn("Unhandled interrupt");
 }
 static void unwind_stack(IDTEFrame* frame) {
+    int depth = 10;
     //printf("+=== Stack Trace ===+\n");
     //printf("|%p   |\n",(void*)frame->rip);
     printf(" %p\n",(void*)frame->rip);
     StackFrame* stack = (StackFrame*)frame->rbp; 
-    while(stack) {
+    while(stack && --depth) {
        printf(" %p\n",(void*)stack->rip);
        //printf("|%p   |\n",(void*)stack->rip);
        stack = stack->rbp;
     }
+    if(depth == 0) printf(" [...]\n");
     //printf("+======= End =======+\n");
 }
 const char* gpf_table[] = {
