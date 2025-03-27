@@ -74,7 +74,7 @@ static intptr_t minos_bind(Inode* sock, struct sockaddr* addr, size_t addrlen) {
 // Client Ops
 static intptr_t minos_is_writable(MinOSClient* mc, MinOSData* data, Mutex* mutex) {
     if(mc->closed) return true;
-    mutex_lock(mutex);
+    if(mutex_try_lock(mutex)) return false;
     size_t n = data->len;
     mutex_unlock(mutex);
     return n < MINOS_SOCKET_MAX_DATABUF;
@@ -133,7 +133,7 @@ static intptr_t minos_read(MinOSClient* mc, MinOSData* data, Mutex* mutex, void*
 }
 static bool minos_is_readable(MinOSClient* mc, MinOSData* data, Mutex* mutex) {
     if(mc->closed) return true;
-    mutex_lock(mutex);
+    if(mutex_try_lock(mutex)) return false; // <- We couldn't lock it
     size_t n = data->len;
     mutex_unlock(mutex);
     return n > 0;
