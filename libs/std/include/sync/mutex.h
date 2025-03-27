@@ -7,6 +7,7 @@ typedef atomic_bool Mutex;
     do { \
       while(atomic_flag_test_and_set(m));\
     } while(0)
-
+#define mutex_try_lock(m) \
+    atomic_flag_test_and_set(m)
 #define mutex_unlock(m) \
     atomic_flag_clear(m)
