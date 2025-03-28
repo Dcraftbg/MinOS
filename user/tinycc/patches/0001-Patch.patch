@@ -1,0 +1,314 @@
+From b01bc68f3b09cde6bf4dc0ea714d4c99e427511d Mon Sep 17 00:00:00 2001
+From: DcraftBg <czl_obshta@abv.bg>
+Date: Fri, 28 Mar 2025 16:46:40 +0200
+Subject: [PATCH] Patch
+
+---
+ Makefile   | 16 ++++++++--------
+ libtcc.c   | 19 ++++++++++++++++++-
+ tcc.c      |  5 +++++
+ tcc.h      |  6 ++++++
+ tccelf.c   | 15 +++++++++++++++
+ tccrun.c   | 27 +++++++++++++++++++++++++--
+ tcctools.c |  4 ++++
+ 7 files changed, 81 insertions(+), 11 deletions(-)
+
+diff --git a/Makefile b/Makefile
+index 2a7b774b..d73da53d 100644
+--- a/Makefile
++++ b/Makefile
+@@ -36,13 +36,13 @@ ifdef CONFIG_WIN32
+  NATIVE_TARGET = $(ARCH)-win$(if $(findstring arm,$(ARCH)),ce,32)
+ else
+  CFG = -unx
+- LIBS+=-lm
+- ifneq ($(CONFIG_ldl),no)
+-  LIBS+=-ldl
+- endif
+- ifneq ($(CONFIG_pthread),no)
+-  LIBS+=-lpthread
+- endif
++ # LIBS+=-lm
++ # ifneq ($(CONFIG_ldl),no)
++ #  LIBS+=-ldl
++ # endif
++ # ifneq ($(CONFIG_pthread),no)
++ #  LIBS+=-lpthread
++ # endif
+  # make libtcc as static or dynamic library?
+  ifeq ($(CONFIG_static),no)
+   LIBTCC=libtcc$(DLLSUF)
+@@ -253,7 +253,7 @@ endif
+ 
+ # convert "include/tccdefs.h" to "tccdefs_.h"
+ %_.h : include/%.h conftest.c
+-	$S$(CC) -DC2STR $(filter %.c,$^) -o c2str.exe && ./c2str.exe $< $@
++	gcc -DC2STR $(filter %.c,$^) -o c2str.exe && ./c2str.exe $< $@
+ 
+ # target specific object rule
+ $(X)%.o : %.c $(LIBTCC_INC)
+diff --git a/libtcc.c b/libtcc.c
+index b163e865..d33f7d99 100644
+--- a/libtcc.c
++++ b/libtcc.c
+@@ -79,6 +79,9 @@ ST_DATA int nb_stk_data;
+ ST_DATA int g_debug;
+ 
+ /********************************************************/
++#ifdef _MINOS
++#include <minos/sysstd.h>
++#endif
+ #ifdef _WIN32
+ ST_FUNC char *normalize_slashes(char *path)
+ {
+@@ -204,7 +207,11 @@ PUB_FUNC char *tcc_fileextension (const char *name)
+ 
+ ST_FUNC char *tcc_load_text(int fd)
+ {
++#ifdef _MINOS
++    int len = (fprintf(stderr, "WARN tcc_load_text:%s:%d\n", __FILE__, __LINE__), 6000);
++#else
+     int len = lseek(fd, 0, SEEK_END);
++#endif
+     char *buf = load_data(fd, 0, len + 1);
+     if (buf)
+         buf[len] = 0;
+@@ -721,7 +728,11 @@ static int _tcc_open(TCCState *s1, const char *filename)
+     if (strcmp(filename, "-") == 0)
+         fd = 0, filename = "<stdin>";
+     else
++#ifdef _MINOS
++        fd = open(filename, MODE_READ, 0); 
++#else
+         fd = open(filename, O_RDONLY | O_BINARY);
++#endif
+     if ((s1->verbose == 2 && fd >= 0) || s1->verbose == 3)
+         printf("%s %*s%s\n", fd < 0 ? "nf":"->",
+                (int)(s1->include_stack_ptr - s1->include_stack), "", filename);
+@@ -816,6 +827,9 @@ LIBTCCAPI TCCState *tcc_new(void)
+ #ifdef MEM_DEBUG
+     tcc_memcheck(1);
+ #endif
++#ifdef _MINOS
++    s->static_link = 1;
++#endif
+ 
+ #undef gnu_ext
+     s->gnu_ext = 1;
+@@ -1829,8 +1843,11 @@ static int args_parser_listfile(TCCState *s,
+     char *p;
+     int argc = 0;
+     char **argv = NULL;
+-
++#ifdef _MINOS
++    fd = open(filename, MODE_READ, 0);
++#else
+     fd = open(filename, O_RDONLY | O_BINARY);
++#endif
+     if (fd < 0)
+         return tcc_error_noabort("listfile '%s' not found", filename);
+ 
+diff --git a/tcc.c b/tcc.c
+index c6217499..317d4f35 100644
+--- a/tcc.c
++++ b/tcc.c
+@@ -200,6 +200,8 @@ static const char version[] =
+         " OpenBSD"
+ #elif TARGETOS_NetBSD
+         " NetBSD"
++#elif TARGETOS_MinOS
++        " MinOS"
+ #else
+         " Linux"
+ #endif
+@@ -274,6 +276,9 @@ static unsigned getclock_ms(void)
+ {
+ #ifdef _WIN32
+     return GetTickCount();
++#elif defined(_MINOS)
++    fprintf(stderr, "WARN getclock_ms:%s:%d: I know its easy but I'm lazy.\n", __FILE__, __LINE__);
++    return 0;
+ #else
+     struct timeval tv;
+     gettimeofday(&tv, NULL);
+diff --git a/tcc.h b/tcc.h
+index 45e7b5b7..821b8d87 100644
+--- a/tcc.h
++++ b/tcc.h
+@@ -39,6 +39,10 @@
+ #include <setjmp.h>
+ #include <time.h>
+ 
++#ifdef _MINOS
++# include <minos/sysstd.h>
++# define lseek seek
++#endif
+ #ifndef _WIN32
+ # include <unistd.h>
+ # include <sys/time.h>
+@@ -211,6 +215,8 @@ extern long double strtold (const char *__nptr, char **__endptr);
+     || defined TARGETOS_NetBSD \
+     || defined TARGETOS_FreeBSD_kernel
+ # define TARGETOS_BSD 1
++#elif defined _MINOS
++# define TARGETOS_MinOS 1
+ #elif !(defined TCC_TARGET_PE || defined TCC_TARGET_MACHO)
+ # define TARGETOS_Linux 1 /* for tccdefs_.h */
+ #endif
+diff --git a/tccelf.c b/tccelf.c
+index ee3e6360..96134d68 100644
+--- a/tccelf.c
++++ b/tccelf.c
+@@ -1673,7 +1673,11 @@ static void tcc_tcov_add_file(TCCState *s1, const char *filename)
+     }
+     ptr = section_ptr_add(tcov_section, cstr.size + 1);
+     strcpy((char *)ptr, cstr.data);
++#ifdef _MINOS
++    fprintf(stderr, "WARN:%s:%d: unlink %s\n", __FILE__, __LINE__, (char*)ptr);
++#else
+     unlink((char *)ptr);
++#endif
+ #ifdef _WIN32
+     normalize_slashes((char *)ptr);
+ #endif
+@@ -1721,6 +1725,8 @@ ST_FUNC void tccelf_add_crtbegin(TCCState *s1)
+         tcc_add_crt(s1, "crtbegin_so.o");
+     else
+         tcc_add_crt(s1, "crtbegin_dynamic.o");
++#elif TARGETOS_MinOS
++    tcc_add_crt(s1, "crt0.o");
+ #else
+     if (s1->output_type != TCC_OUTPUT_DLL)
+         tcc_add_crt(s1, "crt1.o");
+@@ -1746,6 +1752,7 @@ ST_FUNC void tccelf_add_crtend(TCCState *s1)
+         tcc_add_crt(s1, "crtend_so.o");
+     else
+         tcc_add_crt(s1, "crtend_android.o");
++#elif TARGETOS_MinOS
+ #else
+     tcc_add_crt(s1, "crtn.o");
+ #endif
+@@ -1800,8 +1807,10 @@ ST_FUNC void tcc_add_runtime(TCCState *s1)
+ #if defined TCC_TARGET_ARM && TARGETOS_FreeBSD
+         tcc_add_library(s1, "gcc_s"); // unwind code
+ #endif
++#ifndef TARGETOS_MinOS 
+         if (TCC_LIBTCC1[0])
+             tcc_add_support(s1, TCC_LIBTCC1);
++#endif
+ #ifndef TCC_TARGET_MACHO
+         if (s1->output_type != TCC_OUTPUT_MEMORY)
+             tccelf_add_crtend(s1);
+@@ -2681,12 +2690,18 @@ static int tcc_write_elf_file(TCCState *s1, const char *filename, int phnum,
+     FILE *f;
+ 
+     file_type = s1->output_type;
++#ifdef _MINOS
++    (void)mode;
++    (void)file_type;
++    fd = open(filename, MODE_READ | MODE_WRITE, O_CREAT | O_TRUNC);
++#else
+     if (file_type == TCC_OUTPUT_OBJ)
+         mode = 0666;
+     else
+         mode = 0777;
+     unlink(filename);
+     fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC | O_BINARY, mode);
++#endif
+     if (fd < 0 || (f = fdopen(fd, "wb")) == NULL)
+         return tcc_error_noabort("could not write '%s: %s'", filename, strerror(errno));
+     if (s1->verbose)
+diff --git a/tccrun.c b/tccrun.c
+index 28c7379f..c8426ca3 100644
+--- a/tccrun.c
++++ b/tccrun.c
+@@ -75,7 +75,7 @@ static void rt_exit(rt_frame *f, int code);
+ /* defined when included from lib/bt-exe.c */
+ #ifndef CONFIG_TCC_BACKTRACE_ONLY
+ 
+-#ifndef _WIN32
++#if !defined(_WIN32) && !defined(_MINOS)
+ # include <sys/mman.h>
+ #endif
+ 
+@@ -437,6 +437,10 @@ redo:
+ 
+ static int protect_pages(void *ptr, unsigned long length, int mode)
+ {
++#ifdef _MINOS
++    fprintf(stderr, "TODO:%s:%d: protect_pages", __FILE__, __LINE__);
++    abort();
++#else
+ #ifdef _WIN32
+     static const unsigned char protect[] = {
+         PAGE_EXECUTE_READ,
+@@ -463,6 +467,7 @@ static int protect_pages(void *ptr, unsigned long length, int mode)
+         __clear_cache(ptr, (char *)ptr + length);
+     }
+ # endif
++#endif
+ #endif
+     return 0;
+ }
+@@ -1171,9 +1176,21 @@ static int rt_error(rt_frame *f, const char *fmt, ...)
+ 
+ #ifndef _WIN32
+ # include <signal.h>
+-# ifndef __OpenBSD__
++# if !defined(__OpenBSD__) && !defined(_MINOS)
+ #  include <sys/ucontext.h>
+ # endif
++# if defined(_MINOS)
++#define REG_RIP 0
++#define REG_RSP 1
++#define REG_RBP 2
++typedef struct {
++    uint64_t gregs[16];
++} mcontext_t;
++typedef void* stack_t;
++typedef struct ucontext {
++    mcontext_t uc_mcontext;
++} ucontext_t;
++# endif
+ #else
+ # define ucontext_t CONTEXT
+ #endif
+@@ -1269,6 +1286,11 @@ static void rt_getcontext(ucontext_t *uc, rt_frame *rc)
+ 
+ /* ------------------------------------------------------------- */
+ #ifndef _WIN32
++#ifdef _MINOS
++static void set_exception_handler(void) {
++    fprintf(stderr, "TRACE:%s:%d: set_exception_handler\n", __FILE__, __LINE__);
++}
++#else
+ /* signal handler for fatal errors */
+ static void sig_error(int signum, siginfo_t *siginf, void *puc)
+ {
+@@ -1344,6 +1366,7 @@ static void set_exception_handler(void)
+     }
+ #endif
+ }
++#endif
+ 
+ #else /* WIN32 */
+ 
+diff --git a/tcctools.c b/tcctools.c
+index 0f7acef7..f048dc74 100644
+--- a/tcctools.c
++++ b/tcctools.c
+@@ -564,7 +564,11 @@ ST_FUNC int tcc_tool_cross(TCCState *s1, char **argv, int target)
+         , prefix, a0, target == 64 ? "x86_64" : "i386");
+ 
+     if (strcmp(a0, program))
++#ifdef _MINOS
++        tcc_error_noabort("execvp for _MINOS");
++#else
+         execvp(argv[0] = program, argv);
++#endif
+     tcc_error_noabort("could not run '%s'", program);
+     return 1;
+ }
+-- 
+2.34.1
+
