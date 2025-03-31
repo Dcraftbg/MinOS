@@ -107,8 +107,14 @@ static ssize_t print_base(void* user, PrintWriteFunc func, const char* fmt, va_l
             pad_with = '0';
             fmt++;
         }
-        int pad = atoi_internal(fmt, &end);
-        fmt=end;
+        int pad;
+        if(fmt[0] == '*') {
+            pad = va_arg(list, int); 
+            fmt++;
+        } else {
+            pad = atoi_internal(fmt, &end);
+            fmt=end;
+        }
         char ibuf[30];
 
         // TODO: use precision
