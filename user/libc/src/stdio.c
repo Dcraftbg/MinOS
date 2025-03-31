@@ -123,6 +123,7 @@ static ssize_t print_base(void* user, PrintWriteFunc func, const char* fmt, va_l
             fmt++;
             if(*fmt == '*') {
                 prec = va_arg(list, int);
+                fmt++;
             } else {
                 prec = atoi_internal(fmt, &end);
                 fmt = end;
