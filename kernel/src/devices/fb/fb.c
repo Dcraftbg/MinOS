@@ -65,7 +65,8 @@ static intptr_t fb_mmap(Inode* file, MmapContext* context, void** addr, size_t s
         memregion_drop(region, NULL);
         return -NOT_ENOUGH_MEM;
     }
-    MemoryList* insert_into = memlist_find_available(context->memlist, region, pages, pages);
+    // FIXME: Consider taking into consideration *addr
+    MemoryList* insert_into = memlist_find_available(context->memlist, region, NULL, pages, pages);
     if(!insert_into) {
         e=-NOT_ENOUGH_MEM;
         goto err_no_insert_point;

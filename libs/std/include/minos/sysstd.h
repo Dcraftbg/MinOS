@@ -49,8 +49,8 @@ static intptr_t wait_pid(size_t pid) {
     return syscall1(SYS_WAITPID, pid);
 }
 
-static intptr_t heap_create(uint64_t flags, size_t size_min) {
-    return syscall2(SYS_HEAP_CREATE, flags, size_min);
+static intptr_t heap_create(uint64_t flags, void* addr, size_t size_min) {
+    return syscall3(SYS_HEAP_CREATE, flags, addr, size_min);
 }
 static intptr_t heap_get(uintptr_t id, MinOSHeap* heap) {
     return syscall2(SYS_HEAP_GET, id, heap);
