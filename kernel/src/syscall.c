@@ -408,6 +408,7 @@ intptr_t sys_heap_create(uint64_t flags, void* addr, size_t size_min) {
             return -VIRTUAL_SPACE_OCCUPIED;
         }
         region->address = (uintptr_t)addr;
+        region->pages = pages_min;
     }
     Heap* heap = heap_new(cur_proc->heapid++, region->address, region->pages, flags);
     if(!heap) {
