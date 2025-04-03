@@ -402,9 +402,12 @@ intptr_t sys_heap_create(uint64_t flags, void* addr, size_t size_min) {
         memlist_dealloc(list, NULL);
         return -NOT_ENOUGH_MEM;
     }
-    if((flags & HEAP_EXACT) && region->address != (uintptr_t)addr) {
-        memlist_dealloc(list, NULL);
-        return -VIRTUAL_SPACE_OCCUPIED;
+    if(flags & HEAP_EXACT) {
+        if(region->address > (uintptr_t)addr || region->address + (region->pages*PAGE_SIZE) < ((uintptr_t)addr + pages_min * PAGE_SIZE)) {
+            memlist_dealloc(list, NULL);
+            return -VIRTUAL_SPACE_OCCUPIED;
+        }
+        region->address = (uintptr_t)addr;
     }
     Heap* heap = heap_new(cur_proc->heapid++, region->address, region->pages, flags);
     if(!heap) {
