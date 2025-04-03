@@ -30,6 +30,7 @@ static const char* status_map[] = {
     [UNSUPPORTED_DOMAIN] = "Unsupported Domain",
     [UNSUPPORTED_SOCKET_TYPE] = "Unsupported Socket type",
     [WOULD_BLOCK] = "Would Block",
+    [VIRTUAL_SPACE_OCCUPIED] = "Address occupied",
 };
 // static_assert(STATUS_COUNT == (sizeof(status_map)/sizeof(*status_map)), "You need to update the status map!");
 const char* status_str(intptr_t status) {
