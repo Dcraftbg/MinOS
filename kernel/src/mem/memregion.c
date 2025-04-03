@@ -51,11 +51,12 @@ MemoryList* memlist_find_available(struct list *list, MemoryRegion* result, void
         if(head->list.next != list) {
             next_addr = ((MemoryList*)head->list.next)->region->address;
         }
-        if(head->region->address < (uintptr_t)post_addr) {
+
+        size_t size_bytes = PAGE_SIZE*head->region->pages;
+        if(head->region->address + size_bytes < (uintptr_t)post_addr && (uintptr_t)post_addr > next_addr) {
             head = (MemoryList*)head->list.next;
             continue;
         }
-        size_t size_bytes = PAGE_SIZE*head->region->pages;
         if(head->region->address + size_bytes < next_addr) {
             result->address = head->region->address + size_bytes;
             result->pages   = (next_addr-result->address)/PAGE_SIZE;
