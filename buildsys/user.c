@@ -1,48 +1,87 @@
 bool build_user(const char* what) {
+    Nob_Cmd cmd = { 0 };
     if(what) {
         if(strcmp(what, "libc") == 0) {
             if(!build_libc()) return false;
             if(!build_crt0()) return false;
         }
+        // TODO: Remove this entirely
         else if(strcmp(what, "nothing") == 0) {
             if(!build_nothing()) return false;
         }
-        else if(strcmp(what, "init") == 0) {
-            if(!build_init()) return false;
-        }
-        else if(strcmp(what, "shell") == 0) {
-            if(!build_shell()) return false;
-        } 
-        else if(strcmp(what, "hello") == 0) {
-            if(!build_hello()) return false;
-        }
-        else if(strcmp(what, "cat") == 0) {
-            if(!build_cat()) return false;
-        }
-        else if(strcmp(what, "ansi_test") == 0) {
-            if(!build_ansi_test()) return false;
-        }
-        else if(strcmp(what, "ls") == 0) {
-            if(!build_ls()) return false;
-        }
-        else if(strcmp(what, "fbtest") == 0) {
-            if(!build_fbtest()) return false;
-        } else {
-            nob_log(NOB_ERROR, "user: Don't know how to build: `%s`", what);
-            return false;
+        else {
+            // TODO: Here at some point we should check for the toolchain and add it to path.
+            size_t temp = nob_temp_save();
+            if(!go_run_nob_inside(&cmd, nob_temp_sprintf("user/%s", what))) {
+                nob_temp_rewind(temp);
+                nob_cmd_free(cmd);
+                return false;
+            }
+            nob_temp_rewind(temp);
         }
     } else {
         if(!build_libc()) return false;
         if(!build_crt0()) return false;
         if(!build_nothing()) return false;
-        if(!build_init()) return false;
-        if(!build_shell()) return false;
-        if(!build_hello()) return false;
-        if(!build_cat()) return false;
-        if(!build_ansi_test()) return false;
-        if(!build_ls()) return false;
-        if(!build_fbtest()) return false;
+        // Always build the toolchain first 
+        if(nob_file_exists("user/toolchain/bin/binutils/bin/x86_64-minos-gcc") != 1 && !go_run_nob_inside(&cmd, "user/toolchain")) return false;
+        {
+            nob_cmd_append(&cmd, "x86_64-minos-gcc", "-v");
+            if(!nob_cmd_run_sync_and_reset(&cmd)) {
+                nob_log(NOB_WARNING, "Automatically adding toolchain to PATH...");
+                size_t temp = nob_temp_save();
+                const char* toolchain_path = nob_temp_realpath("user/toolchain/bin/binutils/bin/");
+                if(!toolchain_path) return false;
+                const char* path = getenv("PATH");
+                if(!path) setenv("PATH", toolchain_path, 0);
+                else {
+                    char sep =
+                    #if _WIN32
+                        ';'
+                    #else
+                        ':'
+                    #endif
+                    ;
+                    setenv("PATH", nob_temp_sprintf("%s%c%s", path, sep, toolchain_path), 1);
+                }
+                nob_temp_rewind(temp);
+            }
+        }
+        Nob_File_Paths progs = { 0 };
+        size_t temp = nob_temp_save();
+        if(!nob_read_entire_dir("user", &progs)) return false;
+        for(size_t i = 0; i < progs.count; ++i) {
+            const char* name = progs.items[i];
+            if(strcmp(name, ".") == 0 || strcmp(name, "..") == 0) continue;
+            // NOTE: List of ignored user programs.
+            if(
+                strcmp(name, "tinycc") == 0 || 
+                strcmp(name, "toolchain") == 0 ||
+                strcmp(name, "doodle") == 0
+            ) {
+                nob_log(NOB_INFO, "Skipping %s (Ignored)", name);
+                continue; 
+            }
+
+            const char* path = nob_temp_sprintf("user/%s", name);
+            if(nob_get_file_type(path) != NOB_FILE_DIRECTORY) continue;
+            const char* nob = nob_temp_sprintf("%s/nob.c", path);
+            if(nob_file_exists(nob) == 1) {
+                nob_log(NOB_INFO, "Building %s", path);
+                if(!go_run_nob_inside(&cmd, path)) {
+                    nob_log(NOB_ERROR, "Failed to build %s", path);
+                    nob_temp_rewind(temp);
+                    nob_cmd_free(cmd);
+                    return false;
+                }
+            } else {
+                nob_log(NOB_INFO, "Skipping %s (no nob.c)", path);
+            }
+        }
+        nob_temp_rewind(temp);
+        nob_da_free(progs);
     }
+    nob_cmd_free(cmd);
     return true; 
 }
 // bool go_run_inside(Nob_Cmd* cmd, const char* dir) {
