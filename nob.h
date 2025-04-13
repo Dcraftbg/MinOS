@@ -475,6 +475,10 @@ void nob_temp_reset(void);
 size_t nob_temp_save(void);
 void nob_temp_rewind(size_t checkpoint);
 
+// [ADDIN START]
+char* nob_temp_realpath(const char* path);
+// [ADDIN END]
+
 // Given any path returns the last part of that path.
 // "/path/to/a/file.c" -> "file.c"; "/path/to/a/directory" -> "directory"
 const char *nob_path_name(const char *path);
@@ -1417,6 +1421,32 @@ const char *nob_temp_sv_to_cstr(Nob_String_View sv)
     result[sv.count] = '\0';
     return result;
 }
+
+// [ADDIN START]
+char* nob_temp_realpath(const char* path) {
+#if _WIN32
+    size_t temp = nob_temp_save();
+    char* buf = nob_temp_alloc(MAX_PATH);
+    if(!buf) return NULL;
+    if(_fullpath(buf, path, MAX_PATH) == NULL) {
+        nob_temp_rewind(temp);
+        nob_log(NOB_ERROR, "Could not realpath on %s: %s", path, strerror(errno));
+        return NULL;
+    }
+    return buf;
+#else
+    size_t temp = nob_temp_save();
+    char* buf = nob_temp_alloc(PATH_MAX);
+    if(!buf) return NULL;
+    if(!realpath(path, buf)) {
+        nob_temp_rewind(temp);
+        nob_log(NOB_ERROR, "Could not realpath on %s: %s", path, strerror(errno));
+        return NULL;
+    }
+    return buf;
+#endif
+}
+// [ADDIN END]
 
 int nob_needs_rebuild(const char *output_path, const char **input_paths, size_t input_paths_count)
 {
