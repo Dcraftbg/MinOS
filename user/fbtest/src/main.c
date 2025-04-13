@@ -7,17 +7,14 @@
 #define STBI_NO_STDIO
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
-static int mini(int a, int b) {
-    return a < b ? a : b;
-}
 
 intptr_t read_exact(uintptr_t file, void* bytes, size_t amount) {
     while(amount) {
-        size_t rb = read(file, bytes, amount);
+        ssize_t rb = read(file, bytes, amount);
         if(rb < 0) return rb;
         if(rb == 0) return -PREMATURE_EOF;
-        amount-=rb;
-        bytes+=rb;
+        amount-=(size_t)rb;
+        bytes+=(size_t)rb;
     }
     return 0;
 }

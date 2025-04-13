@@ -16,23 +16,13 @@ void usage(FILE* sink, const char* exe) {
     fprintf(sink, "%s [file paths...]\n", exe);
 }
 
-intptr_t read_exact(uintptr_t file, void* bytes, size_t amount) {
-    while(amount) {
-        size_t rb = read(file, bytes, amount);
-        if(rb < 0) return rb;
-        if(rb == 0) return -PREMATURE_EOF;
-        amount-=rb;
-        bytes+=rb;
-    }
-    return 0;
-}
 static const char* inode_kind_map[INODE_COUNT] = {
     "DIR",
     "FILE",
     "DEVICE",
 };
 const char* inode_kind_str(inodekind_t kind) {
-    if(kind < 0 || kind > (sizeof(inode_kind_map)/sizeof(inode_kind_map[0]))) return "Unknown";
+    if(kind < 0 || (size_t)kind > (sizeof(inode_kind_map)/sizeof(inode_kind_map[0]))) return "Unknown";
     return inode_kind_map[kind];
 }
 intptr_t ls(const char* path) {

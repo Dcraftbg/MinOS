@@ -16,11 +16,11 @@ void usage(FILE* sink, const char* exe) {
 
 intptr_t read_exact(uintptr_t file, void* bytes, size_t amount) {
     while(amount) {
-        size_t rb = read(file, bytes, amount);
+        ssize_t rb = read(file, bytes, amount);
         if(rb < 0) return rb;
         if(rb == 0) return -PREMATURE_EOF;
-        amount-=rb;
-        bytes+=rb;
+        amount-=(size_t)rb;
+        bytes+=(size_t)rb;
     }
     return 0;
 }

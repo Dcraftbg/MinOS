@@ -6,6 +6,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <environ.h>
+#include <ctype.h>
 
 intptr_t readline(char* buf, size_t bufmax) {
     intptr_t e;
@@ -17,9 +18,6 @@ intptr_t readline(char* buf, size_t bufmax) {
         if(buf[i++] == '\n') return i;
     }
     return -BUFFER_TOO_SMALL;
-}
-static bool isspace(char c) {
-    return c == ' ' || c == '\n' || c == '\t';
 }
 char* trim_r(char* buf) {
     char* start = buf;

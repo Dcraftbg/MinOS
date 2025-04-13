@@ -6,15 +6,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-intptr_t readline(char* buf, size_t bufmax) {
-    intptr_t e;
-    if((e = read(STDIN_FILENO, buf, bufmax)) < 0) {
-        return e;
-    }
-    if(e > bufmax || buf[e-1] != '\n') return -BUFFER_TOO_SMALL;
-    return e;
-}
-#define LINEBUF_MAX 1024
 int main() {
     printf("Before fork....\n");
     setenv("PATH", "/user:", 0);
