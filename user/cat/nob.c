@@ -5,7 +5,7 @@
 #   define MINOS_ROOT "../../"
 #endif
 #define BUILD_DIR "bin/"
-#define EXE      "fbtest"
+#define EXE      "cat"
 #if 1
 #   define COPY_DIR MINOS_ROOT "initrd/"
 #endif
