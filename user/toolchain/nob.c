@@ -96,7 +96,7 @@ bool setup_sysroot(Nob_Cmd* cmd) {
     if(!nob_copy_directory_recursively(MINOSROOT "libs/std/include", SYSROOT "/usr/include")) return false;
     if(!nob_copy_file(MINOSROOT "bin/user/crt/start.o", SYSROOT "/usr/lib/crt0.o")) return false;
     Nob_File_Paths paths = { 0 };
-    if(!find_objs(MINOSROOT "bin/user/libc", &paths) || !find_objs(MINOSROOT "bin/user/libc/sys", &paths)) {
+    if(!find_objs(MINOSROOT "bin/user/libc", &paths) || !find_objs(MINOSROOT "bin/user/libc/sys", &paths) || !find_objs(MINOSROOT "bin/std/", &paths)) {
         nob_da_free(paths);
         return false;
     }
