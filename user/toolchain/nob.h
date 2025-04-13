@@ -1425,7 +1425,15 @@ const char *nob_temp_sv_to_cstr(Nob_String_View sv)
 // [ADDIN START]
 char* nob_temp_realpath(const char* path) {
 #if _WIN32
-#   error nob_temp_realpath for windows...
+    size_t temp = nob_temp_save();
+    char* buf = nob_temp_alloc(MAX_PATH);
+    if(!buf) return NULL;
+    if(_fullpath(buf, path, MAX_PATH) == NULL) {
+        nob_temp_rewind(temp);
+        nob_log(NOB_ERROR, "Could not realpath on %s: %s", path, strerror(errno));
+        return NULL;
+    }
+    return buf;
 #else
     size_t temp = nob_temp_save();
     char* buf = nob_temp_alloc(PATH_MAX);
