@@ -202,26 +202,27 @@ bool build_gcc(Nob_Cmd* cmd) {
     return true;
 }
 void help(FILE* sink, const char* exe) {
-    fprintf(sink, "%s [subcmd...]\n", exe);
+    fprintf(sink, "%s (subcmd...)\n", exe);
     fprintf(sink, "Subcmds:\n");
     fprintf(sink, "  - sysroot  - updates sysroot\n");
     fprintf(sink, "  - binutils - builds binutils\n");
     fprintf(sink, "  - gcc      - builds gcc\n");
-    fprintf(sink, "  - all      - Builds everything\n");
+    fprintf(sink, "  - all      - Builds everything (called by default)\n");
 }
 int main(int argc, char **argv) {
     NOB_GO_REBUILD_URSELF(argc, argv);
     Nob_Cmd cmd = { 0 };
     const char* exe = nob_shift_args(&argc, &argv);
-    if(argc <= 0) {
-        fprintf(stderr, "Missing subcommand!\n");
-        help(stderr, exe);
-        return 1;
-    }
     if(!nob_mkdir_if_not_exists("bin/")) return 1;
     if(!nob_mkdir_if_not_exists(BINUTILS_DIR)) return 1;
     if(!nob_mkdir_if_not_exists(GCC_DIR)) return 1;
     if(!nob_mkdir_if_not_exists(SYSROOT)) return 1;
+
+    if(argc <= 0) {
+        if(!setup_sysroot(&cmd)) return 1;
+        if(!build_binutils(&cmd)) return 1;
+        if(!build_gcc(&cmd)) return 1;
+    }
 
     while(argc > 0) {
         const char *subcmd = nob_shift_args(&argc, &argv);
