@@ -244,15 +244,17 @@ static intptr_t tmpfs_truncate(Inode* file, size_t size) {
         }
         inode->size = size;
         return 0;
-    } 
+    }
     inode->size = size;
-    TmpfsData* data = inode->data;
+    TmpfsData *data = inode->data, *prev = (TmpfsData*)&inode->data;
     size_t n = 0;
     while(data && n < size) {
         n += TMPFS_DATABLOCK_BYTES;
+        prev = data;
         data = data->next;
     }
     if(!data) return -FILE_CORRUPTION;
+    prev->next = NULL;
     while(data) {
         TmpfsData* next = data->next;
         datablock_destroy(data);
