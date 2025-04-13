@@ -7,7 +7,7 @@
 #define BUILD_DIR "bin/"
 #define EXE      "ansi_test"
 #if 1
-#   define COPY_DIR MINOS_ROOT "initrd/"
+#   define COPY_DIR MINOS_ROOT "initrd/user/"
 #endif
 
 #define c_compiler(cmd)     nob_cmd_append(cmd, "x86_64-minos-gcc")
