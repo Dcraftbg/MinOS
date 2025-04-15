@@ -1,0 +1,36 @@
+From f9c175639c7f734f86516d573d0711c58ddb39eb Mon Sep 17 00:00:00 2001
+From: DcraftBg <czl_obshta@abv.bg>
+Date: Tue, 15 Apr 2025 19:54:05 +0300
+Subject: [PATCH] [binutils] Add dynamic link support
+
+---
+ ld/emulparams/elf_i386_minos.sh   | 1 +
+ ld/emulparams/elf_minos.sh        | 1 +
+ ld/emulparams/elf_x86_64_minos.sh | 1 +
+ 3 files changed, 3 insertions(+)
+ create mode 100644 ld/emulparams/elf_minos.sh
+
+diff --git a/ld/emulparams/elf_i386_minos.sh b/ld/emulparams/elf_i386_minos.sh
+index 9d11a528..25b5d83b 100644
+--- a/ld/emulparams/elf_i386_minos.sh
++++ b/ld/emulparams/elf_i386_minos.sh
+@@ -1 +1,2 @@
+ source_sh ${srcdir}/emulparams/elf_i386.sh
++source_sh ${srcdir}/emulparams/elf_minos.sh
+diff --git a/ld/emulparams/elf_minos.sh b/ld/emulparams/elf_minos.sh
+new file mode 100644
+index 00000000..b0911c3c
+--- /dev/null
++++ b/ld/emulparams/elf_minos.sh
+@@ -0,0 +1 @@
++ELF_INTERPRETER_NAME=\"/user/dynld\"
+diff --git a/ld/emulparams/elf_x86_64_minos.sh b/ld/emulparams/elf_x86_64_minos.sh
+index 59e7df71..1127a31d 100644
+--- a/ld/emulparams/elf_x86_64_minos.sh
++++ b/ld/emulparams/elf_x86_64_minos.sh
+@@ -1 +1,2 @@
+ source_sh ${srcdir}/emulparams/elf_x86_64.sh
++source_sh ${srcdir}/emulparams/elf_minos.sh
+-- 
+2.34.1
+

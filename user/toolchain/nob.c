@@ -32,6 +32,11 @@ bool ar(Nob_Cmd* cmd, const char* archive, const char **inputs, size_t inputs_co
     nob_da_append_many(cmd, inputs, inputs_count);
     return nob_cmd_run_sync_and_reset(cmd);
 }
+bool dynlink(Nob_Cmd* cmd, const char* so, const char **inputs, size_t inputs_count) {
+    nob_cmd_append(cmd, "gcc", "-shared", "-o", so);
+    nob_da_append_many(cmd, inputs, inputs_count);
+    return nob_cmd_run_sync_and_reset(cmd);
+}
 
 const char* get_ext(const char* path) {
     const char* end = path;
@@ -104,6 +109,10 @@ bool setup_sysroot(Nob_Cmd* cmd) {
         nob_da_free(paths);
         return false;
     }
+    if(!dynlink(cmd, SYSROOT "/usr/lib/libc.so", paths.items, paths.count)) {
+        nob_da_free(paths);
+        return false;
+    }
 
     nob_da_free(paths);
     return true;
@@ -132,6 +141,8 @@ bool build_binutils(Nob_Cmd* cmd) {
         nob_log(NOB_INFO, "current directory: %s", nob_get_current_dir_temp());
         nob_cmd_append(cmd, "patch", "-ruN", "-p1", "-d", BINUTILS_VERSION, "-i", "../../../binutils-2.39.patch");
         if(!nob_cmd_run_sync_and_reset(cmd)) return false;
+        nob_cmd_append(cmd, "patch", "-ruN", "-p1", "-d", BINUTILS_VERSION, "-i", "../../../0001-binutils-Add-dynamic-link-support.patch");
+        if(!nob_cmd_run_sync_and_reset(cmd)) return false;
         break;
     case 1: break;
     default:
@@ -142,7 +153,7 @@ bool build_binutils(Nob_Cmd* cmd) {
     nob_cmd_append(
         cmd, "../configure",
         "--target=x86_64-minos",
-        "--disable-shared",
+        // "--disable-shared",
         nob_temp_sprintf("--prefix=%s", binutils_dir_abs),
         nob_temp_sprintf("--with-sysroot=%s", sysroot_abs),
         "--enable-initfini-array",
@@ -175,6 +186,8 @@ bool build_gcc(Nob_Cmd* cmd) {
         if(!nob_cmd_run_sync_and_reset(cmd)) return false;
         nob_cmd_append(cmd, "patch", "-ruN", "-p1", "-d", GCC_VERSION, "-i", "../../../gcc-12.2.0.patch");
         if(!nob_cmd_run_sync_and_reset(cmd)) return false;
+        nob_cmd_append(cmd, "patch", "-ruN", "-p1", "-d", GCC_VERSION, "-i", "../../../0001-minos-Add-config-for-dynamic-linking.patch");
+        if(!nob_cmd_run_sync_and_reset(cmd)) return false;
         break;
     case 1: break;
     default:
@@ -185,7 +198,7 @@ bool build_gcc(Nob_Cmd* cmd) {
     nob_cmd_append(
         cmd, "../configure",
         "--target=x86_64-minos",
-        "--disable-shared",
+        // "--disable-shared",
         nob_temp_sprintf("--prefix=%s", binutils_dir_abs),
         nob_temp_sprintf("--with-sysroot=%s", sysroot_abs),
         "--enable-initfini-array",
