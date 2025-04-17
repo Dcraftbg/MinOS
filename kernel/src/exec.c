@@ -7,6 +7,7 @@
 #include "fileutils.h"
 #include "kernel.h"
 #include "debug.h"
+#include "log.h"
 
 #define return_defer_err(x) do {\
     e=(x);\
@@ -116,14 +117,140 @@ static intptr_t args_push(Task* task, Args* args, char** stack_head, char*** arg
          return e;
     return 0;
 }
+static intptr_t load_header(Elf64Header* header, Inode* file) {
+    intptr_t e;
+    if((e=read_exact(file, header, sizeof(*header), 0)) < 0) return e;
+    if(!elf_header_verify(header)) return -INVALID_MAGIC;
+    if(
+        header->ident[ELF_DATA_ENCODING] != ELF_DATA_LITTLE_ENDIAN ||
+        header->ident[ELF_DATA_CLASS]    != ELF_CLASS_64BIT
+    ) return -UNSUPPORTED;
+    if(
+        header->type != ELF_TYPE_EXEC && header->type != ELF_TYPE_DYNAMIC
+    ) {
+        return -INVALID_TYPE;
+    }
+    return 0;
+}
+static intptr_t load_pheaders(Elf64ProgHeader** pheaders_result, const Elf64Header* header, Inode* file) {
+    intptr_t e;
+    size_t prog_header_size = header->phnum * sizeof(Elf64ProgHeader);
+    Elf64ProgHeader* pheaders = kernel_malloc(prog_header_size);
+    if(!pheaders) return -NOT_ENOUGH_MEM;
+    memset(pheaders, 0, prog_header_size);    
+    if(
+      (e=read_exact(file, pheaders, prog_header_size, header->phoff)) < 0
+    ) {
+        kernel_dealloc(pheaders, prog_header_size);
+        return e;
+    }
+    *pheaders_result = pheaders;
+    return 0;
+}
+static intptr_t load_elf(Task* task, Inode* file, uintptr_t offset, Elf64Header* header, Elf64ProgHeader** pheaders_result, bool is_interp) {
+    intptr_t e = 0;
+    if((e=load_header(header, file)) < 0) return e;
+    if((e=load_pheaders(pheaders_result, header, file)) < 0) return e;
+    Elf64ProgHeader* pheaders = *pheaders_result;
+    uintptr_t eoe = 0;
+    bool interp = false;
+    char interp_buffer[1024] = { 0 };
+    for(size_t i = 0; i < header->phnum; ++i) {
+        Elf64ProgHeader* pheader = &pheaders[i];
+        switch(pheader->p_type) {
+        case ELF_PHEADER_LOAD: {
+            uintptr_t end = PAGE_ALIGN_UP(pheader->virt_addr + pheader->memsize);
+            if(end > eoe) eoe = end;
+        } break;
+        case ELF_PHEADER_INTERP: {
+            if(pheader->filesize > sizeof(interp_buffer)-1) {
+                kerror("Interpreter header overflows buffer");
+                return -BUFFER_TOO_SMALL;
+            }
+            if((e=read_exact(file, interp_buffer, pheader->filesize, pheader->offset)) < 0) return e;
+            interp = true;
+        } break;
+        }
+    }
+    if(is_interp && interp) {
+        kerror("Interpreter has its own interpreter? We don't allow that :(");
+        return -RECURSIVE_ELF_INTERP;
+    }
+    if(interp) {
+        Inode* interp_file = NULL;
+        Path path;
+        if((e=parse_abs(interp_buffer, &path)) < 0) return e;
+        if((e=vfs_find(&path, &interp_file)) < 0) return e;
+        kernel_dealloc(pheaders, header->phnum * sizeof(Elf64ProgHeader));
+        *pheaders_result = pheaders = NULL;
+        kinfo("Relocating interpreter `%s` at %p", interp_buffer, eoe);
+        e = load_elf(task, interp_file, eoe, header, pheaders_result, true);
+        idrop(interp_file);
+        return e;
+    }
+    for(size_t i = 0; i < header->phnum; ++i) {
+        Elf64ProgHeader* pheader = &pheaders[i];
+#if 0
+        printf("Elf64ProgHeader { p_type: 0x%08X, flags: 0x%08X, offset: %12zu, virt_addr: %p, phys_addr: %p, filesize: %6zu, memsize: %4zu, align: %4zu }\n",
+                             pheader->p_type, pheader->image.flags,pheader->offset, (void*)pheader->virt_addr, (void*)pheader->phys_addr, pheader->filesize, pheader->memsize, pheader->align);
+#endif        
+        if (pheader->p_type != ELF_PHEADER_LOAD || pheader->memsize == 0) continue;
+        pageflags_t flags = KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_USER | KERNEL_PTYPE_USER;
+        uint64_t regionflags = 0;
+        if (!(pheader->flags & ELF_PROG_EXEC)) {
+            flags |= KERNEL_PFLAG_EXEC_DISABLE;
+        }
+        if (pheader->flags & ELF_PROG_WRITE) {
+            flags |= KERNEL_PFLAG_WRITE;
+            regionflags |= MEMREG_WRITE;
+        }
+        if(pheader->filesize > pheader->memsize) {
+            return -SIZE_MISMATCH;
+        }
+        pheader->virt_addr += offset;
+        uintptr_t segment_pages  = (PAGE_ALIGN_UP(pheader->virt_addr + pheader->memsize) - PAGE_ALIGN_DOWN(pheader->virt_addr)) / PAGE_SIZE;
+        uintptr_t virt = PAGE_ALIGN_DOWN(pheader->virt_addr);
+        uintptr_t virt_off = pheader->virt_addr - virt;
+        void* memory = kernel_malloc(segment_pages * PAGE_SIZE);
+        if(!memory)
+           return -NOT_ENOUGH_MEM;
+        
+        memset(memory, 0, segment_pages * PAGE_SIZE);
+        if (
+          (e = read_exact(file, memory+virt_off, pheader->filesize, pheader->offset)) < 0
+        ) {
+           kernel_dealloc(memory, segment_pages * PAGE_SIZE);
+           return e;
+        }
+        MemoryList* region;
+        if(!(region=memlist_new(memregion_new(regionflags, flags, virt, segment_pages)))) {
+           kernel_dealloc(memory, segment_pages * PAGE_SIZE);
+           return -NOT_ENOUGH_MEM;
+        }
+        // TODO: Better return message. it could be either Incomplete Map or Not Enough Memory
+        // We just don't know right now and Not Enough Memory seems more reasonable
+        if (
+          !page_mmap(task->image.cr3, virt_to_phys(kernel.pml4, (uintptr_t)memory), virt, segment_pages, flags)
+        ) {
+           memlist_dealloc(region, NULL);
+           kernel_dealloc(memory, segment_pages * PAGE_SIZE);
+           return -NOT_ENOUGH_MEM;
+        }
+        memlist_add(&task->image.memlist, region);
+    }
+    if (header->entry == 0)
+        return -NO_ENTRYPOINT;
+    header->entry += offset;
+    return 0;
+}
 // TODO: Fix XD. XD may not be supported always so checks to remove it are necessary
 intptr_t exec(Task* task, Path* path, Args* args, Args* envs) {
     intptr_t e=0;
     Inode* file=NULL;
+    Elf64Header header;
+    Elf64ProgHeader* pheaders = NULL;
     MemoryList* kstack_region = NULL;
     MemoryList* ustack_region = NULL;
-    Elf64ProgHeader* pheaders = NULL;
-    Elf64Header header;
 
     if(!path) return -INVALID_PARAM;
 
@@ -141,89 +268,9 @@ intptr_t exec(Task* task, Path* path, Args* args, Args* envs) {
     task->image.rip = 0;
     task->image.flags = TASK_FLAG_FIRST_RUN;
 
-    if((e=vfs_find(path, &file)) < 0) {
-        return_defer_err(e);
-    }
-
-    if((e=read_exact(file, &header, sizeof(header), 0)) < 0) return_defer_err(e);
+    if((e=vfs_find(path, &file)) < 0) return_defer_err(e);
+    if((e=load_elf(task, file, 0, &header, &pheaders, false)) < 0) return_defer_err(e);
     
-    if(!elf_header_verify(&header)) return_defer_err(-INVALID_MAGIC);
-    
-    if(
-        header.ident[ELF_DATA_ENCODING] != ELF_DATA_LITTLE_ENDIAN ||
-        header.ident[ELF_DATA_CLASS]    != ELF_CLASS_64BIT
-    ) return_defer_err(-UNSUPPORTED);
-
-    if(
-        header.type != ELF_TYPE_EXEC
-    ) return_defer_err(-INVALID_TYPE);
-
-
-    size_t prog_header_size = header.phnum * sizeof(Elf64ProgHeader);
-    pheaders = kernel_malloc(prog_header_size);
-    if(!pheaders) {
-        return_defer_err(-NOT_ENOUGH_MEM);
-    }
-    memset(pheaders, 0, prog_header_size);    
-
-    if(
-      (e=read_exact(file, pheaders, prog_header_size, header.phoff)) < 0
-    )
-        return_defer_err(e);
-    
-    for(size_t i = 0; i < header.phnum; ++i) {
-        Elf64ProgHeader* pheader = &pheaders[i];
-#if 0
-        printf("Elf64ProgHeader { p_type: 0x%08X, flags: 0x%08X, offset: %12zu, virt_addr: %p, phys_addr: %p, filesize: %6zu, memsize: %4zu, align: %4zu }\n",
-                             pheader->p_type, pheader->image.flags,pheader->offset, (void*)pheader->virt_addr, (void*)pheader->phys_addr, pheader->filesize, pheader->memsize, pheader->align);
-#endif        
-        if (pheader->p_type != ELF_PHREADER_LOAD || pheader->memsize == 0) continue;
-        pageflags_t flags = KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_USER | KERNEL_PTYPE_USER;
-        uint64_t regionflags = 0;
-        if (!(pheader->flags & ELF_PROG_EXEC)) {
-            
-            flags |= KERNEL_PFLAG_EXEC_DISABLE;
-        }
-        if (pheader->flags & ELF_PROG_WRITE) {
-            flags |= KERNEL_PFLAG_WRITE;
-            regionflags |= MEMREG_WRITE;
-        }
-        if(pheader->filesize > pheader->memsize) {
-            return_defer_err(-SIZE_MISMATCH);
-        }
-        uintptr_t segment_pages  = (PAGE_ALIGN_UP(pheader->virt_addr + pheader->memsize) - PAGE_ALIGN_DOWN(pheader->virt_addr)) / PAGE_SIZE;
-        uintptr_t virt = PAGE_ALIGN_DOWN(pheader->virt_addr);
-        uintptr_t virt_off = pheader->virt_addr - virt;
-        void* memory = kernel_malloc(segment_pages * PAGE_SIZE);
-        if(!memory)
-           return_defer_err(-NOT_ENOUGH_MEM);
-        
-        memset(memory, 0, segment_pages * PAGE_SIZE);
-        if (
-          (e = read_exact(file, memory+virt_off, pheader->filesize, pheader->offset)) < 0
-        ) {
-           kernel_dealloc(memory, segment_pages * PAGE_SIZE);
-           return_defer_err(e);
-        }
-        MemoryList* region;
-        if(!(region=memlist_new(memregion_new(regionflags, flags, virt, segment_pages)))) {
-           kernel_dealloc(memory, segment_pages * PAGE_SIZE);
-           return_defer_err(-NOT_ENOUGH_MEM);
-        }
-        // TODO: Better return message. it could be either Incomplete Map or Not Enough Memory
-        // We just don't know right now and Not Enough Memory seems more reasonable
-        if (
-          !page_mmap(task->image.cr3, virt_to_phys(kernel.pml4, (uintptr_t)memory), virt, segment_pages, flags)
-        ) {
-           memlist_dealloc(region, NULL);
-           kernel_dealloc(memory, segment_pages * PAGE_SIZE);
-           return_defer_err(-NOT_ENOUGH_MEM);
-        }
-        memlist_add(&task->image.memlist, region);
-    }
-    if (header.entry == 0)
-        return_defer_err(-NO_ENTRYPOINT);
-
     size_t stack_pages = USER_STACK_PAGES + 1 + (PAGE_ALIGN_UP(args->bytelen+envs->bytelen) / PAGE_SIZE);
 
     if(!(ustack_region=memlist_new(memregion_new(MEMREG_WRITE, KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_USER | KERNEL_PFLAG_EXEC_DISABLE | KERNEL_PTYPE_USER, USER_STACK_ADDR, stack_pages)))) 
@@ -266,9 +313,10 @@ intptr_t exec(Task* task, Path* path, Args* args, Args* envs) {
     page_join(kernel.pml4, task->image.cr3);
     idrop(file);
     file = NULL;
+    kernel_dealloc(pheaders, header.phnum * sizeof(Elf64ProgHeader));
     return 0;
 DEFER_ERR:
-    if(pheaders) kernel_dealloc(pheaders, prog_header_size);
+    if(pheaders) kernel_dealloc(pheaders, header.phnum * sizeof(Elf64ProgHeader));
     if(kstack_region) memlist_dealloc(kstack_region, NULL);
     if(ustack_region) memlist_dealloc(ustack_region, NULL);
     if(file) idrop(file);
