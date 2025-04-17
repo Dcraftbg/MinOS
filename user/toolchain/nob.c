@@ -33,7 +33,7 @@ bool ar(Nob_Cmd* cmd, const char* archive, const char **inputs, size_t inputs_co
     return nob_cmd_run_sync_and_reset(cmd);
 }
 bool dynlink(Nob_Cmd* cmd, const char* so, const char **inputs, size_t inputs_count) {
-    nob_cmd_append(cmd, "gcc", "-shared", "-o", so);
+    nob_cmd_append(cmd, "gcc", "-shared", "-o", so, "-Wl,--hash-style=sysv");
     nob_da_append_many(cmd, inputs, inputs_count);
     return nob_cmd_run_sync_and_reset(cmd);
 }
@@ -113,6 +113,10 @@ bool setup_sysroot(Nob_Cmd* cmd) {
         nob_da_free(paths);
         return false;
     }
+    if(!nob_copy_file(SYSROOT "/usr/lib/libc.so", MINOSROOT "initrd/lib/libc.so")) {
+        nob_da_free(paths);
+        return false;
+    } 
 
     nob_da_free(paths);
     return true;
