@@ -20,13 +20,6 @@ bool initrd_setup() {
     if(!copy_all_to(
         "./initrd/user",
         "./bin/user/nothing/nothing",
-        "./bin/user/init/init",
-        "./bin/user/shell/shell",
-        "./bin/user/hello/hello",
-        "./bin/user/cat/cat",
-        "./bin/user/ansi_test/ansi_test",
-        "./bin/user/ls/ls",
-        "./bin/user/fbtest/fbtest",
     )) return false;
     const char* doom_path = "./user/doomgeneric/doomgeneric/doomgeneric";
     if(nob_file_exists(doom_path) == 1) {
