@@ -16,6 +16,7 @@
 //"-ffunction-sections", "-fdata-sections", "-mgeneral-regs-only"
 #define c_flags(cmd)        nob_cmd_append(cmd, "-static", "-g")
 #define c_warns(cmd)        nob_cmd_append(cmd, "-Wall", "-Wextra", "-Werror", "-Wno-unused-function")
+#define c_env(cmd)          nob_cmd_append(cmd, "-ffunction-sections", "-fdata-sections", "-mgeneral-regs-only")
 #define c_pie(cmd)          nob_cmd_append(cmd, "-pie", "-fpie")
 #define c_standalone(cmd)   nob_cmd_append(cmd, "-nostdlib", "-nolibc", "-ffreestanding")
 
@@ -23,6 +24,7 @@ bool cc(Nob_Cmd* cmd) {
     c_compiler(cmd);
     c_flags(cmd);
     c_warns(cmd);
+    c_env(cmd);
     c_pie(cmd);
     c_standalone(cmd);
     nob_cmd_append(cmd, "src/main.c");
