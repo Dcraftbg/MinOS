@@ -113,7 +113,7 @@ bool setup_sysroot(Nob_Cmd* cmd) {
         nob_da_free(paths);
         return false;
     }
-    if(!nob_copy_file(SYSROOT "/usr/lib/libc.so", MINOSROOT "initrd/lib/libc.so")) {
+    if(nob_mkdir_if_not_exists(MINOSROOT "initrd/lib") && !nob_copy_file(SYSROOT "/usr/lib/libc.so", MINOSROOT "initrd/lib/libc.so")) {
         nob_da_free(paths);
         return false;
     } 
