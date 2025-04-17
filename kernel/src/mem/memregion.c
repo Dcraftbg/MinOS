@@ -44,27 +44,30 @@ void memlist_add(struct list *list, MemoryList *new) {
     list_append(&new->list, &head->list);
 }
 MemoryList* memlist_find_available(struct list *list, MemoryRegion* result, void* post_addr, size_t minsize_pages, size_t maxsize_pages) {
-    MemoryList* head = (MemoryList*)list->next;
-    // TODO: Allow allocation before the first chunk of memory
-    while(&head->list != list) {
+    MemoryList* head = (MemoryList*)list;
+    do {
         uintptr_t next_addr = 0xffffffffffffffffLL;
         if(head->list.next != list) {
             next_addr = ((MemoryList*)head->list.next)->region->address;
         }
-
-        size_t size_bytes = PAGE_SIZE*head->region->pages;
-        if(head->region->address + size_bytes < (uintptr_t)post_addr && (uintptr_t)post_addr > next_addr) {
+        uintptr_t addr = 0;
+        size_t size_bytes = 0;
+        if(&head->list != list) {
+            addr = head->region->address;
+            size_bytes = PAGE_SIZE*head->region->pages;
+        }
+        if(addr + size_bytes < (uintptr_t)post_addr && (uintptr_t)post_addr > next_addr) {
             head = (MemoryList*)head->list.next;
             continue;
         }
-        if(head->region->address + size_bytes < next_addr) {
-            result->address = head->region->address + size_bytes;
+        if(addr + size_bytes < next_addr) {
+            result->address = addr + size_bytes;
             result->pages   = (next_addr-result->address)/PAGE_SIZE;
             result->pages   = result->pages > maxsize_pages ? maxsize_pages : result->pages;
             if(result->pages >= minsize_pages) return head;
         }
         head = (MemoryList*)head->list.next;
-    }
+    } while(&head->list != list); 
     return NULL;
 }
 
