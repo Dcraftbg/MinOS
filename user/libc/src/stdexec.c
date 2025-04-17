@@ -27,6 +27,7 @@ intptr_t execvp(const char* exe_path, const char** argv, size_t argc) {
         strcat(pathbuf, exe_path);
         Stats stats;
         if(stat(pathbuf, &stats) >= 0 && stats.kind == INODE_FILE) {
+            if(argc) argv[0] = pathbuf;
             return exec(pathbuf, argv, argc);
         }
     }
