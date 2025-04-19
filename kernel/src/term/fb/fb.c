@@ -319,7 +319,7 @@ static void fbtty_draw_char(FbTty* fbtty, uint32_t code) {
         fbtty->x++;
     } break;
     case '\n':
-        fbtty->map[i].c = code;
+        fbtty->map[i].c = ' ';// code;
         fbtty->y++;
         fbtty->x = 0;
         break;
