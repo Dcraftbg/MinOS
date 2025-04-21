@@ -641,7 +641,7 @@ char* fgets(char* buf, size_t size, FILE* f) {
 // TODO: Error check
 int fputs(const char* restrict str, FILE* restrict stream) {
     if(fwrite(str, strlen(str), 1, stream) == 0) return 0;
-    return -errno;
+    return strlen(str);
 }
 int fputc(int c, FILE* f) {
     fwrite(&c, 1, 1, f);
@@ -806,4 +806,9 @@ int fileno(FILE* f) {
 void perror(const char *s) {
     if(s) fprintf(stderr, "%s: ", s);
     fputs(strerror(errno), stderr);
+}
+int puts(const char* restrict str) {
+    int e;
+    if((e=fputs(str, stdout)) < 0) return e;
+    return fputc('\n', stdout);
 }

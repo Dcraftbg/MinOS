@@ -38,9 +38,7 @@ int fgetc(FILE* f);
 int fputs(const char* restrict str, FILE* restrict stream);
 int fputc(int c, FILE* f);
 #define putc fputc
-static int puts(const char* restrict str) {
-    return fputs(str, stdout);
-}
+int puts(const char* restrict str);
 static int putchar(int ch) {
     return fwrite(&ch, 1, 1, stdout);
 }
