@@ -1,9 +1,14 @@
 bool build_user(const char* what) {
     Nob_Cmd cmd = { 0 };
+    bool libc_updated = false;
     if(what) {
         if(strcmp(what, "libc") == 0) {
-            if(!build_libc()) return false;
-            if(!build_crt0()) return false;
+            if(!build_libc(&libc_updated)) return false;
+            if(!build_crt0(&libc_updated)) return false;
+            if(libc_updated) {
+                const char* args[] = { "sysroot" };
+                if(!go_run_nob_inside(&cmd, "user/toolchain", args, NOB_ARRAY_LEN(args))) return false;
+            }
         }
         // TODO: Remove this entirely
         else if(strcmp(what, "nothing") == 0) {
@@ -12,7 +17,7 @@ bool build_user(const char* what) {
         else {
             // TODO: Here at some point we should check for the toolchain and add it to path.
             size_t temp = nob_temp_save();
-            if(!go_run_nob_inside(&cmd, nob_temp_sprintf("user/%s", what))) {
+            if(!go_run_nob_inside(&cmd, nob_temp_sprintf("user/%s", what), NULL, 0)) {
                 nob_temp_rewind(temp);
                 nob_cmd_free(cmd);
                 return false;
@@ -20,11 +25,16 @@ bool build_user(const char* what) {
             nob_temp_rewind(temp);
         }
     } else {
-        if(!build_libc()) return false;
-        if(!build_crt0()) return false;
+        if(!build_libc(&libc_updated)) return false;
+        if(!build_crt0(&libc_updated)) return false;
+        if(libc_updated) {
+            const char* args[] = { "sysroot" };
+            if(!go_run_nob_inside(&cmd, "user/toolchain", args, NOB_ARRAY_LEN(args))) return false;
+        }
         if(!build_nothing()) return false;
+
         // Always build the toolchain first 
-        if(nob_file_exists("user/toolchain/bin/binutils/bin/x86_64-minos-gcc") != 1 && !go_run_nob_inside(&cmd, "user/toolchain")) return false;
+        if(nob_file_exists("user/toolchain/bin/binutils/bin/x86_64-minos-gcc") != 1 && !go_run_nob_inside(&cmd, "user/toolchain", NULL, 0)) return false;
         {
             nob_cmd_append(&cmd, "x86_64-minos-gcc", "-v");
             if(!nob_cmd_run_sync_and_reset(&cmd)) {
@@ -68,7 +78,7 @@ bool build_user(const char* what) {
             const char* nob = nob_temp_sprintf("%s/nob.c", path);
             if(nob_file_exists(nob) == 1) {
                 nob_log(NOB_INFO, "Building %s", path);
-                if(!go_run_nob_inside(&cmd, path)) {
+                if(!go_run_nob_inside(&cmd, path, NULL, 0)) {
                     nob_log(NOB_ERROR, "Failed to build %s", path);
                     nob_temp_rewind(temp);
                     nob_cmd_free(cmd);
@@ -96,7 +106,7 @@ bool build_user(const char* what) {
 // }
 
 // TODO: cleanup temp on failure
-bool go_run_nob_inside(Nob_Cmd* cmd, const char* dir) {
+bool go_run_nob_inside(Nob_Cmd* cmd, const char* dir, const char** argv, size_t argc) {
     size_t temp = nob_temp_save();
     const char* cur = nob_get_current_dir_temp();
     assert(cur);
@@ -107,6 +117,7 @@ bool go_run_nob_inside(Nob_Cmd* cmd, const char* dir) {
         if(!nob_cmd_run_sync_and_reset(cmd)) return false;
     }
     nob_cmd_append(cmd, "./nob");
+    nob_da_append_many(cmd, argv, argc);
     bool res = nob_cmd_run_sync_and_reset(cmd);
     assert(nob_set_current_dir(cur));
     nob_temp_rewind(temp);
