@@ -484,6 +484,7 @@ void nob_remove_backslashes(char* data);
 bool nob_dep_analyse_str(char* data, char** result, Nob_File_Paths* paths); 
 bool nob_c_needs_rebuild1(Nob_String_Builder* string_buffer, Nob_File_Paths* paths, const char* output_path, const char* input_path);
 bool nob_c_needs_rebuild(Nob_String_Builder* string_buffer, Nob_File_Paths* paths, const char* output_path, const char** input_paths, size_t input_paths_count);
+char* nob_temp_realpath(const char* path);
 // [ADDIN END]
 
 // Given any path returns the last part of that path.
@@ -1514,6 +1515,29 @@ bool nob_c_needs_rebuild(Nob_String_Builder* string_buffer, Nob_File_Paths* path
 }
 bool nob_c_needs_rebuild1(Nob_String_Builder* string_buffer, Nob_File_Paths* paths, const char* output_path, const char* input_path) {
     return nob_c_needs_rebuild(string_buffer, paths, output_path, &input_path, 1);
+}
+char* nob_temp_realpath(const char* path) {
+#if _WIN32
+    size_t temp = nob_temp_save();
+    char* buf = nob_temp_alloc(MAX_PATH);
+    if(!buf) return NULL;
+    if(_fullpath(buf, path, MAX_PATH) == NULL) {
+        nob_temp_rewind(temp);
+        nob_log(NOB_ERROR, "Could not realpath on %s: %s", path, strerror(errno));
+        return NULL;
+    }
+    return buf;
+#else
+    size_t temp = nob_temp_save();
+    char* buf = nob_temp_alloc(PATH_MAX);
+    if(!buf) return NULL;
+    if(!realpath(path, buf)) {
+        nob_temp_rewind(temp);
+        nob_log(NOB_ERROR, "Could not realpath on %s: %s", path, strerror(errno));
+        return NULL;
+    }
+    return buf;
+#endif
 }
 // [ADDIN END]
 int nob_needs_rebuild(const char *output_path, const char **input_paths, size_t input_paths_count)
