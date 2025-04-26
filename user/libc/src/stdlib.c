@@ -4,9 +4,23 @@
 #include <minos/sysstd.h>
 #include <strinternal.h>
 #include <collections/list.h>
+static void (*atexit_funcs[ATEXIT_MAX])(void);
+static size_t atexit_funcs_count = 0;
 void exit(int64_t code) {
+    for(size_t i = atexit_funcs_count; i > 0; --i) {
+        atexit_funcs[i-1]();
+    }
     _exit(code);
     for(;;);
+}
+#include <assert.h>
+int atexit(void (*function)(void)) {
+    // TODO: Report error for this instead of crash
+    assert(atexit_funcs_count < ATEXIT_MAX);
+    // TODO: As far as I can tell registering multiple of the same function should only register it once
+    // This is not something we do. We should fix that at some point:tm:
+    atexit_funcs[atexit_funcs_count++] = function;
+    return 0;
 }
 void abort() {
     exit(-1);

@@ -27,5 +27,8 @@ unsigned long strtoul(const char *nptr, char **endptr, int base);
 unsigned long long strtoull(const char *nptr, char **endptr, int base);
 double strtod(const char *nptr, char **endptr);
 float strtof(const char *nptr, char **endptr);
+#define ATEXIT_MAX 32
+int atexit(void (*function)(void));
 #define EXIT_SUCCESS 0
 #define EXIT_FAILURE 1
+
