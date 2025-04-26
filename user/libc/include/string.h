@@ -27,4 +27,4 @@ static char* strcpy(char *restrict dest, const char *restrict src) {
 static char* strcat(char *restrict dest, const char *restrict src) {
     return memcpy(dest+strlen(dest), src, strlen(src)+1);
 }
-
+char* strtok(char* s, const char* delim);

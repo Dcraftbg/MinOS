@@ -157,7 +157,7 @@ char* strstr(const char* str, const char* substr) {
 #include <stdio.h>
 #include <stdlib.h>
 double strtod(const char* str, char** endptr) {
-    fprintf(stderr, "TODO: strtod is a stub");
+    fprintf(stderr, "%s:%d: strtod is a stub\n", __FILE__, __LINE__);
     exit(1);
 }
 size_t strspn(const char* str, const char* charset) {
@@ -182,4 +182,16 @@ size_t strcspn(const char* str, const char* charset) {
         str++;
     }
     return n;
+}
+
+
+static char* strtok_old = NULL;
+char* strtok(char* s, const char* delim) {
+    if(!s) s = strtok_old;
+    if(!s) return NULL;
+    size_t n = strcspn(s, delim);
+    if(n == 0) return NULL;
+    strtok_old = s + n + strspn(s + n, delim);
+    s[n] = '\0';
+    return s;
 }
