@@ -23,7 +23,8 @@ int atexit(void (*function)(void)) {
     return 0;
 }
 void abort() {
-    exit(-1);
+    _exit(-1);
+    for(;;);
 }
 
 #include <minos/heap.h>
