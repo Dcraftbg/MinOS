@@ -32,3 +32,5 @@ int atexit(void (*function)(void));
 #define EXIT_SUCCESS 0
 #define EXIT_FAILURE 1
 
+// For some reason my_basic requires this?
+#include "rand.h"
