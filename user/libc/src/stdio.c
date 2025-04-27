@@ -783,7 +783,7 @@ int ungetc(int chr, FILE* f) {
 int setvbuf(FILE* f, char* buf, int mode, size_t size)  {
     assert(mode == _IOFBF || mode == _IOLBF || mode == _IONBF);
     assert(size == BUFSIZ);
-    f->mode = mode;
+    f->buf_mode = mode;
     f->buf_real = false;
     if(buf) f->buf = buf;
     return 0;
