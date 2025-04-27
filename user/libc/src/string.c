@@ -183,9 +183,11 @@ static char* strtok_old = NULL;
 char* strtok(char* s, const char* delim) {
     if(!s) s = strtok_old;
     if(!s) return NULL;
+    s = s + strspn(s, delim);
     size_t n = strcspn(s, delim);
     if(n == 0) return NULL;
-    strtok_old = s + n + strspn(s + n, delim);
+    if(!s[n]) strtok_old = NULL;
+    else strtok_old = s + n + 1;
     s[n] = '\0';
     return s;
 }
