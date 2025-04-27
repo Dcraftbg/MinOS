@@ -143,6 +143,19 @@ static unsigned long long load_int_prefix(const char* fmt, char** end, va_list l
 
 static const char hex_upper_digits[] = {'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
 static const char hex_lower_digits[] = {'0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f'};
+static size_t dtostr(char* buf, double value) {
+    size_t at = lltostr(buf, (long long)value, hex_lower_digits, 10);
+    const size_t prec = 4;
+    value = value - (double)((long long)value);
+    if(value != 0) {
+        buf[at++] = '.';
+        for(size_t i = 0; i < prec; ++i) {
+            value *= 10;
+        }
+        at += lltostr(buf + at, (long long)value, hex_lower_digits, 10);
+    }
+    return at;
+}
 static ssize_t print_base(void* user, PrintWriteFunc func, const char* fmt, va_list list) {
 #define FUNC_CALL(user, data, len) \
     do {\
@@ -234,6 +247,9 @@ static ssize_t print_base(void* user, PrintWriteFunc func, const char* fmt, va_l
             bytes = va_arg(list, const char*);
             if(!bytes) bytes = "nil";
             count = strlen(bytes);
+            break;
+        case 'g':
+            count = dtostr(ibuf, va_arg(list, double));
             break;
         default:
             fprintf(stderr, "Unknown formatter: `%c`\n", *fmt);
