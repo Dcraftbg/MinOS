@@ -243,13 +243,15 @@ long strtol(const char* nptr, char** endptr, int base) {
 }
 
 long long strtoll(const char* nptr, char** endptr, int base) {
+    if(endptr) *endptr = (char*)nptr;
+    while(isspace(*nptr)) nptr++;
+    if(!isxdigit(*nptr)) return 0;
     if(base == 0) {
         if(nptr[0] == '0' && nptr[1] == 'x') base = 16;
         else if(nptr[0] == '0') base = 8;
         else base = 10;
     }
     assert(base >= 2);
-    while(isspace(*nptr)) nptr++;
     long long sign = 1;
     if(nptr[0] == '-') {
         sign = -1;
