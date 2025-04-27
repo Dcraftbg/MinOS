@@ -492,7 +492,7 @@ size_t fread(void* buffer, size_t size, size_t count, FILE* f) {
     if(size == 0 || count == 0) return 0;
     size_t bytes = size*count;
     size_t read = 0;
-    ssize_t e;
+    ssize_t e = 0;
     switch(f->buf_mode) {
     case _IONBF:
         e=fread_uncached(f, buffer, bytes);
@@ -627,7 +627,7 @@ int fgetc(FILE* f) {
 char* fgets(char* buf, size_t size, FILE* f) {
     if(size == 0) return buf;
     size_t i = 0;
-    int c;
+    int c = 0;
     while(i < (size-1) && (c=fgetc(f)) > 0) {
         buf[i++] = c;
         if(c == '\n') break;
