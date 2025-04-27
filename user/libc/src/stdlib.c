@@ -227,6 +227,27 @@ long labs(long num) {
 long long llabs(long long num) {
     return num < 0 ? -num : num;
 }
+
+
+double strtod(const char* str, char** endptr) {
+    double whole = 0;
+    while(isdigit(*str)) {
+        whole = whole * 10 + (double)(str[0] - '0');
+        str++;
+    }
+    double small = 0;
+    if(*str == '.') {
+        str++;
+        while(isdigit(*str)) {
+            small = (small + (double)(str[0] - '0')) / 10;
+            str++;
+        }
+    }
+    *endptr = (char*)str;
+    whole += small;
+    return whole;
+}
+
 long strtol(const char* nptr, char** endptr, int base) {
     return strtoll(nptr, endptr, base);
 }

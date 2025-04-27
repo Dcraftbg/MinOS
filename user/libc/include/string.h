@@ -17,7 +17,6 @@ char* strdup (const char* str);
 char* strrchr(const char* str, int ch);
 char* strstr (const char* str, const char* substr);
 char* strncpy(char *restrict dest, const char *restrict src, size_t count);
-double strtod(const char* str, char** endptr);
 char* strpbrk(const char* str, const char* breakset);
 size_t strspn(const char* str, const char* charset);
 size_t strcspn(const char* str, const char* charset);

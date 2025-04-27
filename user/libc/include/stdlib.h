@@ -21,6 +21,7 @@ void *bsearch(const void *key, const void *base, size_t nitems, size_t size, int
 char *mktemp(char *templat);
 char *realpath(const char *path, char *resolved_path);
 
+double strtod(const char* str, char** endptr);
 long strtol(const char* nptr, char** endptr, int base);
 long long strtoll(const char* nptr, char** endptr, int base);
 unsigned long strtoul(const char *nptr, char **endptr, int base);
