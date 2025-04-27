@@ -1,7 +1,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#include <strinternal.h>
 #include <stdbool.h>
 #include <minos/fsdefs.h>
 #include <minos/sysstd.h>
@@ -78,6 +77,72 @@ ssize_t _status_to_errno(intptr_t status) {
 }
 FILE* stddbg = NULL;
 static ssize_t _fwrite_base_func(void* user, const char* data, size_t len);
+
+
+static size_t ulltostr(char* buf, unsigned long long value, const char* digits, unsigned long long base) {
+    size_t at = 0;
+    if(value == 0) {
+        buf[at++] = digits[0];
+        return at;
+    }
+    while(value > 0) {
+        unsigned long long k = value % base;
+        value /= base;
+        buf[at++] = digits[k];
+    }
+    for(size_t i = 0; i < at/2; ++i) {
+        char c = buf[i];
+        buf[i] = buf[at-i-1];
+        buf[at-i-1] = c;
+    }
+    return at;
+}
+static size_t lltostr(char* buf, long long value, const char* digits, unsigned long long base) {
+    return value < 0 ? (buf[0] = '-', ulltostr(buf+1, (unsigned long long)(-value), digits, base) + 1) : ulltostr(buf, value, digits, base);
+}
+static unsigned long long load_int_prefix(const char* fmt, char** end, va_list list) {
+    unsigned long long value = 0;
+    switch(*fmt) {
+    case 'c':
+        // NOTE: char is promoted to int
+        value = (unsigned long long) va_arg(list, unsigned int);
+        break;
+    case 'x':
+    case 'X':
+    case 'u':
+        value = (unsigned long long) va_arg(list, unsigned int);
+        break;
+    case 'd':
+    case 'i':
+        value = (unsigned long long) va_arg(list, int);
+        break;
+    case 'z':
+        fmt++;
+        value = (unsigned long long) va_arg(list, size_t);
+        break;
+    case 'l':
+        fmt++;
+        if(fmt[0] == 'l') {
+            fmt++;
+            // NOTE: No need to sign extend ull
+            value = (unsigned long long) va_arg(list, unsigned long long);
+        } else {
+            if (sizeof(unsigned long) != sizeof(unsigned long long)) { 
+                // long is not unsigned long long sized.
+                // We need to sign extend
+                value = fmt[0] == 'd' || fmt[0] == 'i' ?
+                    (unsigned long long) va_arg(list, long) :
+                    (unsigned long long) va_arg(list, unsigned long);
+            } else value = (unsigned long long) va_arg(list, unsigned long);
+        }
+        break;
+    }
+    *end = (char*)fmt;
+    return value;
+}
+
+static const char hex_upper_digits[] = {'0','1','2','3','4','5','6','7','8','9','A','B','C','D','E','F'};
+static const char hex_lower_digits[] = {'0','1','2','3','4','5','6','7','8','9','a','b','c','d','e','f'};
 static ssize_t print_base(void* user, PrintWriteFunc func, const char* fmt, va_list list) {
 #define FUNC_CALL(user, data, len) \
     do {\
@@ -100,7 +165,7 @@ static ssize_t print_base(void* user, PrintWriteFunc func, const char* fmt, va_l
         
         const char* bytes = NULL;
         size_t count=0;
-        const char* end;
+        char* end;
         fmt++;
         char pad_with = ' ';
         if(fmt[0] == '0') {
@@ -112,7 +177,7 @@ static ssize_t print_base(void* user, PrintWriteFunc func, const char* fmt, va_l
             pad = va_arg(list, int); 
             fmt++;
         } else {
-            pad = atoi_internal(fmt, &end);
+            pad = strtol(fmt, &end, 10);
             fmt=end;
         }
         char ibuf[30];
@@ -125,108 +190,57 @@ static ssize_t print_base(void* user, PrintWriteFunc func, const char* fmt, va_l
                 prec = va_arg(list, int);
                 fmt++;
             } else {
-                prec = atoi_internal(fmt, &end);
+                prec = strtol(fmt, &end, 10);
                 fmt = end;
             }
             (void)prec;
         }
+        unsigned long long value = load_int_prefix(fmt, &end, list);
+        fmt = end;
+        bytes = ibuf;
         switch(*fmt) {
         case '%':
-            fmt++;
-        case '\0': {
-            static const char c='%';
-            bytes = &c;
+            // fallthrough
+        case '\0':
+            ibuf[0] = '%';
             count = 1;
-        } break;
-        case 'u': // <- Not really correct but I can't be bothered rn xD
+            break;
+        case 'u':
+            count = ulltostr(ibuf, value, hex_lower_digits, 10);
+            break;
+        case 'd':
         case 'i':
-        case 'd': {
-            fmt++;
-            bytes = ibuf;
-            count = itoa_internal(ibuf, sizeof(ibuf), va_arg(list, int));
-        } break;
-        case 'l': {
-            fmt++;
-            switch(*fmt) {
-            case 'd':
-                fmt++;
-                bytes = ibuf;
-                count = lltoa_internal(ibuf, sizeof(ibuf), va_arg(list, long int));
-                break;
-            // TODO: llutoa_internal
-            case 'u':
-                fmt++;
-                bytes = ibuf;
-                count = sztoa_internal(ibuf, sizeof(ibuf), va_arg(list, size_t));
-                break;
-            case 'l':
-                fmt++;
-                switch(*fmt) {
-                case 'd':
-                    fmt++;
-                    bytes = ibuf;
-                    count = lltoa_internal(ibuf, sizeof(ibuf), va_arg(list, long long int));
-                    break;
-                // TODO: llutoa_internal
-                case 'u':
-                    fmt++;
-                    bytes = ibuf;
-                    count = sztoa_internal(ibuf, sizeof(ibuf), va_arg(list, size_t));
-                    break;
-                default:
-                    return -EINVAL;
-                }
-                break;
-            default:
-                return -EINVAL;
-            }
-        } break;
-        case 'z': {
-            fmt++;
-            switch(*fmt) {
-            case '\0': 
-                return -EINVAL; // -'z';
-            case 'u': {
-                fmt++;
-                bytes = ibuf;
-                count = sztoa_internal(ibuf, sizeof(ibuf), va_arg(list, size_t));
-            } break;
-            default:
-                return -EINVAL; // -(*fmt);
-            }
-        } break;
-        case 'c': {
-            fmt++;
-            ibuf[0] = va_arg(list, int);
-            bytes = ibuf;
+            count = lltostr(ibuf, (long long) value, hex_lower_digits, 10);
+            break;
+        case 'c':
+            ibuf[0] = (char)value;
             count = 1;
-        } break;
-        case 'X': {
-            fmt++;
-            bytes = ibuf;
-            count = utoha_internal(ibuf, sizeof(ibuf), va_arg(list, unsigned int), hex_upper_digits);
-        } break;
-        case 'x': {
-            fmt++;
-            bytes = ibuf;
-            count = utoha_internal(ibuf, sizeof(ibuf), va_arg(list, unsigned int), hex_lower_digits);
-        } break;
-        case 'p': {
-            fmt++;
-            bytes = ibuf;
-            count = uptrtoha_full_internal(ibuf, sizeof(ibuf), (uintptr_t)va_arg(list, void*), hex_upper_digits);
-        } break;
-        case 's': {
-            fmt++;
+            break;
+        case 'x':
+            count = ulltostr(ibuf, value, hex_lower_digits, 16);
+            break;
+        case 'X':
+            count = ulltostr(ibuf, value, hex_upper_digits, 16);
+            break;
+        case 'p':
+            count = 16;
+            value = (unsigned long long)va_arg(list, void*);
+            for(size_t i = 0; i < 16; ++i) {
+                ibuf[15-i] = hex_upper_digits[value & 0xF];
+                value >>= 4;
+            }
+            break;
+        case 's':
             bytes = va_arg(list, const char*);
             if(!bytes) bytes = "nil";
             count = strlen(bytes);
-        } break;
+            break;
         default:
-            fprintf(stderr, "Unknown formatter: %c\n", *fmt);
+            fprintf(stderr, "Unknown formatter: `%c`\n", *fmt);
             exit(1);
             return -EINVAL; // -(*fmt);
         }
+        if(*fmt) fmt++;
         if (pad < 0) {
             pad = (-pad) < count ? 0 : (pad+count);
         } else {
