@@ -157,8 +157,22 @@ char* strstr(const char* str, const char* substr) {
 #include <stdio.h>
 #include <stdlib.h>
 double strtod(const char* str, char** endptr) {
-    fprintf(stderr, "%s:%d: strtod is a stub\n", __FILE__, __LINE__);
-    exit(1);
+    double whole = 0;
+    while(isdigit(*str)) {
+        whole = whole * 10 + (double)(str[0] - '0');
+        str++;
+    }
+    double small = 0;
+    if(*str == '.') {
+        str++;
+        while(isdigit(*str)) {
+            small = (small + (double)(str[0] - '0')) / 10;
+            str++;
+        }
+    }
+    *endptr = (char*)str;
+    whole += small;
+    return whole;
 }
 size_t strspn(const char* str, const char* charset) {
     size_t n=0;
