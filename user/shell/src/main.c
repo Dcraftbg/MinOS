@@ -164,9 +164,6 @@ void run_cmd(const char** argv, size_t argc) {
         exit(1);
     }
 }
-// Defined in MinOS libc.
-// Otherwise, include it in the current directory (TODO:)
-#include "strinternal.h"
 int main() {
     printf("Started MinOS shell\n");
     Arena arena={0};
@@ -213,8 +210,8 @@ int main() {
             running = false;
             if (arg_count == 1) exit_code=0;
             else if (arg_count == 2) {
-                const char* end;
-                exit_code = atoi_internal(args[1], &end);
+                char* end;
+                exit_code = strtoll(args[1], &end, 10);
                 if(end[0] != '\0') {
                     fprintf(stderr, "Invalid exit code `%s`\n", args[1]);
                     exit_code = 1;
