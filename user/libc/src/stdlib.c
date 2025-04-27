@@ -2,7 +2,6 @@
 #include <string.h>
 #include <ctype.h>
 #include <minos/sysstd.h>
-#include <strinternal.h>
 #include <collections/list.h>
 static void (*atexit_funcs[ATEXIT_MAX])(void);
 static size_t atexit_funcs_count = 0;
@@ -210,24 +209,14 @@ void _libc_internal_init_heap() {
     }
 }
 
+#include <string.h>
 int atoi(const char *str) {
-    const char* end;
-    return atoi_internal(str, &end);
+    char* end;
+    return strtol(str, &end, 10);
 }
 float atof(const char *str) {
-    const char* end;
-    float result=0;
-    int whole = atoi_internal(str, &end);
-    if(end[0] == '.') {
-        size_t fract = atosz_internal(end+1, &end);
-        while(fract != 0) {
-            result += fract%10;
-            result /= 10.0;
-            fract /= 10;
-        }
-    }
-    result += (float)whole;
-    return result;
+    char* end;
+    return strtod(str, &end);
 }
 int abs(int num) {
     return num < 0 ? -num : num;
