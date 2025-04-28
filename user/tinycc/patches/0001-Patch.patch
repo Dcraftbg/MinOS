@@ -85,16 +85,6 @@ index b163e865..d33f7d99 100644
      if ((s1->verbose == 2 && fd >= 0) || s1->verbose == 3)
          printf("%s %*s%s\n", fd < 0 ? "nf":"->",
                 (int)(s1->include_stack_ptr - s1->include_stack), "", filename);
-@@ -816,6 +827,9 @@ LIBTCCAPI TCCState *tcc_new(void)
- #ifdef MEM_DEBUG
-     tcc_memcheck(1);
- #endif
-+#ifdef _MINOS
-+    s->static_link = 1;
-+#endif
- 
- #undef gnu_ext
-     s->gnu_ext = 1;
 @@ -1829,8 +1843,11 @@ static int args_parser_listfile(TCCState *s,
      char *p;
      int argc = 0;

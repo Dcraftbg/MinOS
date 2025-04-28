@@ -21,7 +21,7 @@ void setup_envvars(void) {
     setenv("CC", PREFIX "gcc", 1);
 }
 bool do_configure(Nob_Cmd* cmd) {
-    nob_cmd_append(cmd, "../configure", "--debug", "--targetos=MinOS", "--sysincludepaths=/include", "--elfinterp=<TBD>", "--libpaths=/lib", "--crtprefix=/lib");
+    nob_cmd_append(cmd, "../configure", "--debug", "--targetos=MinOS", "--sysincludepaths=/include", "--elfinterp=/user/dynld", "--libpaths=/lib", "--crtprefix=/lib");
     return nob_cmd_run_sync_and_reset(cmd);
 }
 bool do_clone(Nob_Cmd* cmd) {
