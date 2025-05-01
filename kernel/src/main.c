@@ -43,6 +43,7 @@
 #include "general_caches.h"
 #include "epoll.h"
 #include "sockets/minos.h"
+#include "smp.h"
 
 #include "term/fb/fb.h"
 // TODO: create a symlink "/devices/keyboard" which will be a link to the currently selected keyboard
@@ -104,6 +105,7 @@ void _start() {
     init_charqueue();
     // Devices
     init_pci();
+    init_smp();
     // Initialisation for process related things
     init_memregion();
     init_processes();
