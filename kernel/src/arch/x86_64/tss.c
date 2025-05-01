@@ -1,13 +1,12 @@
 #include "tss.h"
 #include "kernel.h"
-void tss_load_cpu(size_t cpu) {
+void tss_load_cpu(void) {
 #ifdef GLOBAL_STORAGE_GDT_IDT
     GDT* gdt = &kernel.gdt;
 #else
     GDT* gdt = kernel.gdt;
 #endif
     TSSSegment* tss = (TSSSegment*)&gdt->tss;
-    // (TSSSegment*)(((uint64_t*)kernel.gdt)+(5+cpu*2));
     tss->limit_low = sizeof(TSS)-1;
     uint64_t tss_ptr = (uint64_t)&kernel.tss;
     tss->base_low    = tss_ptr;
