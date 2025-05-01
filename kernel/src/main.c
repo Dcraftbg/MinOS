@@ -46,24 +46,6 @@
 #include "smp.h"
 
 #include "term/fb/fb.h"
-// TODO: create a symlink "/devices/keyboard" which will be a link to the currently selected keyboard
-// Like for example PS1 or USB or anything like that
-static void fbt() {
-    Framebuffer buf = get_framebuffer_by_id(0);
-    if(!buf.addr) return;
-    if(buf.bpp != 32) return;
-    fmbuf_fill(&buf, VGA_BG);
-}
-#if 0
-#include "probe.h"
-static void do_probe() {
-    wang_seed = limine_boot_time_request.response->boot_time;
-    printf("Boot time: %zu\n", (size_t)limine_boot_time_request.response->boot_time);
-    probe_slab();
-    Framebuffer fb = get_framebuffer_by_id(0);
-    fmbuf_fill(&fb, 0x00ff00);
-}
-#endif
 
 void _start() {
     disable_interrupts();
@@ -115,7 +97,6 @@ void _start() {
     init_task_switch();
     init_syscalls();
     init_resources();
-    fbt();
     // VFS
     init_vfs();
     init_rootfs();
