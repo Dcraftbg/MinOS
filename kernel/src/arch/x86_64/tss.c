@@ -1,6 +1,6 @@
 #include "tss.h"
 #include "kernel.h"
-void tss_load_cpu(void) {
+void reload_tss(void) {
 #ifdef GLOBAL_STORAGE_GDT_IDT
     GDT* gdt = &kernel.gdt;
 #else

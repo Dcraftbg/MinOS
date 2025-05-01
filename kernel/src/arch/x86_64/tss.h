@@ -16,4 +16,4 @@ typedef struct {
     uint32_t base_high2;
     uint32_t _reserved;
 } __attribute__((packed)) TSSSegment;
-void tss_load_cpu(void);
+void reload_tss(void);

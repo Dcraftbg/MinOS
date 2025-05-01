@@ -77,7 +77,7 @@ void _start() {
     disable_interrupts();
     init_idt();
     init_exceptions();
-    tss_load_cpu();
+    reload_tss();
 #endif
     init_bitmap();
     init_paging();
@@ -87,7 +87,7 @@ void _start() {
     disable_interrupts();
     init_idt();
     init_exceptions();
-    tss_load_cpu();
+    reload_tss();
 #endif
     enable_cpu_features();
     // Interrupt controller Initialisation

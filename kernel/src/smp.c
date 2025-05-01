@@ -17,7 +17,7 @@ void ap_main(struct limine_smp_info* info) {
     reload_gdt();
     kernel_reload_gdt_registers();
     mutex_lock(&tss_sync);
-    tss_load_cpu();
+    reload_tss();
     mutex_unlock(&tss_sync);
     kinfo("Hello from logical processor %zu", info->lapic_id);
 }
