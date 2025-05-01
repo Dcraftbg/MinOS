@@ -6,6 +6,7 @@
 #include "assert.h"
 #include "string.h"
 #include <minos/status.h>
+#include <sync/mutex.h>
 enum {
     LOG_ALL,
     LOG_TRACE,
@@ -35,6 +36,7 @@ typedef struct Logger {
     intptr_t (*draw_color)(struct Logger* this, uint32_t color);
     uint32_t level;
     void* private;
+    Mutex mutex;
 } Logger;
 
 static void logger_log_va(Logger* logger, uint32_t level, const char* fmt, va_list args) {

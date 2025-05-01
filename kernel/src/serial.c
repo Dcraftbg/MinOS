@@ -66,6 +66,7 @@ static intptr_t serial_log_draw_color(Logger* this, uint32_t color) {
 void serial_print_sink(void* _, const char* data, size_t len) { serial_print(data, len); }
 static intptr_t serial_log(Logger* logger, uint32_t level, const char* fmt, va_list args) {
     if(level >= LOG_COUNT) return -UNSUPPORTED;
+    mutex_lock(&logger->mutex);
     #ifndef NO_SERIAL_COLOR
     serial_log_draw_color(logger, logger_color_map[level]);
     #endif
@@ -86,6 +87,7 @@ static intptr_t serial_log(Logger* logger, uint32_t level, const char* fmt, va_l
     serial_log_draw_color(logger, LOG_COLOR_RESET);
     #endif
     serial_print_u8('\n');
+    mutex_unlock(&logger->mutex);
     return 0;
 }
 #include "../../config.h"
