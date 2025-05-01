@@ -26,10 +26,8 @@ static void logger_default_write_func(void* logger_void, const char* str, size_t
     logger->write_str(logger, str, len);
 }
 intptr_t logger_log_default(Logger* logger, uint32_t level, const char* fmt, va_list args) {
-    if(level >= LOG_COUNT) {
-        logger_log(logger, LOG_WARN, "Invalid log level %u >= %u", level, LOG_COUNT);
-        return -UNSUPPORTED;
-    }
+    if(level >= LOG_COUNT) return -UNSUPPORTED;
+    mutex_lock(&logger->mutex);
     if(logger->draw_color) logger->draw_color(logger, logger_color_map[level]);
     {
         char buf[10];
@@ -46,6 +44,7 @@ intptr_t logger_log_default(Logger* logger, uint32_t level, const char* fmt, va_
     print_base(logger, logger_default_write_func, fmt, args);
     if(logger->draw_color) logger->draw_color(logger, LOG_COLOR_RESET);
     logger->write_str(logger, "\n", 1);
+    mutex_unlock(&logger->mutex);
     return 0;
 }
 intptr_t logger_init(Logger* logger) {
