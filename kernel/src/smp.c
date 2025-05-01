@@ -10,11 +10,15 @@ static volatile struct limine_smp_request limine_smp_request = {
 extern void ap_init(struct limine_smp_info*);
 #define AP_STACK_SIZE 1*PAGE_SIZE
 #include "arch/x86_64/gdt.h"
+
+static Mutex tss_sync = { 0 };
 void ap_main(struct limine_smp_info* info) {
     reload_idt();
     reload_gdt();
     kernel_reload_gdt_registers();
+    mutex_lock(&tss_sync);
     tss_load_cpu();
+    mutex_unlock(&tss_sync);
     kinfo("Hello from logical processor %zu", info->lapic_id);
 }
 void init_smp(void) {
