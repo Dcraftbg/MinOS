@@ -12,7 +12,7 @@
 
 #define c_compiler(cmd)     nob_cmd_append(cmd, "x86_64-minos-gcc")
 #define c_output(cmd, path) nob_cmd_append(cmd, "-o", path)
-#define c_flags(cmd)        nob_cmd_append(cmd, "-Wall", "-Wextra", "-MD")
+#define c_flags(cmd)        nob_cmd_append(cmd, "-Wall", "-Wextra", "-MD", "-nostartfiles")
 
 bool cc(Nob_Cmd* cmd) {
     c_compiler(cmd);
