@@ -1,6 +1,21 @@
 #include "idt.h"
 #include "string.h"
 #include "kernel.h"
+void reload_idt() {
+#ifdef GLOBAL_STORAGE_GDT_IDT
+    IDT* idt = &kernel.idt;
+#else
+    IDT* idt = kernel.idt;
+#endif
+    volatile IDTDescriptor idt_descriptor;
+    idt_descriptor.size = PAGE_SIZE-1;
+    idt_descriptor.addr = (uint64_t)idt;
+    __asm__ volatile(
+        "lidt (%0)"
+        :
+        : "r" (&idt_descriptor)
+    );
+}
 void init_idt() {
 #ifdef GLOBAL_STORAGE_GDT_IDT
     IDT* idt = &kernel.idt;
@@ -13,14 +28,7 @@ void init_idt() {
     } 
 #endif
     memset(idt, 0, PAGE_SIZE);
-    volatile IDTDescriptor idt_descriptor;
-    idt_descriptor.size = PAGE_SIZE-1;
-    idt_descriptor.addr = (uint64_t)idt;
-    __asm__ volatile(
-        "lidt (%0)"
-        :
-        : "r" (&idt_descriptor)
-    );
+    reload_idt();
 }
 void idt_pack_entry(IDTEntry* result, IDTHandler_t handler, uint8_t typ) {
     uint64_t offset = (uint64_t)handler;

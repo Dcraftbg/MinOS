@@ -1,6 +1,21 @@
 #include "gdt.h"
 #include "string.h"
 #include "kernel.h"
+void reload_gdt(void) {
+#ifdef GLOBAL_STORAGE_GDT_IDT
+    GDT* gdt = &kernel.gdt;
+#else
+    GDT* gdt = kernel.gdt;
+#endif
+    volatile GDTDescriptor descriptor;
+    descriptor.size = (PAGE_SIZE-1);
+    descriptor.addr = gdt;
+    __asm__ volatile (
+        "lgdt (%0)"
+        :
+        : "r" (&descriptor)
+    );
+}
 void init_gdt() {
 #ifdef GLOBAL_STORAGE_GDT_IDT
     GDT* gdt = &kernel.gdt;
@@ -19,14 +34,7 @@ void init_gdt() {
     gdt->userCode   = 0x0020F80000000000;
     gdt->userData   = 0x0020F20000000000; 
     memset(gdt->tss, 0, sizeof(gdt->tss)); // NOTE: Initialised later
-    volatile GDTDescriptor descriptor;
-    descriptor.size = (PAGE_SIZE-1);
-    descriptor.addr = gdt;
-    __asm__ volatile (
-        "lgdt (%0)"
-        :
-        : "r" (&descriptor)
-    );
+    reload_gdt();
     kernel_reload_gdt_registers();
     kernel.tss.rsp0 = KERNEL_STACK_PTR;
 }

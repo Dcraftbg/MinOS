@@ -26,6 +26,7 @@ typedef struct {
 
 typedef void (*IDTHandler_t);
 void idt_pack_entry(IDTEntry* entry, IDTHandler_t handler, uint8_t typ);
+void reload_idt(void);
 void init_idt();
 
 #ifdef GLOBAL_STORAGE_GDT_IDT

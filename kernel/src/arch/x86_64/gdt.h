@@ -31,4 +31,5 @@ typedef struct {
     | ((((limit)     ) & 0xFFFF)      )\
 )
 extern void kernel_reload_gdt_registers();
+void reload_gdt(void);
 void init_gdt();
