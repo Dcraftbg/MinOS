@@ -183,7 +183,7 @@ static intptr_t load_elf(Task* task, Inode* file, uintptr_t offset, Elf64Header*
         if((e=vfs_find(&path, &interp_file)) < 0) return e;
         kernel_dealloc(pheaders, header->phnum * sizeof(Elf64ProgHeader));
         *pheaders_result = pheaders = NULL;
-        kinfo("Relocating interpreter `%s` at %p", interp_buffer, eoe);
+        // kinfo("Relocating interpreter `%s` at %p", interp_buffer, eoe);
         e = load_elf(task, interp_file, eoe, header, pheaders_result, true);
         idrop(interp_file);
         return e;
