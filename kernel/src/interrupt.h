@@ -17,7 +17,7 @@ enum {
 // Return value:
 //   < 0 Error
 //  >= 0 Interrupt Vector
-intptr_t irq_register(size_t irq, void (*handler)(), irq_flags_t flags);
+intptr_t irq_register(size_t irq, void (*handler)(void), irq_flags_t flags);
 // Wrappers around interrupt_controller functions
 intptr_t irq_reserve(size_t irq);
 void     irq_clear(size_t irq);
