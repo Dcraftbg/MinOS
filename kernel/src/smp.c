@@ -10,6 +10,7 @@ static volatile struct limine_smp_request limine_smp_request = {
 extern void ap_init(struct limine_smp_info*);
 #define AP_STACK_SIZE 1*PAGE_SIZE
 #include "arch/x86_64/gdt.h"
+#include "apic.h"
 
 static Mutex tss_sync = { 0 };
 void ap_main(struct limine_smp_info* info) {
@@ -19,7 +20,18 @@ void ap_main(struct limine_smp_info* info) {
     mutex_lock(&tss_sync);
     reload_tss();
     mutex_unlock(&tss_sync);
-    kinfo("Hello from logical processor %zu", info->lapic_id);
+
+    __asm__ volatile(
+            "movq %0, %%cr3\n"
+            :
+            : "r" ((uintptr_t)kernel.pml4 & ~KERNEL_MEMORY_MASK)
+        );
+    // APIC divider of 16
+    kinfo("Hello from logical processor %zu lapic_id %zu", info->lapic_id, get_lapic_id());
+    lapic_timer_reload();
+    irq_clear(kernel.task_switch_irq);
+    enable_interrupts();
+    asm volatile( "int $0x20" );
 }
 void init_smp(void) {
     if(!limine_smp_request.response) return;

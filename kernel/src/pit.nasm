@@ -8,8 +8,12 @@ struc ContextFrame
    .cr3 resq 1
    .rsp resq 1
 endstruc 
+extern get_lapic_id
 task_switch_handler:
    irq_push_regs
+   call get_lapic_id
+   cmp rax, 0
+   jne .end
    mov rax, rsp
    sub rsp, ContextFrame_size
    mov [rsp+ContextFrame.rsp], rax
@@ -19,5 +23,6 @@ task_switch_handler:
    mov rsp, [rax+ContextFrame.rsp]
    mov rax, [rax+ContextFrame.cr3]
    mov cr3, rax
+.end:
    irq_pop_regs
    iretq
