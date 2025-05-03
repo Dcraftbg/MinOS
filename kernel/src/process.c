@@ -50,19 +50,6 @@ void process_drop(Process* process) {
     cache_dealloc(kernel.process_cache, process);
 }
 
-
-Process* get_process_by_id(size_t id) {
-    if(id == INVALID_TASK_ID) return NULL;
-    mutex_lock(&kernel.processes_mutex);
-    if(id >= kernel.processes.len) {
-        mutex_unlock(&kernel.processes_mutex);
-        return NULL;
-    }
-    Process* proc = kernel.processes.items[id];
-    mutex_unlock(&kernel.processes_mutex);
-    return proc;
-}
-
 Heap* get_heap_by_id(Process* process, size_t heapid) {
     for(struct list* head = process->heap_list.next; head != &process->heap_list; head = head->next) {
         Heap* heap = (Heap*)head;

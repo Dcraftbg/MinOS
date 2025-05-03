@@ -55,7 +55,6 @@ struct Process {
 void init_processes();
 Process* kernel_process_add(); 
 void process_drop(Process* process);
-Process* get_process_by_id(size_t id);
 Heap* get_heap_by_id(Process* process, size_t heapid);
 intptr_t process_heap_extend(Process* process, Heap* heap, size_t extra);
 
