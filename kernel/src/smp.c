@@ -28,6 +28,7 @@ void ap_main(struct limine_smp_info* info) {
         );
     // APIC divider of 16
     kinfo("Hello from logical processor %zu lapic_id %zu", info->lapic_id, get_lapic_id());
+    /*kernel.processors[info->lapic_id].initialised = true;*/
     lapic_timer_reload();
     irq_clear(kernel.task_switch_irq);
     enable_interrupts();
@@ -36,9 +37,11 @@ void ap_main(struct limine_smp_info* info) {
 void init_smp(void) {
     if(!limine_smp_request.response) return;
     kinfo("There are %zu cpus", limine_smp_request.response->cpu_count);
+    kernel.processors[limine_smp_request.response->bsp_lapic_id].initialised = true;
     for(size_t i = 0; i < limine_smp_request.response->cpu_count; ++i) {
         struct limine_smp_info* info = limine_smp_request.response->cpus[i];
         if(info->lapic_id == limine_smp_request.response->bsp_lapic_id) continue; 
+        if(kernel.max_processor_id < info->lapic_id) kernel.max_processor_id = info->lapic_id;
         // FIXME: This obviously leaks just like how the kernel stack kinda leaks.
         // I think its fine but leaving this FIXME just in case
         void* ap_stack_base_addr = kernel_malloc(AP_STACK_SIZE);

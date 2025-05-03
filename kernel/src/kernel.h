@@ -53,6 +53,9 @@ typedef struct {
     bool unwinding;
 
     Processor processors[MAX_PROCESSORS];
+    size_t max_processor_id;
+    // Round robin style load balancer
+    atomic_size_t load_balancer_head;
 } Kernel;
 extern Kernel kernel;
 

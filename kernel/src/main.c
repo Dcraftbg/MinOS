@@ -94,6 +94,7 @@ void _start() {
     init_tasks();
     init_heap();
     init_kernel_task();
+    init_schedulers();
     init_task_switch();
     init_syscalls();
     init_resources();
@@ -114,7 +115,7 @@ void _start() {
         printf("Failed to exec %s : %s\n",epath,status_str(e));
         kabort();
     }
-    kinfo("Spawning `%s` id=%zu", epath, (size_t)e);
+    kinfo("Spawning `%s` id=%zu tid=%zu", epath, (size_t)e, ((Process*)(kernel.processes.items[(size_t)e]))->main_thread->id);
     epath = "/user/init";
     const char* argv[] = {epath, "test_arg"};
     args = create_args(ARRAY_LEN(argv), argv);
@@ -124,7 +125,7 @@ void _start() {
         printf("Failed to exec %s : %s\n",epath,status_str(e));
         kabort();
     }
-    kinfo("Spawning `%s` id=%zu", epath, (size_t)e);
+    kinfo("Spawning `%s` id=%zu tid=%zu", epath, (size_t)e, ((Process*)(kernel.processes.items[(size_t)e]))->main_thread->id);
     // If you run into problems with PS2. Enable this:
     // I have no idea why this shit works but I think it tells the controller
     // I'm ready to listen for keyboard input or something when I haven't answered its interrupts before

@@ -8,6 +8,9 @@
 #include "kernel.h"
 #include "debug.h"
 #include "log.h"
+// Picking a processor to run on
+#include "load_balance.h"
+#include "apic.h"
 
 #define return_defer_err(x) do {\
     e=(x);\
@@ -48,6 +51,17 @@ intptr_t fork(Task* task, Task* result, void* frame) {
     result->image.ts_rsp = frame;
     result->image.rip    = task->image.rip;
     result->image.flags  = task->image.flags & (~(TASK_FLAG_RUNNING));
+    size_t processor_id = pick_processor_for_task();
+    Processor* processor = &kernel.processors[processor_id];
+    if(processor_id == get_lapic_id()) {
+        disable_interrupts();
+        list_insert(&result->list, &processor->scheduler.queue);
+        enable_interrupts();
+    } else {
+        mutex_lock(&processor->scheduler.queue_mutex);
+        list_insert(&result->list, &processor->scheduler.queue);
+        mutex_unlock(&processor->scheduler.queue_mutex);
+    }
     return 0;
 DEFER_ERR:
     // TODO: Remove this:
@@ -314,6 +328,17 @@ intptr_t exec(Task* task, Path* path, Args* args, Args* envs) {
     idrop(file);
     file = NULL;
     kernel_dealloc(pheaders, header.phnum * sizeof(Elf64ProgHeader));
+    size_t processor_id = pick_processor_for_task();
+    Processor* processor = &kernel.processors[processor_id];
+    if(processor_id == get_lapic_id()) {
+        disable_interrupts();
+        list_insert(&task->list, &processor->scheduler.queue);
+        enable_interrupts();
+    } else {
+        mutex_lock(&processor->scheduler.queue_mutex);
+        list_insert(&task->list, &processor->scheduler.queue);
+        mutex_unlock(&processor->scheduler.queue_mutex);
+    }
     return 0;
 DEFER_ERR:
     if(pheaders) kernel_dealloc(pheaders, header.phnum * sizeof(Elf64ProgHeader));
