@@ -223,7 +223,7 @@ intptr_t sys_fork() {
     Process* process = kernel_process_add();
     if(!process) return -LIMITS; // Reached max tasks and/or we're out of memory
     child_process_set_id(current_proc->children[child_index], process->id);
-    process->parentid = current_proc->id;
+    process->parent = current_proc;
     process->resources = resourceblock_clone(current_proc->resources);
     if(!process->resources) {
         process_drop(process);
@@ -322,17 +322,13 @@ void sys_exit(int code) {
 #endif
     Process* cur_proc = current_process();
     Task* cur_task = current_task();
-    Process* parent_proc = get_process_by_id(cur_proc->parentid);
+    Process* parent_proc = cur_proc->parent;
     disable_interrupts();
     cur_task->image.flags &= ~(TASK_FLAG_PRESENT);
     cur_task->image.flags |= TASK_FLAG_DYING;
     cur_proc->flags |= PROC_FLAG_DYING;
     if(!parent_proc) {
         kwarn("Called exit on init process maybe? Thats kind of bad.");
-        if(cur_proc->parentid != INVALID_PROCESS_ID) 
-            kwarn(" parent_id : %zu", cur_proc->parentid);
-        else 
-            kwarn(" parent_id : INVALID");
         kwarn(" process_id: %zu", cur_proc->id);
         kwarn(" exit code : %d" , code);
         goto end;

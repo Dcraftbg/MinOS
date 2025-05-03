@@ -28,7 +28,7 @@ Process* kernel_process_add() {
     for(size_t i = 0; i < ARRAY_LEN(process->children); ++i) {
         child_process_set_id(process->children[i], INVALID_PROCESS_ID);
     }
-    process->parentid = INVALID_PROCESS_ID;
+    process->parent = NULL;
     process->main_threadid = INVALID_TASK_ID;
     process->id = id;
     list_init(&process->heap_list);

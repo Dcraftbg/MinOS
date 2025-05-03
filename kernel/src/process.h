@@ -40,7 +40,7 @@ typedef struct {
 typedef struct Process Process;
 struct Process {
     struct list list;
-    size_t parentid;
+    Process* parent;
     size_t id; 
     size_t main_threadid;
     uint64_t flags;
