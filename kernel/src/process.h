@@ -59,5 +59,5 @@ Heap* get_heap_by_id(Process* process, size_t heapid);
 intptr_t process_heap_extend(Process* process, Heap* heap, size_t extra);
 
 static Process* current_process() {
-    return kernel.current_task->process;
+    return current_task()->process;
 }

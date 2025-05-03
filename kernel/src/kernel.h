@@ -27,7 +27,6 @@ typedef struct {
 #endif
     TSS tss;
     Superblock rootBlock;
-    Task* current_task;
     PtrDarray processes;
     Mutex processes_mutex;
     PtrDarray tasks;

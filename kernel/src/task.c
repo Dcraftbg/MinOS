@@ -18,7 +18,10 @@ void init_kernel_task() {
     assert(kt = kernel_task_add());
     kt->image.cr3 = kernel.pml4;
     kt->image.flags |= TASK_FLAG_RUNNING;
-    kernel.current_task = kt;
+    // TODO: Do this only for the amount of actual processors
+    for(size_t i = 0; i < MAX_PROCESSORS; ++i) {
+        kernel.processors[i].current_task = kt;
+    }
     kt->image.ts_rsp = 0;
     kt->image.rip = 0;
 }
@@ -53,6 +56,9 @@ void drop_task(Task* task) {
     }
 }
 
+Task* current_task(void) {
+    return kernel.processors[get_lapic_id()].current_task;
+}
 static Task* task_select(Task* ct) {
 #if 1
     debug_assert(kernel.tasks.len);
@@ -120,7 +126,7 @@ void task_switch(ContextFrame* frame) {
         frame->cr3 = (uintptr_t)select->image.cr3 & ~KERNEL_MEMORY_MASK;
         frame->rsp = (uintptr_t)select->image.ts_rsp;
         select->image.flags |= TASK_FLAG_RUNNING;
-        kernel.current_task = select;
+        kernel.processors[get_lapic_id()].current_task = select;
         if (select->image.flags & TASK_FLAG_FIRST_RUN) {
             select->image.flags &= ~TASK_FLAG_FIRST_RUN;
             irq_eoi(kernel.task_switch_irq);

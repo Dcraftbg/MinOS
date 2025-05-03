@@ -47,7 +47,5 @@ void init_tasks();
 void init_kernel_task();
 void init_task_switch();
 Task* kernel_task_add();
-static Task* current_task() {
-    return kernel.current_task;
-}
+Task* current_task();
 void drop_task(Task* task);
