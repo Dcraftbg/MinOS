@@ -10,8 +10,8 @@
 #include "ptr_darray.h"
 struct Logger;
 typedef struct Cache Cache;
+typedef struct Task Task;
 #include <sync/mutex.h>
-#include <sync/rwlock.h>
 typedef struct {
     Bitmap map;
     Mutex map_lock;
@@ -26,8 +26,7 @@ typedef struct {
 #endif
     TSS tss;
     Superblock rootBlock;
-    size_t current_taskid;
-    size_t current_processid; // Cache of tasks[current_taskid]->processid
+    Task* current_task;
     PtrDarray processes;
     Mutex processes_mutex;
     PtrDarray tasks;

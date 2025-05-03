@@ -18,7 +18,7 @@ void init_kernel_task() {
     assert(kt = kernel_task_add());
     kt->image.cr3 = kernel.pml4;
     kt->image.flags |= TASK_FLAG_RUNNING;
-    kernel.current_taskid = kt->id;
+    kernel.current_task = kt;
     kt->image.ts_rsp = 0;
     kt->image.rip = 0;
 }
@@ -131,8 +131,7 @@ void task_switch(ContextFrame* frame) {
         frame->cr3 = (uintptr_t)select->image.cr3 & ~KERNEL_MEMORY_MASK;
         frame->rsp = (uintptr_t)select->image.ts_rsp;
         select->image.flags |= TASK_FLAG_RUNNING;
-        kernel.current_taskid = select->id;
-        kernel.current_processid = select->processid;
+        kernel.current_task = select;
         if (select->image.flags & TASK_FLAG_FIRST_RUN) {
             select->image.flags &= ~TASK_FLAG_FIRST_RUN;
             irq_eoi(kernel.task_switch_irq);

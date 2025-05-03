@@ -51,6 +51,6 @@ void init_task_switch();
 Task* get_task_by_id(size_t id);
 Task* kernel_task_add();
 static Task* current_task() {
-    return get_task_by_id(kernel.current_taskid);
+    return kernel.current_task;
 }
 void drop_task(Task* task);
