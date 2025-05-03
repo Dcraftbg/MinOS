@@ -6,6 +6,7 @@
 #include "exec.h"
 #include "log.h"
 #include "benchmark.h"
+#include "kernel.h"
 #include "arch/x86_64/idt.h"
 #include <minos/heap.h>
 #include <minos/time.h>
@@ -27,8 +28,8 @@ static intptr_t parse_path(Process* process, Path* res, const char* path) {
         return 0;
     }
 }
-#define strace(fmt, ...) ktrace("P%zu:T%zu "fmt, kernel.current_processid, kernel.current_taskid, __VA_ARGS__)
-#define strace1(fmt)     ktrace("P%zu:T%zu "fmt, kernel.current_processid, kernel.current_taskid)
+#define strace(fmt, ...) ktrace("P%zu:T%zu "fmt, current_process()->id, current_task()->id, __VA_ARGS__)
+#define strace1(fmt)     ktrace("P%zu:T%zu "fmt, current_process()->id, current_task()->id)
 // TODO: Safety features like copy_to_userspace, copy_from_userspace
 intptr_t sys_open(const char* path, fmode_t mode, oflags_t flags) {
 #ifdef CONFIG_LOG_SYSCALLS
