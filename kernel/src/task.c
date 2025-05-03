@@ -114,7 +114,7 @@ void task_switch(ContextFrame* frame) {
     frame->cr3 = (uintptr_t)current->image.cr3 & ~KERNEL_MEMORY_MASK;
     current->image.ts_rsp = (void*)frame->rsp;
     Task* select = task_select(current);
-    kernel.pit_info.ticks++;
+    kernel.processors[get_lapic_id()].lapic_ticks++;
     if(select) {
         current->image.flags &= ~TASK_FLAG_RUNNING;
         frame->cr3 = (uintptr_t)select->image.cr3 & ~KERNEL_MEMORY_MASK;

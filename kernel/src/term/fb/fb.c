@@ -1,7 +1,7 @@
 #include "fb.h"
-#include "../../kernel.h"
-#include "../../fbwriter.h"
-#include "../../log.h"
+#include <timer.h>
+#include <fbwriter.h>
+#include <log.h>
 #include <minos/keycodes.h>
 #include <minos/key.h>
 #define KEY_BYTES ((MINOS_KEY_COUNT+7)/8)
@@ -158,7 +158,7 @@ static uint32_t fbtty_getchar(Tty* device) {
                 if(fbtty->blink) fbtty_fill_blink(fbtty, fbtty->bg);
                 return e;
             } else if (e > 0) break;
-            size_t now = kernel.pit_info.ticks;
+            size_t now = system_timer_milis();
             if(now-fbtty->blink_time >= TTY_MILISECOND_BLINK) {
                 fbtty->blink = !fbtty->blink;
                 fbtty->blink_time = now;

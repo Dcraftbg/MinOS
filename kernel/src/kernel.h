@@ -8,6 +8,7 @@
 #include "pit.h"
 #include "interrupt.h"
 #include "ptr_darray.h"
+#include "processor.h"
 struct Logger;
 typedef struct Cache Cache;
 typedef struct Task Task;
@@ -50,8 +51,9 @@ typedef struct {
     IntController* interrupt_controller;
     struct list cache_list;
     struct Logger* logger;
-    PitInfo pit_info;
     bool unwinding;
+
+    Processor processors[MAX_PROCESSORS];
 } Kernel;
 extern Kernel kernel;
 

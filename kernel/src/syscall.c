@@ -1,6 +1,6 @@
 #include "syscall.h"
 #include "print.h"
-#include "kernel.h"
+#include "timer.h"
 #include "process.h"
 #include "task.h"
 #include "exec.h"
@@ -528,7 +528,7 @@ void sys_sleepfor(const MinOS_Duration* duration) {
     strace("sys_sleepfor(%zu)", ms);
 #endif
     if(ms == 0) return;
-    size_t until = kernel.pit_info.ticks + ms;
+    size_t until = system_timer_milis() + ms;
     return block_sleepuntil(current_task(), until); 
 }
 intptr_t sys_gettime(MinOS_Time* time) {
@@ -536,7 +536,7 @@ intptr_t sys_gettime(MinOS_Time* time) {
     strace("sys_gettime(%p)", time);
 #endif
     // TODO: Actual gettime with EPOCH (1/1/1970)
-    time->ms = kernel.pit_info.ticks;
+    time->ms = system_timer_milis();
     return 0;
 }
 intptr_t sys_truncate(uintptr_t handle, size_t size) {
@@ -599,7 +599,7 @@ intptr_t sys_epoll_wait(int epfd, struct epoll_event *events, int maxevents, int
     if(timeout == 0) epoll_poll(epoll, current);
     else {
         size_t until = 0xFFFFFFFFFFFFFFFFL;
-        if(timeout > 0) until = kernel.pit_info.ticks + timeout;
+        if(timeout > 0) until = system_timer_milis() + timeout;
         block_epoll(current_task(), epoll, until);
     }
     size_t event_count = 0;

@@ -3,6 +3,7 @@
 #include "process.h"
 #include "log.h"
 #include "epoll.h"
+#include "timer.h"
 
 bool try_resolve_waitpid(ThreadBlocker* blocker, Task* task) {
     Process* proc = task->process; 
@@ -17,12 +18,12 @@ bool try_resolve_waitpid(ThreadBlocker* blocker, Task* task) {
 }
 bool try_resolve_epoll(ThreadBlocker* blocker, Task* task) {
     Process* proc = task->process; 
-    if(blocker->as.epoll.until <= kernel.pit_info.ticks || epoll_poll(blocker->as.epoll.epoll, proc)) return true;
+    if(blocker->as.epoll.until <= system_timer_milis() || epoll_poll(blocker->as.epoll.epoll, proc)) return true;
     return false;
 
 }
 bool try_resolve_sleep_until(ThreadBlocker* blocker, Task* task) {
-    return blocker->as.sleep.until <= kernel.pit_info.ticks;
+    return blocker->as.sleep.until <= system_timer_milis();
 }
 bool try_resolve_is_readable(ThreadBlocker* blocker, Task* task) {
     return inode_is_readable(blocker->as.inode);
