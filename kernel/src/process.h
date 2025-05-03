@@ -42,7 +42,7 @@ struct Process {
     struct list list;
     Process* parent;
     size_t id; 
-    size_t main_threadid;
+    Task* main_thread;
     uint64_t flags;
     ResourceBlock* resources;
     size_t heapid; // Current heapid count

@@ -256,7 +256,7 @@ intptr_t sys_fork() {
         enable_interrupts();
         return -LIMITS;
     } 
-    process->main_threadid = task->id;
+    process->main_thread = task;
     task->process = process;
 
     if((e=fork_trampoline(current, task)) < 0) {
@@ -279,7 +279,7 @@ intptr_t sys_exec(const char* path, const char** argv, size_t argc, const char**
     intptr_t e;
     Process* cur_proc = current_process();
     Task* cur_task = current_task();
-    assert(cur_proc->main_threadid == cur_task->id && "Exec on multiple threads is not supported yet");
+    assert(cur_proc->main_thread == cur_task && "Exec on multiple threads is not supported yet");
     disable_interrupts();
     Task* task = kernel_task_add();
     if(!task) {
@@ -302,7 +302,7 @@ intptr_t sys_exec(const char* path, const char** argv, size_t argc, const char**
     }
     cur_task->image.flags &= ~(TASK_FLAG_PRESENT);
     cur_task->image.flags |= TASK_FLAG_DYING;
-    cur_proc->main_threadid = task->id;
+    cur_proc->main_thread = task;
     task->image.flags |= TASK_FLAG_PRESENT;
     Heap* heap = (Heap*)cur_proc->heap_list.next;
     while(&heap->list != &cur_proc->heap_list) {

@@ -66,7 +66,7 @@ intptr_t exec_new(const char* path, Args* args, Args* env) {
     task = kernel_task_add();
     if(!task) return_defer_err(-LIMITS); // Reached max tasks and/or we're out of memory
     if((e=fetch_inode(&kernel.rootBlock, kernel.rootBlock.root, &process->curdir_inode)) < 0) return_defer_err(e); 
-    process->main_threadid = task->id;
+    process->main_thread = task;
     
     task->process = process;
     process->curdir = kernel_malloc(PATH_MAX);

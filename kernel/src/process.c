@@ -29,7 +29,7 @@ Process* kernel_process_add() {
         child_process_set_id(process->children[i], INVALID_PROCESS_ID);
     }
     process->parent = NULL;
-    process->main_threadid = INVALID_TASK_ID;
+    process->main_thread = NULL;
     process->id = id;
     list_init(&process->heap_list);
     list_init(&process->list);
@@ -61,7 +61,7 @@ Heap* get_heap_by_id(Process* process, size_t heapid) {
 // FIXME: Possible issues with multiple threads
 intptr_t process_heap_extend(Process* process, Heap* heap, size_t extra) {
     intptr_t e=0;
-    Task* task = get_task_by_id(process->main_threadid); 
+    Task* task = process->main_thread; 
     // Invalidly resized.
     // Checking overflow:
     if(heap->address + (heap->pages+extra)*PAGE_SIZE <= heap->address) return -NOT_ENOUGH_MEM;

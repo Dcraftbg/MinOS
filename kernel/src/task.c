@@ -53,17 +53,6 @@ void drop_task(Task* task) {
     }
 }
 
-Task* get_task_by_id(size_t id) {
-    if(id == INVALID_TASK_ID) return NULL;
-    mutex_lock(&kernel.tasks_mutex);
-    if(id >= kernel.tasks.len) {
-        mutex_unlock(&kernel.tasks_mutex);
-        return NULL;
-    }
-    Task* task = kernel.tasks.items[id];
-    mutex_unlock(&kernel.tasks_mutex);
-    return task;
-}
 static Task* task_select(Task* ct) {
 #if 1
     debug_assert(kernel.tasks.len);

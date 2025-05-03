@@ -46,7 +46,6 @@ struct Task {
 void init_tasks();
 void init_kernel_task();
 void init_task_switch();
-Task* get_task_by_id(size_t id);
 Task* kernel_task_add();
 static Task* current_task() {
     return kernel.current_task;
