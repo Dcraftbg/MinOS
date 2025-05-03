@@ -68,7 +68,7 @@ intptr_t exec_new(const char* path, Args* args, Args* env) {
     if((e=fetch_inode(&kernel.rootBlock, kernel.rootBlock.root, &process->curdir_inode)) < 0) return_defer_err(e); 
     process->main_threadid = task->id;
     
-    task->processid = process->id;
+    task->process = process;
     process->curdir = kernel_malloc(PATH_MAX);
     if(!process->curdir)
         return_defer_err(-NOT_ENOUGH_MEM);

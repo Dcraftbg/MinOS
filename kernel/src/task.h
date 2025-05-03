@@ -40,9 +40,7 @@ typedef struct Task Task;
 struct Task {
     struct list list;
     size_t id;
-    // TODO: We can and should probably just use a Process*
-    // For optimised lookup 
-    size_t processid;
+    Process* process;
     TaskImage image;
 };
 void init_tasks();

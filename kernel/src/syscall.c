@@ -257,7 +257,7 @@ intptr_t sys_fork() {
         return -LIMITS;
     } 
     process->main_threadid = task->id;
-    task->processid = process->id;
+    task->process = process;
 
     if((e=fork_trampoline(current, task)) < 0) {
         process_drop(process);
@@ -279,7 +279,6 @@ intptr_t sys_exec(const char* path, const char** argv, size_t argc, const char**
     intptr_t e;
     Process* cur_proc = current_process();
     Task* cur_task = current_task();
-    assert(cur_task->processid     == cur_proc->id);
     assert(cur_proc->main_threadid == cur_task->id && "Exec on multiple threads is not supported yet");
     disable_interrupts();
     Task* task = kernel_task_add();
@@ -287,7 +286,7 @@ intptr_t sys_exec(const char* path, const char** argv, size_t argc, const char**
         enable_interrupts();
         return -LIMITS;
     }
-    task->processid = cur_proc->id;
+    task->process = cur_proc;
     Args args=create_args(argc, argv);
     Args env =create_args(envc, envv);
     Path p;
