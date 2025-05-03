@@ -5,7 +5,10 @@
 #include "epoll.h"
 
 bool try_resolve_waitpid(ThreadBlocker* blocker, Task* task) {
-    Process* proc = get_process_by_id(task->processid);
+    if(mutex_try_lock(&kernel.processes_mutex)) return false;
+    debug_assert(task->processid < kernel.processes.len);
+    Process* proc = kernel.processes.items[task->processid];
+    mutex_unlock(&kernel.processes_mutex);
     debug_assert(blocker->as.waitpid.child_index < ARRAY_LEN(proc->children) && "Invalid child_index");
     if(child_process_is_dead(proc->children[blocker->as.waitpid.child_index])) {
         blocker->as.waitpid.exit_code = child_process_get_exit_code(proc->children[blocker->as.waitpid.child_index]);
@@ -16,7 +19,9 @@ bool try_resolve_waitpid(ThreadBlocker* blocker, Task* task) {
     return false;
 }
 bool try_resolve_epoll(ThreadBlocker* blocker, Task* task) {
-    Process* proc = get_process_by_id(task->processid);
+    debug_assert(task->processid < kernel.processes.len);
+    Process* proc = kernel.processes.items[task->processid];
+    mutex_unlock(&kernel.processes_mutex);
     if(blocker->as.epoll.until <= kernel.pit_info.ticks || epoll_poll(blocker->as.epoll.epoll, proc)) return true;
     return false;
 

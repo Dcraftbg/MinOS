@@ -12,15 +12,15 @@ void init_processes() {
     assert(kernel.process_cache = create_new_cache(sizeof(Process), "Process"));
 }
 Process* kernel_process_add() {
-    rwlock_begin_write(&kernel.processes_rwlock);
+    mutex_lock(&kernel.processes_mutex);
     if(!ptr_darray_reserve(&kernel.processes, 1)) {
-        rwlock_end_write(&kernel.processes_rwlock);
+        mutex_unlock(&kernel.processes_mutex);
         return NULL;
     }
     size_t id = ptr_darray_pick_empty_slot(&kernel.processes);
     Process* process = (Process*)cache_alloc(kernel.process_cache);
     if (!process) {
-        rwlock_end_write(&kernel.processes_rwlock);
+        mutex_unlock(&kernel.processes_mutex);
         return NULL;
     }
     if(id == kernel.processes.len) kernel.processes.len++;
@@ -34,7 +34,7 @@ Process* kernel_process_add() {
     list_init(&process->heap_list);
     list_init(&process->list);
     kernel.processes.items[id] = process;
-    rwlock_end_write(&kernel.processes_rwlock);
+    mutex_unlock(&kernel.processes_mutex);
     return process;
 } 
 void process_drop(Process* process) {
@@ -53,13 +53,13 @@ void process_drop(Process* process) {
 
 Process* get_process_by_id(size_t id) {
     if(id == INVALID_TASK_ID) return NULL;
-    rwlock_begin_read(&kernel.processes_rwlock);
+    mutex_lock(&kernel.processes_mutex);
     if(id >= kernel.processes.len) {
-        rwlock_end_read(&kernel.processes_rwlock);
+        mutex_unlock(&kernel.processes_mutex);
         return NULL;
     }
     Process* proc = kernel.processes.items[id];
-    rwlock_end_read(&kernel.processes_rwlock);
+    mutex_unlock(&kernel.processes_mutex);
     return proc;
 }
 

@@ -29,9 +29,9 @@ typedef struct {
     size_t current_taskid;
     size_t current_processid; // Cache of tasks[current_taskid]->processid
     PtrDarray processes;
-    RwLock processes_rwlock;
+    Mutex processes_mutex;
     PtrDarray tasks;
-    RwLock tasks_rwlock;
+    Mutex tasks_mutex;
 
     Cache *cache_cache;
     Cache *inode_cache;
