@@ -10,13 +10,14 @@ void init_schedulers(void) {
     }
 }
 Task* task_select(Scheduler* scheduler) {
-    Task* task;
+    Task* task = NULL;
     mutex_lock(&scheduler->queue_mutex);
     if(list_empty(&scheduler->queue)) {
         mutex_unlock(&scheduler->queue_mutex);
         return NULL;
     }
-    for(;;) {
+    size_t n = list_len(&scheduler->queue);
+    for(size_t i = 0; i < n; task=NULL, ++i) {
         task = (Task*)scheduler->queue.next;
         list_remove(&task->list);
         // Move it to the back
