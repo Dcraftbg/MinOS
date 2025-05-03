@@ -7,9 +7,11 @@
 #include "vfs.h"
 #include "pit.h"
 #include "interrupt.h"
+#include "ptr_darray.h"
 struct Logger;
 typedef struct Cache Cache;
 #include <sync/mutex.h>
+#include <sync/rwlock.h>
 typedef struct {
     Bitmap map;
     Mutex map_lock;
@@ -25,11 +27,12 @@ typedef struct {
     TSS tss;
     Superblock rootBlock;
     size_t current_taskid;
-    size_t taskid; // Task ID counter
     size_t current_processid; // Cache of tasks[current_taskid]->processid
-    size_t processid;
-    struct list tasks;
-    struct list processes;
+    PtrDarray processes;
+    RwLock processes_rwlock;
+    PtrDarray tasks;
+    RwLock tasks_rwlock;
+
     Cache *cache_cache;
     Cache *inode_cache;
     Cache *task_cache;

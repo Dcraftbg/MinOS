@@ -11,7 +11,6 @@
 void task_switch_handler();
 void init_tasks() {
     assert(kernel.task_cache = create_new_cache(sizeof(Task), "Task"));
-    list_init(&kernel.tasks);
 }
 
 void init_kernel_task() {
@@ -28,13 +27,23 @@ void init_task_switch() {
     irq_register(kernel.task_switch_irq, task_switch_handler, IRQ_FLAG_FAST);
 }
 Task* kernel_task_add() {
-    Task* task = (Task*)cache_alloc(kernel.task_cache);
-    if(task) {
-        memset(task, 0, sizeof(Task));
-        task->id = kernel.taskid++;
-        list_init(&task->image.memlist);
-        list_append(&task->list, &kernel.tasks);
+    rwlock_begin_write(&kernel.tasks_rwlock);
+    if(!ptr_darray_reserve(&kernel.tasks, 1)) {
+        rwlock_end_write(&kernel.tasks_rwlock);
+        return NULL;
     }
+    size_t id = ptr_darray_pick_empty_slot(&kernel.tasks);
+    Task* task = (Task*)cache_alloc(kernel.task_cache);
+    if(!task) {
+        rwlock_end_write(&kernel.tasks_rwlock);
+        return NULL;
+    }
+    if(id == kernel.tasks.len) kernel.tasks.len++;
+    memset(task, 0, sizeof(Task));
+    task->id = id;
+    list_init(&task->image.memlist);
+    kernel.tasks.items[id] = task;
+    rwlock_end_write(&kernel.tasks_rwlock);
     return task;
 }
 void drop_task(Task* task) {
@@ -45,15 +54,41 @@ void drop_task(Task* task) {
 }
 
 Task* get_task_by_id(size_t id) {
-    debug_assert(id != INVALID_TASK_ID);
-    Task* task = (Task*)kernel.tasks.next;
-    while(task != (Task*)&kernel.tasks) {
-        if(task->id == id) return task;
-        task = (Task*)task->list.next;
+    if(id == INVALID_TASK_ID) return NULL;
+    rwlock_begin_read(&kernel.tasks_rwlock);
+    if(id >= kernel.tasks.len) {
+        rwlock_end_read(&kernel.tasks_rwlock);
+        return NULL;
     }
-    return NULL;
+    Task* task = kernel.tasks.items[id];
+    rwlock_end_read(&kernel.tasks_rwlock);
+    return task;
 }
 static Task* task_select(Task* ct) {
+#if 1
+    rwlock_begin_read(&kernel.tasks_rwlock);
+    debug_assert(kernel.tasks.len);
+    size_t id = ct->id; 
+    Task* task;
+    for(;;) {
+        id = (id + 1) % kernel.tasks.len;
+        task = kernel.tasks.items[id];
+        if(!task) continue;
+        if(task->image.flags & TASK_FLAG_BLOCKING) {
+            // I have been burnt by this shit already. I don't care if the assertion
+            // is slightly slower
+            debug_assert(task->image.blocker.try_resolve);
+            if(task->image.blocker.try_resolve(&task->image.blocker, task)) {
+                task->image.flags &= ~TASK_FLAG_BLOCKING;
+                break;
+            }
+            continue;
+        }
+        if((task->image.flags & TASK_FLAG_PRESENT) && (task->image.flags & TASK_FLAG_RUNNING) == 0) break;
+    }
+    rwlock_end_read(&kernel.tasks_rwlock);
+    return task;
+#else
     Task* task = (Task*)(ct->list.next);
     while(task != ct) {
         if(task == (Task*)&kernel.tasks.prev || task->id == 0) goto skip;
@@ -72,6 +107,7 @@ static Task* task_select(Task* ct) {
         task = (Task*)task->list.next;
     }
     return NULL;
+#endif
 }
 
 

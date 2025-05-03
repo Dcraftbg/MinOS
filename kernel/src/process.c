@@ -10,22 +10,31 @@
 
 void init_processes() {
     assert(kernel.process_cache = create_new_cache(sizeof(Process), "Process"));
-    list_init(&kernel.processes);
 }
 Process* kernel_process_add() {
-    Process* process = (Process*)cache_alloc(kernel.process_cache);
-    if (process) {
-         memset(process, 0, sizeof(*process));
-         for(size_t i = 0; i < ARRAY_LEN(process->children); ++i) {
-             child_process_set_id(process->children[i], INVALID_PROCESS_ID);
-         }
-         process->parentid = INVALID_PROCESS_ID;
-         process->main_threadid = INVALID_TASK_ID;
-         process->id = kernel.processid++;
-         list_init(&process->heap_list);
-         list_init(&process->list);
-         list_append(&process->list, &kernel.processes);
+    rwlock_begin_write(&kernel.processes_rwlock);
+    if(!ptr_darray_reserve(&kernel.processes, 1)) {
+        rwlock_end_write(&kernel.processes_rwlock);
+        return NULL;
     }
+    size_t id = ptr_darray_pick_empty_slot(&kernel.processes);
+    Process* process = (Process*)cache_alloc(kernel.process_cache);
+    if (!process) {
+        rwlock_end_write(&kernel.processes_rwlock);
+        return NULL;
+    }
+    if(id == kernel.processes.len) kernel.processes.len++;
+    memset(process, 0, sizeof(*process));
+    for(size_t i = 0; i < ARRAY_LEN(process->children); ++i) {
+        child_process_set_id(process->children[i], INVALID_PROCESS_ID);
+    }
+    process->parentid = INVALID_PROCESS_ID;
+    process->main_threadid = INVALID_TASK_ID;
+    process->id = id;
+    list_init(&process->heap_list);
+    list_init(&process->list);
+    kernel.processes.items[id] = process;
+    rwlock_end_write(&kernel.processes_rwlock);
     return process;
 } 
 void process_drop(Process* process) {
@@ -44,12 +53,14 @@ void process_drop(Process* process) {
 
 Process* get_process_by_id(size_t id) {
     if(id == INVALID_TASK_ID) return NULL;
-    Process* proc = (Process*)kernel.processes.next;
-    while(proc != (Process*)&kernel.processes) {
-        if(proc->id == id) return proc;
-        proc = (Process*)proc->list.next;
+    rwlock_begin_read(&kernel.processes_rwlock);
+    if(id >= kernel.processes.len) {
+        rwlock_end_read(&kernel.processes_rwlock);
+        return NULL;
     }
-    return NULL;
+    Process* proc = kernel.processes.items[id];
+    rwlock_end_read(&kernel.processes_rwlock);
+    return proc;
 }
 
 Heap* get_heap_by_id(Process* process, size_t heapid) {
