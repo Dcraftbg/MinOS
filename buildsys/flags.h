@@ -30,12 +30,13 @@
     "-march=x86-64",\
     "-ffreestanding",\
     "-static", \
-    "-Werror", "-Wno-unused-function",\
+    /*"-Werror", */"-Wno-unused-function",\
     "-Wall", \
     "-fno-stack-protector", \
     "-mno-mmx",\
     "-MMD",\
     "-MP",\
+    "-O1",\
     /*"-mno-sse", "-mno-sse2",*/\
     "-mno-3dnow",\
     "-fPIC",\
