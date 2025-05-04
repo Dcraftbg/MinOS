@@ -33,7 +33,7 @@ bool ar(Nob_Cmd* cmd, const char* archive, const char **inputs, size_t inputs_co
     return nob_cmd_run_sync_and_reset(cmd);
 }
 bool dynlink(Nob_Cmd* cmd, const char* so, const char **inputs, size_t inputs_count) {
-    nob_cmd_append(cmd, "gcc", "-shared", "-o", so, "-Wl,--hash-style=sysv");
+    nob_cmd_append(cmd, "gcc", "-shared", "-o", so, "-Wl,--hash-style=sysv", "-nolibc");
     nob_da_append_many(cmd, inputs, inputs_count);
     return nob_cmd_run_sync_and_reset(cmd);
 }
