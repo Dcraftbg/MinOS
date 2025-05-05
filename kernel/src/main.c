@@ -47,6 +47,22 @@
 
 #include "term/fb/fb.h"
 
+void spawn_init(void) {
+    intptr_t e = 0;
+    const char* epath = NULL;
+    Args args;
+    Args env;
+    epath = "/user/init";
+    const char* argv[] = {epath, "test_arg"};
+    args = create_args(ARRAY_LEN(argv), argv);
+    const char* envv[] = {"FOO=BAR", "BAZ=A"};
+    env  = create_args(ARRAY_LEN(envv), envv);
+    if((e = exec_new(epath, &args, &env)) < 0) {
+        printf("Failed to exec %s : %s\n",epath,status_str(e));
+        kabort();
+    }
+    kinfo("Spawning `%s` id=%zu tid=%zu", epath, (size_t)e, ((Process*)(kernel.processes.items[(size_t)e]))->main_thread->id);
+}
 void _start() {
     disable_interrupts();
     BREAKPOINT();
@@ -87,6 +103,7 @@ void _start() {
     init_charqueue();
     // Devices
     init_pci();
+    // SMP
     init_smp();
     // Initialisation for process related things
     init_memregion();
@@ -104,28 +121,7 @@ void _start() {
     init_devices();
     init_tty();
 
-    intptr_t e = 0;
-    const char* epath = NULL;
-    Args args;
-    Args env;
-    epath = "/user/nothing";
-    args = create_args(1, &epath);
-    env  = create_args(0, NULL);
-    if((e = exec_new(epath, &args, &env)) < 0) {
-        printf("Failed to exec %s : %s\n",epath,status_str(e));
-        kabort();
-    }
-    kinfo("Spawning `%s` id=%zu tid=%zu", epath, (size_t)e, ((Process*)(kernel.processes.items[(size_t)e]))->main_thread->id);
-    epath = "/user/init";
-    const char* argv[] = {epath, "test_arg"};
-    args = create_args(ARRAY_LEN(argv), argv);
-    const char* envv[] = {"FOO=BAR", "BAZ=A"};
-    env  = create_args(ARRAY_LEN(envv), envv);
-    if((e = exec_new(epath, &args, &env)) < 0) {
-        printf("Failed to exec %s : %s\n",epath,status_str(e));
-        kabort();
-    }
-    kinfo("Spawning `%s` id=%zu tid=%zu", epath, (size_t)e, ((Process*)(kernel.processes.items[(size_t)e]))->main_thread->id);
+    spawn_init();
     // If you run into problems with PS2. Enable this:
     // I have no idea why this shit works but I think it tells the controller
     // I'm ready to listen for keyboard input or something when I haven't answered its interrupts before

@@ -4,28 +4,22 @@ bool build_user(const char* what) {
         if(strcmp(what, "libc") == 0) {
             if(!build_libc()) return false;
             if(!build_crt0()) return false;
+            return true;
         }
         const char* args[] = { "sysroot" };
         if(!go_run_nob_inside(&cmd, "user/toolchain", args, NOB_ARRAY_LEN(args))) return false;
-        // TODO: Remove this entirely
-        else if(strcmp(what, "nothing") == 0) {
-            if(!build_nothing()) return false;
-        }
-        else {
-            // TODO: Here at some point we should check for the toolchain and add it to path.
-            size_t temp = nob_temp_save();
-            if(!go_run_nob_inside(&cmd, nob_temp_sprintf("user/%s", what), NULL, 0)) {
-                nob_temp_rewind(temp);
-                nob_cmd_free(cmd);
-                return false;
-            }
+        size_t temp = nob_temp_save();
+        if(!go_run_nob_inside(&cmd, nob_temp_sprintf("user/%s", what), NULL, 0)) {
             nob_temp_rewind(temp);
+            nob_cmd_free(cmd);
+            return false;
         }
+        nob_temp_rewind(temp);
     } else {
+        if(!build_libc()) return false;
+        if(!build_crt0()) return false;
         const char* args[] = { "sysroot" };
         if(!go_run_nob_inside(&cmd, "user/toolchain", args, NOB_ARRAY_LEN(args))) return false;
-        if(!build_nothing()) return false;
-
         // Always build the toolchain first 
         if(nob_file_exists("user/toolchain/bin/binutils/bin/x86_64-minos-gcc") != 1 && !go_run_nob_inside(&cmd, "user/toolchain", NULL, 0)) return false;
         {

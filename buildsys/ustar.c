@@ -17,10 +17,6 @@ bool ustar_zip_dir(const char* dir, const char* result) {
     return true;
 }
 bool initrd_setup() {
-    if(!copy_all_to(
-        "./initrd/user",
-        "./bin/user/nothing/nothing",
-    )) return false;
     const char* doom_path = "./user/doomgeneric/doomgeneric/doomgeneric";
     if(nob_file_exists(doom_path) == 1) {
         if(!copy_all_to(
