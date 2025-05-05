@@ -1548,7 +1548,6 @@ bool nob_copy_need_update_directory_recursively(const char *src_path, const char
     Nob_String_Builder dst_sb = {0};
     size_t temp_checkpoint = nob_temp_save();
 
-    if(nob_needs_rebuild1(dst_path, src_path) == 0) return true;
     Nob_File_Type type = nob_get_file_type(src_path);
     if (type < 0) return false;
 
@@ -1580,6 +1579,7 @@ bool nob_copy_need_update_directory_recursively(const char *src_path, const char
         } break;
 
         case NOB_FILE_REGULAR: {
+            if(nob_needs_rebuild1(dst_path, src_path) == 0) return true;
             if(!nob_copy_file(src_path, dst_path)) {
                 nob_return_defer(false);
             }
