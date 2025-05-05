@@ -667,7 +667,7 @@ intptr_t init_xhci(PciDevice* dev) {
     irs->erst_size = (irs->erst_size & ~0xFFFF) | 1;
     irs->erst_addr = cont->erst_phys;
     irs->event_ring_dequeue_ptr = cont->event_ring_phys | EVENT_HANDLER_BUSY;
-    irs->iman = irs->iman | IMAN_PENDING | IMAN_ENABLED;
+    irs->iman = irs->iman /*| IMAN_PENDING*/ | IMAN_ENABLED;
     xhci_op_regs(cont)->usb_cmd = xhci_op_regs(cont)->usb_cmd | USBCMD_INT_ENABLE;
 
     dev->handler = xhci_handler; 
