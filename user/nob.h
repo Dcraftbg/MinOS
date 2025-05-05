@@ -485,6 +485,7 @@ bool nob_dep_analyse_str(char* data, char** result, Nob_File_Paths* paths);
 bool nob_c_needs_rebuild1(Nob_String_Builder* string_buffer, Nob_File_Paths* paths, const char* output_path, const char* input_path);
 bool nob_c_needs_rebuild(Nob_String_Builder* string_buffer, Nob_File_Paths* paths, const char* output_path, const char** input_paths, size_t input_paths_count);
 char* nob_temp_realpath(const char* path);
+bool nob_copy_need_update_directory_recursively(const char *src_path, const char *dst_path);
 // [ADDIN END]
 
 // Given any path returns the last part of that path.
@@ -1538,6 +1539,70 @@ char* nob_temp_realpath(const char* path) {
     }
     return buf;
 #endif
+}
+bool nob_copy_need_update_directory_recursively(const char *src_path, const char *dst_path)
+{
+    bool result = true;
+    Nob_File_Paths children = {0};
+    Nob_String_Builder src_sb = {0};
+    Nob_String_Builder dst_sb = {0};
+    size_t temp_checkpoint = nob_temp_save();
+
+    if(nob_needs_rebuild1(dst_path, src_path) == 0) return true;
+    Nob_File_Type type = nob_get_file_type(src_path);
+    if (type < 0) return false;
+
+    switch (type) {
+        case NOB_FILE_DIRECTORY: {
+            if (!nob_mkdir_if_not_exists(dst_path)) nob_return_defer(false);
+            if (!nob_read_entire_dir(src_path, &children)) nob_return_defer(false);
+
+            for (size_t i = 0; i < children.count; ++i) {
+                if (strcmp(children.items[i], ".") == 0) continue;
+                if (strcmp(children.items[i], "..") == 0) continue;
+
+                src_sb.count = 0;
+                nob_sb_append_cstr(&src_sb, src_path);
+                nob_sb_append_cstr(&src_sb, "/");
+                nob_sb_append_cstr(&src_sb, children.items[i]);
+                nob_sb_append_null(&src_sb);
+
+                dst_sb.count = 0;
+                nob_sb_append_cstr(&dst_sb, dst_path);
+                nob_sb_append_cstr(&dst_sb, "/");
+                nob_sb_append_cstr(&dst_sb, children.items[i]);
+                nob_sb_append_null(&dst_sb);
+
+                if (!nob_copy_need_update_directory_recursively(src_sb.items, dst_sb.items)) {
+                    nob_return_defer(false);
+                }
+            }
+        } break;
+
+        case NOB_FILE_REGULAR: {
+            if(!nob_copy_file(src_path, dst_path)) {
+                nob_return_defer(false);
+            }
+        } break;
+
+        case NOB_FILE_SYMLINK: {
+            nob_log(NOB_WARNING, "TODO: Copying symlinks is not supported yet");
+        } break;
+
+        case NOB_FILE_OTHER: {
+            nob_log(NOB_ERROR, "Unsupported type of file %s", src_path);
+            nob_return_defer(false);
+        } break;
+
+        default: NOB_UNREACHABLE("nob_copy_need_update_directory_recursively");
+    }
+
+defer:
+    nob_temp_rewind(temp_checkpoint);
+    nob_da_free(src_sb);
+    nob_da_free(dst_sb);
+    nob_da_free(children);
+    return result;
 }
 // [ADDIN END]
 int nob_needs_rebuild(const char *output_path, const char **input_paths, size_t input_paths_count)
