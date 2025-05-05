@@ -601,6 +601,7 @@ size_t fwrite(const void* restrict buffer, size_t size, size_t count, FILE* rest
         errno = EINVAL;
         return 0;
     }
+    if(size == 0 || count == 0) return 0;
     size_t bytes = size*count;
     ssize_t e;
     switch(f->buf_mode) {
