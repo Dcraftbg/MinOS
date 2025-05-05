@@ -94,7 +94,7 @@ BuildFuncs user_funcs = {
     .nasm=nasm,
 };
 
-bool _build_dir(BuildFuncs* funcs, const char* rootdir, const char* build_dir, const char* srcdir, bool forced, bool* updated) {
+bool _build_dir(BuildFuncs* funcs, const char* rootdir, const char* build_dir, const char* srcdir, bool forced) {
     bool result = true;
     Nob_String_Builder opath = {0};
     DIR *dir = opendir(srcdir);
@@ -122,7 +122,6 @@ bool _build_dir(BuildFuncs* funcs, const char* rootdir, const char* build_dir, c
                 nob_sb_append_null(&opath);
                 if((!nob_file_exists(opath.items)) || nob_needs_rebuild1(opath.items, path) || forced) {
                     opath.items[opath.count-2] = 'o';
-                    *updated = true;
                     if(!funcs->cc(path, opath.items)) nob_return_defer(false);
                 } else {
                     Nob_String_Builder dep_sb={0};
@@ -138,7 +137,6 @@ bool _build_dir(BuildFuncs* funcs, const char* rootdir, const char* build_dir, c
                         nob_return_defer(false);
                     }
                     if(nob_needs_rebuild(opath.items, dep_paths.items, dep_paths.count)) {
-                        *updated = true;
                         if(!funcs->cc(path, obj)) {
                             nob_sb_free(dep_sb);
                             nob_da_free(dep_paths);
@@ -159,7 +157,6 @@ bool _build_dir(BuildFuncs* funcs, const char* rootdir, const char* build_dir, c
                 nob_sb_append_cstr(&opath, ".o");
                 nob_sb_append_null(&opath);
                 if((!nob_file_exists(opath.items)) || nob_needs_rebuild1(opath.items,path) || forced) {
-                    *updated = true;
                     if(!funcs->nasm(path,opath.items)) nob_return_defer(false);
                 }
             }
@@ -175,7 +172,7 @@ bool _build_dir(BuildFuncs* funcs, const char* rootdir, const char* build_dir, c
             opath.count = 0;
             nob_sb_append_cstr(&opath, path);
             nob_sb_append_null(&opath);
-            if(!_build_dir(funcs, rootdir, build_dir, opath.items, forced, updated)) nob_return_defer(false);
+            if(!_build_dir(funcs, rootdir, build_dir, opath.items, forced)) nob_return_defer(false);
          }
          ent = readdir(dir);
     }

@@ -2,8 +2,7 @@
 bool build_nothing() {
     #define BINDIR "./bin/user/nothing/"
     #define SRCDIR "./user/nothing/"
-    bool updated;
-    if(!build_user_dir(SRCDIR, BINDIR, false, &updated)) return false; 
+    if(!build_user_dir(SRCDIR, BINDIR, false)) return false; 
     Nob_File_Paths paths={0};
     if(!find_objs(BINDIR, &paths)) {
         nob_da_free(paths);

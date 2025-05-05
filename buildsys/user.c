@@ -1,15 +1,12 @@
 bool build_user(const char* what) {
     Nob_Cmd cmd = { 0 };
-    bool libc_updated = false;
     if(what) {
         if(strcmp(what, "libc") == 0) {
-            if(!build_libc(&libc_updated)) return false;
-            if(!build_crt0(&libc_updated)) return false;
-            if(libc_updated) {
-                const char* args[] = { "sysroot" };
-                if(!go_run_nob_inside(&cmd, "user/toolchain", args, NOB_ARRAY_LEN(args))) return false;
-            }
+            if(!build_libc()) return false;
+            if(!build_crt0()) return false;
         }
+        const char* args[] = { "sysroot" };
+        if(!go_run_nob_inside(&cmd, "user/toolchain", args, NOB_ARRAY_LEN(args))) return false;
         // TODO: Remove this entirely
         else if(strcmp(what, "nothing") == 0) {
             if(!build_nothing()) return false;
@@ -25,12 +22,8 @@ bool build_user(const char* what) {
             nob_temp_rewind(temp);
         }
     } else {
-        if(!build_libc(&libc_updated)) return false;
-        if(!build_crt0(&libc_updated)) return false;
-        if(libc_updated) {
-            const char* args[] = { "sysroot" };
-            if(!go_run_nob_inside(&cmd, "user/toolchain", args, NOB_ARRAY_LEN(args))) return false;
-        }
+        const char* args[] = { "sysroot" };
+        if(!go_run_nob_inside(&cmd, "user/toolchain", args, NOB_ARRAY_LEN(args))) return false;
         if(!build_nothing()) return false;
 
         // Always build the toolchain first 
