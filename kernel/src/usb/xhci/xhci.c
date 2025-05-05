@@ -290,11 +290,13 @@ typedef struct {
 XhciControllers xhci_controllers = {0};
 static Cache* xhci_controller_cache=NULL;
 
+// TODO: Use PtrDarray
 bool xhci_controllers_reserve(XhciControllers* da, size_t extra) {
     if(da->len + extra > da->cap) {
         size_t new_cap = da->cap*2 + extra;
         void* new_data = kernel_malloc(new_cap * sizeof(da->data[0]));
         if(!new_data) return false;
+        memcpy(new_data, da->data, sizeof(da->data[0]) * da->len);
         kernel_dealloc(da->data, da->cap * sizeof(da->data[0]));
         da->cap = new_cap;
         da->data = new_data;
