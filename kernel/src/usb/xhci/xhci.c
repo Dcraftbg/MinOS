@@ -3,6 +3,7 @@
 #include <iomem.h>
 #include <page.h>
 #include <memory.h>
+#include <ptr_darray.h>
 typedef struct {
     uint8_t  caplen;
     uint8_t  _reserved;
@@ -283,38 +284,23 @@ uint8_t get_next_in_dwords(const volatile ExtCapEntry* entry) {
 }
 
 typedef struct XhciController XhciController;
-typedef struct {
-    XhciController** data;
-    size_t len, cap;
-} XhciControllers;
-XhciControllers xhci_controllers = {0};
+typedef PtrDarray XhciControllers;
+static XhciControllers xhci_controllers = {0};
 static Cache* xhci_controller_cache=NULL;
 
-// TODO: Use PtrDarray
-bool xhci_controllers_reserve(XhciControllers* da, size_t extra) {
-    if(da->len + extra > da->cap) {
-        size_t new_cap = da->cap*2 + extra;
-        void* new_data = kernel_malloc(new_cap * sizeof(da->data[0]));
-        if(!new_data) return false;
-        memcpy(new_data, da->data, sizeof(da->data[0]) * da->len);
-        kernel_dealloc(da->data, da->cap * sizeof(da->data[0]));
-        da->cap = new_cap;
-        da->data = new_data;
-    }
-    return true;
-}
 static inline bool xhci_controllers_add(XhciControllers* da, XhciController* controller) {
-    if(!xhci_controllers_reserve(da, 1)) return false;
-    da->data[da->len++] = controller;
+    if(!ptr_darray_reserve(da, 1)) return false;
+    da->items[da->len++] = controller;
     return true;
 }
 static inline XhciController* xhci_controllers_pop(XhciControllers* da) {
     assert(da->len);
-    return da->data[--da->len];
+    return da->items[--da->len];
 }
 typedef struct {
     uint8_t revision_major, revision_minor, slot_id;
 } Port;
+
 struct XhciController {
     volatile CapabilityRegs* capregs;
     Port* ports_items;
