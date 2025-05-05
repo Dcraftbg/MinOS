@@ -31,4 +31,5 @@ enum {
     SYS_BIND,
     SYS_LISTEN,
     SYS_CONNECT,
+    SYS_GET_DIR_ENTRIES,
 };

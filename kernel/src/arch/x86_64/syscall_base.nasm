@@ -32,6 +32,7 @@ extern sys_accept
 extern sys_bind
 extern sys_listen
 extern sys_connect
+extern sys_get_dir_entries
 %define KERNEL_UNSUPPORTED 7
 section .text
 global syscall_base
@@ -68,6 +69,7 @@ syscall_table:
    dq sys_bind
    dq sys_listen
    dq sys_connect
+   dq sys_get_dir_entries
 syscall_table_end:
 section .text
 syscall_base:

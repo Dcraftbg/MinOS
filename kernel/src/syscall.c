@@ -77,6 +77,20 @@ intptr_t sys_write(uintptr_t handle, const void* buf, size_t size) {
     res->as.inode.offset += e;
     return e;
 }
+
+intptr_t sys_get_dir_entries(uintptr_t handle, void* buf, size_t size) {
+#ifdef CONFIG_LOG_SYSCALLS
+    strace("sys_get_dir_entries(%lu, %p, %zu)", handle, buf, size);
+#endif
+    Process* current = current_process();
+    Resource* res = resource_find_by_id(current->resources, handle);
+    if(!res) return -INVALID_HANDLE;
+    intptr_t e;
+    size_t read_bytes;
+    if((e=inode_get_dir_entries(res->as.inode.inode, buf, size, res->as.inode.offset, &read_bytes)) < 0) return e;
+    res->as.inode.offset += e;
+    return read_bytes;
+}
 intptr_t sys_read(uintptr_t handle, void* buf, size_t size) {
 #ifdef CONFIG_LOG_SYSCALLS
     strace("sys_read(%lu, %p, %zu)", handle, buf, size);
@@ -88,27 +102,9 @@ intptr_t sys_read(uintptr_t handle, void* buf, size_t size) {
         return -INVALID_TYPE;
     }
     intptr_t e;
-    // TODO: its now redily apparent that we should have a separate syscall for
-    // get_dir_entries
-    switch(res->as.inode.inode->kind) {
-    case INODE_DEVICE:
-    case INODE_FILE:
-        if((e=inode_read(res->as.inode.inode, buf, size, res->as.inode.offset)) < 0) {
-            return e;
-        }
-        res->as.inode.offset += e;
-        return e;
-    case INODE_DIR: {
-        size_t read_bytes;
-        if((e=inode_get_dir_entries(res->as.inode.inode, buf, size, res->as.inode.offset, &read_bytes)) < 0) {
-            return e;
-        }
-        res->as.inode.offset += e;
-        return read_bytes;
-    } break;
-    default:
-        return -INVALID_TYPE;
-    }
+    if((e=inode_read(res->as.inode.inode, buf, size, res->as.inode.offset)) < 0) return e;
+    res->as.inode.offset += e;
+    return e;
 }
 
 intptr_t sys_ioctl(uintptr_t handle, Iop op, void* arg) {
@@ -713,3 +709,4 @@ intptr_t sys_connect(uintptr_t sockfd, const struct sockaddr* addr, size_t addrl
     if(res->kind != RESOURCE_INODE) return -INVALID_TYPE;
     return inode_connect(res->as.inode.inode, addr, addrlen);
 }
+
