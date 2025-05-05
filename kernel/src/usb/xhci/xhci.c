@@ -676,26 +676,14 @@ intptr_t init_xhci(PciDevice* dev) {
     // irq_clear(dev->irq);
     kinfo("xHCI Running");
     xhci_op_regs(cont)->usb_cmd = xhci_op_regs(cont)->usb_cmd | USBCMD_RUN;
-
     for(size_t i = 0; i < cont->ports_count; ++i) {
         volatile PortRegisterSet* reg = &xhci_op_regs(cont)->port_regs[i];
         if(!(reg->status_control & STATUS_CONTROL_POWER)) {
             kinfo("Skipping %zu", i);
             continue;
         }
-        // kinfo("Resetting %zu", i);
         reg->status_control = /* STATUS_CONTROL_RESET_CHANGED | */ STATUS_CONTROL_POWER | STATUS_CONTROL_CONNECT_STATUS_CHANGE;
-        // reg->status_control = /*STATUS_CONTROL_RESET |*/ STATUS_CONTROL_POWER | STATUS_CONTROL_CONNECT_STATUS_CHANGE;
     }
-#if 1
-    volatile TRB* trb;
-    for(size_t i = 0; i < 2; ++i) {
-        trb = xhci_trb_head(cont);
-        trb->type = TRB_TYPE_NOOP;
-        trb->cycle = cont->cmd_ring_cycle;
-        xhci_trb_commit(cont);
-    }
-#endif
     // NOTE: FLADJ is not set. Done by the BIOS? Could be an issue in the future.
     return 0;
 enum_ext_cap_err:
