@@ -102,6 +102,8 @@ intptr_t sys_read(uintptr_t handle, void* buf, size_t size) {
         return -INVALID_TYPE;
     }
     intptr_t e;
+
+    if(!(res->flags & FFLAGS_NONBLOCK) && !inode_is_readable(res->as.inode.inode)) block_is_readable(current_task(), res->as.inode.inode);
     if((e=inode_read(res->as.inode.inode, buf, size, res->as.inode.offset)) < 0) return e;
     res->as.inode.offset += e;
     return e;
