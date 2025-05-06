@@ -19,4 +19,4 @@ if [ "sqlite3_minos.c" -nt "sqlite3.o" ]; then
     $CC sqlite3_minos.c -c -g -o sqlite3.o
 fi
 $CC sqlite3_basic.c -o sqlite3_basic sqlite3.o
-cp -v sqlite3_basic ../../../initrd/user/
+cp -v sqlite3_basic ../../initrd/user/
