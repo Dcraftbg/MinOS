@@ -44,26 +44,23 @@ static InodeOps inodeOps = {
     .read = multiplexer_read,
     .is_readable = multiplexer_is_readable,
 };
-static intptr_t init_inode(Device* me, Inode* inode) {
-    inode->priv = me->priv;
-    inode->ops = &inodeOps;
-    return 0;
-}
 intptr_t init_multiplexers(void) {
     list_init(&keyboard_mp.list);
     rwlock_init(&keyboard_mp.lock);
     list_init(&mouse_mp.list);
     rwlock_init(&mouse_mp.lock);
-    static Device keyboard = {
-        .priv = &keyboard_mp,
-        .init_inode = init_inode
-    };
-    static Device mouse = {
-        .priv = &mouse_mp,
-        .init_inode = init_inode
-    };
+    Inode* keyboard = new_inode();
+    if(keyboard) {
+        keyboard->priv = &keyboard_mp;
+        keyboard->ops = &inodeOps;
+    }
+    Inode* mouse = new_inode();
+    if(mouse) {
+        mouse->priv = &mouse_mp;
+        mouse->ops = &inodeOps;
+    }
     intptr_t e;
-    if((e = vfs_register_device("keyboard", &keyboard)) < 0) return e;
-    if((e = vfs_register_device("mouse", &mouse)) < 0) return e;
+    if((e = vfs_register_device("keyboard", keyboard)) < 0) return e;
+    if((e = vfs_register_device("mouse", mouse)) < 0) return e;
     return 0;
 }

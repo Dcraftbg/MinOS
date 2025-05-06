@@ -214,16 +214,10 @@ static InodeOps inodeOps = {
     .read = tty_read,
     .ioctl = tty_ioctl
 };
-static intptr_t init_inode(Device* this, Inode* inode) {
-    inode->ops = &inodeOps;
-    inode->priv = this->priv;
-    return 0;
-}
-
-Device* create_tty_device(Tty* tty) {
-    Device* device = (Device*)cache_alloc(kernel.device_cache);
+Inode* create_tty_device(Tty* tty) {
+    Inode* device = new_inode();
     if(!device) return NULL;
-    device->init_inode = init_inode;
+    device->ops = &inodeOps;
     device->priv = tty;
     return device;
 }
@@ -239,7 +233,7 @@ void init_tty(void) {
         kerror("(tty) Missing initial tty");
         return;
     }
-    Device* device = create_tty_device(tty);
+    Inode* device = create_tty_device(tty);
     if(!device) {
         // FIXME: deinit the tty
         // FIXME: cache_destory on tty_cache

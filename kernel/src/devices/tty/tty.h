@@ -49,4 +49,4 @@ struct Tty {
 };
 void init_tty(void);
 Tty* tty_new(void);
-Device* create_tty_device(Tty* tty);
+Inode* create_tty_device(Tty* tty);

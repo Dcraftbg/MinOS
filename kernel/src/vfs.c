@@ -205,7 +205,7 @@ intptr_t vfs_creat(Path* path, oflags_t flags) {
     idrop(parent);
     return 0;
 }
-intptr_t vfs_register_device(const char* name, Device* device) {
+intptr_t vfs_register_device(const char* name, Inode* device) {
     intptr_t e;
     Inode* devices;
     if((e=vfs_find_abs("/devices", &devices)) < 0) return e;

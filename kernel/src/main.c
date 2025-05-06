@@ -96,7 +96,6 @@ void _start() {
     enable_interrupts();
     // Caches
     init_cache_cache();
-    assert(kernel.device_cache = create_new_cache(sizeof(Device), "Device"));
     minos_socket_init_cache();
     init_epoll_cache();
     init_general_caches();

@@ -3,7 +3,7 @@
 #include <charqueue.h>
 #include <kernel.h>
 #include <log.h>
-static Device* serial0_device=NULL;
+static Inode* serial0_inode=NULL;
 extern void idt_serial_handler();
 #define COM_PORT   0x3f8
 #define COM_5      (COM_PORT+5)
@@ -28,7 +28,7 @@ static uint8_t charmap[256] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
 void serial_handler() {
-    if(!serial0_device) return;
+    if(!serial0_inode) return;
     size_t retries = 10;
     while(retries && ((inb(COM_STATUS) & 0x01) == 0)) retries--;
     if(retries == 0) return;
@@ -38,7 +38,7 @@ void serial_handler() {
         kwarn("[serial] Key %d is unmapped", (int)key);
         goto end;
     }
-    charqueue_push((CharQueue*)serial0_device->priv, uni);
+    charqueue_push((CharQueue*)serial0_inode->priv, uni);
 end:
     irq_eoi(4);
 }
@@ -64,26 +64,33 @@ static InodeOps inodeOps = {
     .read = serial_dev_read,
     .write = serial_dev_write
 };
-static intptr_t init_inode(Device* this, Inode* inode) {
-    inode->ops = &inodeOps;
-    inode->priv = this->priv;
-    return 0;
-}
-intptr_t serial_dev_init() {
+static void serial_init_irqs(void) {
     irq_register(4, idt_serial_handler, 0);
     outb(COM_INT_ENABLE_PORT, 0x01); // Enable received data available interrupt
     irq_clear(4);
-    return 0;
 }
-intptr_t serial_device_create(Device* device) {
-    device->init_inode = init_inode;
+static Inode* serial_device_new(void) {
+    Inode* inode = new_inode();
+    if(!inode) return NULL;
+    inode->ops = &inodeOps;
     uint32_t* addr = (uint32_t*)kernel_malloc(PAGE_SIZE);
-    if(!addr) return -NOT_ENOUGH_MEM;
-    device->priv = charqueue_new(addr, (PAGE_SIZE/sizeof(uint32_t))-1);
-    if(!device->priv) {
+    if(!addr) return NULL;
+    inode->priv = charqueue_new(addr, (PAGE_SIZE/sizeof(uint32_t))-1);
+    if(!inode->priv) {
         kernel_dealloc(addr, PAGE_SIZE);
-        return -NOT_ENOUGH_MEM;
+        return NULL;
     }
-    if(!serial0_device) serial0_device = device;
-    return 0;
+    if(!serial0_inode) serial0_inode = inode;
+    return inode;
+}
+intptr_t init_serial_device(void) {
+    serial_init_irqs();
+    intptr_t e;
+    Inode* inode = serial_device_new();
+    if(!inode) return -NOT_ENOUGH_MEM;
+    if((e=vfs_register_device("serial0", inode)) < 0) {
+        idrop(inode);
+        return e;
+    }
+    return e;
 }

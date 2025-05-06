@@ -180,11 +180,7 @@ static intptr_t ps2keyboard_read(Inode* file, void* buf, size_t size, off_t offs
 static InodeOps inodeOps = {
     .read = ps2keyboard_read 
 };
-static intptr_t init_inode(Device* this, Inode* inode) {
-    inode->priv = this->priv;
-    inode->ops = &inodeOps;
-    return 0;
-}
+Inode* ps2_keyboard_device = NULL;
 #define KEYQUEUE_CAP 4096
 void init_ps2_keyboard() {
     static_assert(KEYQUEUE_CAP > 0 && is_power_of_two(KEYQUEUE_CAP), "KEYQUEUE_CAP must be a power of two!");
@@ -193,10 +189,11 @@ void init_ps2_keyboard() {
         kwarn("Failed to allocate ps2 key queue!");
         return;
     }
+    ps2_keyboard_device = new_inode();
+    if(ps2_keyboard_device) {
+        ps2_keyboard_device->ops = &inodeOps;
+        ps2_keyboard_device->priv = &keyqueue;
+    }
     assert(irq_register(1, idt_ps2_keyboard_handler, 0) >= 0);
     irq_clear(1);
 }
-Device ps2keyboard_device = {
-    .priv=&keyqueue,
-    .init_inode=init_inode,
-};

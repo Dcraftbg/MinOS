@@ -61,10 +61,6 @@ struct Superblock {
     SuperblockOps* ops;
 };
 typedef struct Device Device;
-struct Device {
-    void* priv;
-    intptr_t (*init_inode)(Device* device, Inode* inode);
-};
 struct InodeOps {
     // Ops for directories
     intptr_t (*creat)(Inode* parent, const char* name, size_t namelen, oflags_t flags);
@@ -132,7 +128,7 @@ typedef struct {
 
 void init_vfs();
 
-intptr_t vfs_register_device(const char* name, Device* device);
+intptr_t vfs_register_device(const char* name, Inode* device);
 #define MAX_INODE_NAME 128
 
 

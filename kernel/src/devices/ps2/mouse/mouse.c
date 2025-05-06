@@ -103,13 +103,13 @@ static InodeOps inodeOps = {
     .read = ps2mouse_read,
     .is_readable = ps2mouse_is_readable,
 };
-static intptr_t init_inode(Device* this, Inode* inode) {
-    inode->priv = this->priv;
-    inode->ops = &inodeOps;
-    return 0;
-}
 intptr_t init_ps2_mouse(void) {
     intptr_t e;
+    ps2_mouse_device = new_inode();
+    if(ps2_mouse_device) {
+        ps2_mouse_device->ops = &inodeOps;
+        ps2_mouse_device->priv = &event_queue;
+    }
     static_assert(EVENT_QUEUE_CAP > 0 && is_power_of_two(EVENT_QUEUE_CAP), "EVENT_QUEUE_CAP must be a power of 2");
     event_queue = mouse_event_queue_create(event_queue_buf, EVENT_QUEUE_CAP-1);
     if((e=ps2_cmd_controller(PS2_CMD_ENABLE_PORT2)) < 0) return e;
@@ -134,7 +134,4 @@ intptr_t init_ps2_mouse(void) {
     }
     return 0;
 }
-Device ps2mouse_device = {
-    .init_inode=init_inode,
-    .priv = &event_queue
-};
+Inode* ps2_mouse_device = NULL;

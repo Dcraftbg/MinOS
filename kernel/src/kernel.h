@@ -36,7 +36,6 @@ typedef struct {
     Cache *inode_cache;
     Cache *task_cache;
     Cache *resource_cache;
-    Cache *device_cache;
     Cache *memregion_cache;
     Cache *memlist_cache;
     Cache *process_cache;

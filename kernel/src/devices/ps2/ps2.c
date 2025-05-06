@@ -111,22 +111,12 @@ void init_ps2() {
         kerror("Failed to initialise PS2 mouse: %s", status_str(e));
     }
     init_ps2_keyboard();
-    if((e = vfs_register_device("ps2keyboard", &ps2keyboard_device)) < 0) {
+    if((e = vfs_register_device("ps2keyboard", ps2_keyboard_device)) < 0) {
         kerror("Could not register ps2keyboard device: %s", status_str(e));
     }
-    Inode* keyboard_inode;
-    if((e= vfs_find_abs("/devices/ps2keyboard", &keyboard_inode)) < 0) {
-        kfatal("Registered ps2keyboard device successfully but failed to get it?");
-        return;
-    }
-    multiplexer_add(&keyboard_mp, keyboard_inode);
-    if((e = vfs_register_device("ps2mouse", &ps2mouse_device)) < 0) {
+    multiplexer_add(&keyboard_mp, ps2_keyboard_device);
+    if((e = vfs_register_device("ps2mouse", ps2_mouse_device)) < 0) {
         kerror("Could not register ps2mouse device: %s", status_str(e));
     }
-    Inode* mouse_inode;
-    if((e= vfs_find_abs("/devices/ps2mouse", &mouse_inode)) < 0) {
-        kfatal("Registered ps2mouse device successfully but failed to get it?");
-        return;
-    }
-    multiplexer_add(&mouse_mp, mouse_inode);
+    multiplexer_add(&mouse_mp, ps2_mouse_device);
 }

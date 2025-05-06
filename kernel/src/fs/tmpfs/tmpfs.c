@@ -53,7 +53,7 @@ static TmpfsInode* directory_new(const char* name, size_t namelen) {
 static TmpfsInode* file_new(const char* name, size_t namelen) {
     return tmpfs_new_inode(0, INODE_FILE, NULL, name, namelen);
 }
-static TmpfsInode* device_new(Device* device, const char* name, size_t namelen) {
+static TmpfsInode* device_new(Inode* device, const char* name, size_t namelen) {
     return tmpfs_new_inode(0, INODE_DEVICE, device, name, namelen);
 }
 static TmpfsInode* socket_new(Inode* sock, const char* name, size_t namelen) {
@@ -313,9 +313,8 @@ static InodeOps tmpfs_inode_ops = {
 
 
 static intptr_t tmpfs_get_inode(Superblock* sb, inodeid_t id, Inode** result) {
-    intptr_t e;
     TmpfsInode* tmp_inode = (TmpfsInode*)id;
-    if(tmp_inode->kind == INODE_MINOS_SOCKET) {
+    if(tmp_inode->kind == INODE_MINOS_SOCKET || tmp_inode->kind == INODE_DEVICE) {
         *result = tmp_inode->data;
         return 0;
     }
@@ -325,14 +324,6 @@ static intptr_t tmpfs_get_inode(Superblock* sb, inodeid_t id, Inode** result) {
     inode->kind = tmp_inode->kind;
     inode->superblock = sb;
     inode->id   = id;
-    if(tmp_inode->kind == INODE_DEVICE) {
-        Device* device = tmp_inode->data;
-        if((e=device->init_inode(device, inode)) < 0) {
-            idrop(inode);
-            return e;
-        }
-        return e;
-    }
     inode->ops  = &tmpfs_inode_ops;
     inode->priv = tmp_inode;
     return 0;
@@ -366,7 +357,7 @@ Fs tmpfs = {
     .deinit = tmpfs_deinit,
     .mount  = tmpfs_mount
 };
-intptr_t tmpfs_register_device(Inode* parent, Device* device, const char* name, size_t namelen) {
+intptr_t tmpfs_register_device(Inode* parent, Inode* device, const char* name, size_t namelen) {
     if(parent->kind != INODE_DIR) return -IS_NOT_DIRECTORY;
     TmpfsInode* inode=device_new(device, name, namelen);
     if(!inode) return -NOT_ENOUGH_MEM;

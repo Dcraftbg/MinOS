@@ -207,7 +207,7 @@ static intptr_t ptm_ioctl(Inode* me, Iop op, void*) {
             ptty_drop(ptty);
             return -NOT_ENOUGH_MEM;
         }
-        Device* slave = create_tty_device(ptty_slave_new(ptty));
+        Inode* slave = create_tty_device(ptty_slave_new(ptty));
         if(!slave) {
             idrop(pttys[ptty_index]);
             ptty_drop(ptty);
@@ -221,7 +221,7 @@ static intptr_t ptm_ioctl(Inode* me, Iop op, void*) {
             idrop(pttys[ptty_index]);
             ptty_drop(ptty);
             pttys[ptty_index] = NULL;
-            cache_dealloc(kernel.device_cache, slave);
+            idrop(slave);
             return e;
         }
         return ptty_index;
@@ -269,19 +269,12 @@ static InodeOps inodeOps = {
     .get_dir_entries = ptm_get_dir_entries,
     .find = ptm_find,
 };
-static intptr_t init_inode(Device* me, Inode* inode) {
-    inode->priv = me->priv;
-    inode->ops = &inodeOps;
-    return 0;
-}
-Device ptm_device = {
-    .priv = NULL,
-    .init_inode=init_inode,
-};
 intptr_t init_ptm(void) {
     intptr_t e;
     ptty_cache = create_new_cache(sizeof(Ptty), "Ptty");
-    if((e=vfs_register_device("ptm", &ptm_device)) < 0) {
+    Inode* ptm = new_inode();
+    ptm->ops = &inodeOps;
+    if((e=vfs_register_device("ptm", ptm)) < 0) {
         kerror("Failed to register ptm: %s", status_str(e));
         return e;
     }
