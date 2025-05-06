@@ -1,4 +1,5 @@
 *.o
+*.so
 sqlite3_basic
 sqlite3.[ch]
 sqlite3ext.h

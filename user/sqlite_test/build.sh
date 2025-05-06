@@ -15,8 +15,9 @@ fi
 if ! patch -R -p0 -s -f --dry-run < sqlite3.c.patch; then
     patch -p0 < sqlite3.c.patch
 fi
-if [ "sqlite3_minos.c" -nt "sqlite3.o" ]; then
-    $CC sqlite3_minos.c -c -g -o sqlite3.o
+if [ "sqlite3_minos.c" -nt "sqlite3.so" ]; then
+    $CC sqlite3_minos.c -fPIC -shared -static-libgcc -o sqlite3.so
 fi
-$CC sqlite3_basic.c -o sqlite3_basic sqlite3.o
+$CC sqlite3_basic.c -o sqlite3_basic sqlite3.so
 cp -v sqlite3_basic ../../initrd/user/
+cp -v sqlite3.so ../../initrd/lib/
