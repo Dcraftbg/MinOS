@@ -28,18 +28,20 @@ static void minos_cp_free(MinOSConnectionPool* cp) {
     cp->cap = 0;
     cp->len = 0;
 }
-static intptr_t minos_data_reserve_at_least(MinOSData* dp, size_t n) {
+intptr_t minos_data_reserve_at_least(MinOSData* dp, size_t n) {
+    if(n <= dp->cap) return 0;
     void* old_addr = dp->addr;
     dp->addr = kernel_malloc(n * sizeof(*dp->addr));
     if(!dp->addr) {
         dp->addr = old_addr;
         return -NOT_ENOUGH_MEM;
     }
-    dp->cap = PAGE_ALIGN_UP(n) / sizeof(*dp->addr);
+    memcpy(dp->addr, old_addr, dp->len * sizeof(*dp->addr));
+    dp->cap = PAGE_ALIGN_UP(n * sizeof(*dp->addr)) / sizeof(*dp->addr);
     if(old_addr) kernel_dealloc(old_addr, n * sizeof(*dp->addr));
     return 0;
 }
-static void minos_data_free(MinOSData* dp) {
+void minos_data_free(MinOSData* dp) {
     kernel_dealloc(dp->addr, dp->cap * sizeof(*dp->addr));
     dp->addr = NULL;
     dp->cap = 0;
@@ -119,7 +121,10 @@ static intptr_t minos_server_client_write(Inode* sock, const void* data, size_t 
 }
 static intptr_t minos_read(MinOSClient* mc, MinOSData* data, Mutex* mutex, void* buf, size_t size) {
     mutex_lock(mutex);
-    if(data->len == 0 && mc->closed) return 0;
+    if(data->len == 0 && mc->closed) {
+        mutex_unlock(mutex);
+        return 0;
+    }
     if(data->len == 0) {
         mutex_unlock(mutex);
         return -WOULD_BLOCK;

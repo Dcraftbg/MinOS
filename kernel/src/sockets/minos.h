@@ -29,6 +29,8 @@ typedef struct {
     uint8_t* addr;
     size_t len, cap;
 } MinOSData;
+intptr_t minos_data_reserve_at_least(MinOSData* dp, size_t n);
+void minos_data_free(MinOSData* dp);
 struct MinOSClient {
     char addr[SOCKADDR_MINOS_PATH_MAX];
     atomic_bool closed, pending; 
