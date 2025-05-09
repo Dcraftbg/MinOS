@@ -2,7 +2,7 @@
 #include "../../mem/slab.h" 
 #include "../../log.h"
 typedef struct {
-    inodekind_t kind;
+    Inode inode;
     char name[TMPFS_NAME_LIMIT];
     size_t size;
     // NOTE: can be both Device* and TmpfsData* depending on the kind
@@ -26,17 +26,8 @@ static void datablock_destroy(TmpfsData* data) {
     kernel_dealloc(data, PAGE_SIZE);
 }
 static Cache* tmpfs_inode_cache    = NULL;
-// NOTE: assumes namelen is in range
-static TmpfsInode* tmpfs_new_inode(size_t size, inodekind_t kind, void* data, const char* name, size_t namelen) {
-    TmpfsInode* me = cache_alloc(tmpfs_inode_cache);
-    if(!me) return NULL;
-    me->size = size;
-    me->kind = kind;
-    me->data = data;
-    memcpy(me->name, name, namelen);
-    me->name[namelen] = '\0';
-    return me;
-}
+
+static TmpfsInode* tmpfs_new_inode(Superblock* sb, size_t size, inodekind_t kind, void* data, const char* name, size_t namelen);
 // NOTE: DOES NOT CLEANUP SUBENTRIES FOR DIRECTORIES.
 static void tmpfs_inode_destroy(TmpfsInode* inode) {
     TmpfsData* head = inode->data;
@@ -47,17 +38,17 @@ static void tmpfs_inode_destroy(TmpfsInode* inode) {
     }
     cache_dealloc(tmpfs_inode_cache, inode);
 }
-static TmpfsInode* directory_new(const char* name, size_t namelen) {
-    return tmpfs_new_inode(0, INODE_DIR, NULL, name, namelen);
+static TmpfsInode* directory_new(Superblock* sb, const char* name, size_t namelen) {
+    return tmpfs_new_inode(sb, 0, INODE_DIR, NULL, name, namelen);
 }
-static TmpfsInode* file_new(const char* name, size_t namelen) {
-    return tmpfs_new_inode(0, INODE_FILE, NULL, name, namelen);
+static TmpfsInode* file_new(Superblock* sb, const char* name, size_t namelen) {
+    return tmpfs_new_inode(sb, 0, INODE_FILE, NULL, name, namelen);
 }
-static TmpfsInode* device_new(Inode* device, const char* name, size_t namelen) {
-    return tmpfs_new_inode(0, INODE_DEVICE, device, name, namelen);
+static TmpfsInode* device_new(Superblock* sb, Inode* device, const char* name, size_t namelen) {
+    return tmpfs_new_inode(sb, 0, INODE_DEVICE, device, name, namelen);
 }
-static TmpfsInode* socket_new(Inode* sock, const char* name, size_t namelen) {
-    return tmpfs_new_inode(0, INODE_MINOS_SOCKET, sock, name, namelen);
+static TmpfsInode* socket_new(Superblock* sb, Inode* sock, const char* name, size_t namelen) {
+    return tmpfs_new_inode(sb, 0, INODE_MINOS_SOCKET, sock, name, namelen);
 }
 static intptr_t tmpfs_put(TmpfsInode* dir, TmpfsInode* entry) {
     TmpfsData* prev = (TmpfsData*)(&(dir->data));
@@ -81,10 +72,10 @@ static intptr_t tmpfs_put(TmpfsInode* dir, TmpfsInode* entry) {
 }
 intptr_t tmpfs_socket_creat(Inode* parent, Inode* sock, const char* name, size_t namelen) {
     if(parent->kind != INODE_DIR) return -IS_NOT_DIRECTORY;
-    TmpfsInode* inode = socket_new(sock, name, namelen);
+    TmpfsInode* inode = socket_new(parent->superblock, sock, name, namelen);
     if(!inode) return -NOT_ENOUGH_MEM;
     intptr_t e;
-    if((e=tmpfs_put(parent->priv, inode)) < 0) {
+    if((e=tmpfs_put((TmpfsInode*)parent, inode)) < 0) {
         tmpfs_inode_destroy(inode);
         return e;
     }
@@ -94,11 +85,11 @@ intptr_t tmpfs_socket_creat(Inode* parent, Inode* sock, const char* name, size_t
 static intptr_t tmpfs_creat(Inode* parent, const char* name, size_t namelen, oflags_t flags) {
     if(parent->kind != INODE_DIR) return -IS_NOT_DIRECTORY;
     TmpfsInode* inode;
-    if(flags & O_DIRECTORY) inode=directory_new(name, namelen);
-    else inode=file_new(name, namelen);
+    if(flags & O_DIRECTORY) inode=directory_new(parent->superblock, name, namelen);
+    else inode=file_new(parent->superblock, name, namelen);
     if(!inode) return -NOT_ENOUGH_MEM;
     intptr_t e;
-    if((e=tmpfs_put(parent->priv, inode)) < 0) {
+    if((e=tmpfs_put((TmpfsInode*)parent, inode)) < 0) {
         tmpfs_inode_destroy(inode);
         return e;
     }
@@ -106,7 +97,7 @@ static intptr_t tmpfs_creat(Inode* parent, const char* name, size_t namelen, ofl
 }
 static intptr_t tmpfs_get_dir_entries(Inode* dir, DirEntry* entries, size_t size, off_t offset, size_t* read_bytes) { 
     if(dir->kind != INODE_DIR) return -IS_NOT_DIRECTORY;
-    TmpfsInode* inode = dir->priv;
+    TmpfsInode* inode = (TmpfsInode*)dir;
     if(offset > inode->size) return -INVALID_OFFSET;
     if(offset == inode->size) {
         *read_bytes = 0;
@@ -134,7 +125,7 @@ static intptr_t tmpfs_get_dir_entries(Inode* dir, DirEntry* entries, size_t size
             }
             entry->size    = requires;
             entry->inodeid = (inodeid_t)tmpfs_inode;
-            entry->kind    = tmpfs_inode->kind;
+            entry->kind    = tmpfs_inode->inode.kind;
             memcpy(entry->name, tmpfs_inode->name, strlen(tmpfs_inode->name)+1);
             read += requires;
             rc++;
@@ -148,7 +139,7 @@ static intptr_t tmpfs_get_dir_entries(Inode* dir, DirEntry* entries, size_t size
 static intptr_t tmpfs_read(Inode* file, void* buf, size_t size, off_t offset) {
     if(!buf) return -INVALID_PARAM;
     if(file->kind != INODE_FILE) return -INODE_IS_DIRECTORY;
-    TmpfsInode* inode = (TmpfsInode*)file->priv;
+    TmpfsInode* inode = (TmpfsInode*)file;
     if(offset > inode->size) return -INVALID_OFFSET;
     if(offset == inode->size || size == 0) return 0; // We couldn't read anything
     size_t left = inode->size-offset;
@@ -173,8 +164,8 @@ static intptr_t tmpfs_read(Inode* file, void* buf, size_t size, off_t offset) {
     return ressize;
 }
 static intptr_t tmpfs_write(Inode* file, const void* buf, size_t size, off_t offset) {
-    TmpfsInode* inode = file->priv;
-    if(inode->kind != INODE_FILE) return -INODE_IS_DIRECTORY;
+    TmpfsInode* inode = (TmpfsInode*)file;
+    if(inode->inode.kind != INODE_FILE) return -INODE_IS_DIRECTORY;
     if((size_t)offset > inode->size) return -INVALID_OFFSET;
     TmpfsData *head = inode->data, *prev=(TmpfsData*)(&inode->data);
     size_t left = inode->size;
@@ -208,8 +199,8 @@ static intptr_t tmpfs_write(Inode* file, const void* buf, size_t size, off_t off
     return written;
 }
 static intptr_t tmpfs_truncate(Inode* file, size_t size) {
-    TmpfsInode* inode = file->priv;
-    if(inode->kind != INODE_FILE) return -INODE_IS_DIRECTORY;
+    TmpfsInode* inode = (TmpfsInode*)file;
+    if(inode->inode.kind != INODE_FILE) return -INODE_IS_DIRECTORY;
     if(inode->size == size) return 0;
     if(inode->size < size) {
         TmpfsData *head = inode->data, *prev = (TmpfsData*)&inode->data;
@@ -263,8 +254,8 @@ static intptr_t tmpfs_truncate(Inode* file, size_t size) {
     return 0;
 }
 static intptr_t tmpfs_find(Inode* dir, const char* name, size_t namelen, Inode** result) {
-    TmpfsInode* inode = dir->priv;
-    if(inode->kind != INODE_DIR) return -IS_NOT_DIRECTORY;
+    TmpfsInode* inode = (TmpfsInode*)dir;
+    if(inode->inode.kind != INODE_DIR) return -IS_NOT_DIRECTORY;
     TmpfsData* head = inode->data;
     size_t size = inode->size;
     while(size && head) {
@@ -272,7 +263,8 @@ static intptr_t tmpfs_find(Inode* dir, const char* name, size_t namelen, Inode**
         for(size_t i = 0; i < to_read; ++i) {
             TmpfsInode* entry = ((TmpfsInode**)head->data)[i];
             if(strlen(entry->name) == namelen && memcmp(entry->name, name, namelen) == 0) {
-                return entry->kind == INODE_MINOS_SOCKET ? (*result = iget(entry->data), 0) : fetch_inode(dir->superblock, (inodeid_t)entry, result);
+                *result = entry->inode.kind == INODE_DEVICE || entry->inode.kind == INODE_MINOS_SOCKET ? iget(entry->data) : iget(&entry->inode);
+                return 0;
             }
         }
         head = head->next;
@@ -281,11 +273,10 @@ static intptr_t tmpfs_find(Inode* dir, const char* name, size_t namelen, Inode**
     return size > 0 ? -FILE_CORRUPTION : -NOT_FOUND;
 }
 static intptr_t tmpfs_stat(Inode* me, Stats* stats) {
-    if(!me || !me->priv) return -BAD_INODE;
-    TmpfsInode* inode = (TmpfsInode*)me->priv;
+    TmpfsInode* inode = (TmpfsInode*)me;
     memset(stats, 0, sizeof(*stats));
-    stats->kind = inode->kind;
-    switch(inode->kind) {
+    stats->kind = inode->inode.kind;
+    switch(inode->inode.kind) {
     case INODE_DIR: {
         // Explicit declarations
         stats->lba = PAGE_SHIFT;
@@ -311,21 +302,25 @@ static InodeOps tmpfs_inode_ops = {
     .stat  = tmpfs_stat,
 };
 
+// NOTE: assumes namelen is in range
+static TmpfsInode* tmpfs_new_inode(Superblock* sb, size_t size, inodekind_t kind, void* data, const char* name, size_t namelen) {
+    TmpfsInode* me = cache_alloc(tmpfs_inode_cache);
+    if(!me) return NULL;
+    inode_init(&me->inode, tmpfs_inode_cache);
+    me->inode.superblock = sb;
+    me->inode.kind = kind;
+    me->inode.ops = &tmpfs_inode_ops;
+    me->size = size;
+    me->data = data;
+    memcpy(me->name, name, namelen);
+    me->name[namelen] = '\0';
+    return me;
+}
 
 static intptr_t tmpfs_get_inode(Superblock* sb, inodeid_t id, Inode** result) {
     TmpfsInode* tmp_inode = (TmpfsInode*)id;
-    if(tmp_inode->kind == INODE_MINOS_SOCKET || tmp_inode->kind == INODE_DEVICE) {
-        *result = tmp_inode->data;
-        return 0;
-    }
-    Inode* inode;
-    *result = (inode = new_inode());
-    if(!inode) return -NOT_ENOUGH_MEM;
-    inode->kind = tmp_inode->kind;
-    inode->superblock = sb;
-    inode->id   = id;
-    inode->ops  = &tmpfs_inode_ops;
-    inode->priv = tmp_inode;
+    *result = tmp_inode->inode.kind == INODE_MINOS_SOCKET || tmp_inode->inode.kind == INODE_DEVICE 
+               ? (Inode*)tmp_inode->data : iget(&tmp_inode->inode);
     return 0;
 }
 // TODO: Unmount that unlinks and destroys everything.
@@ -345,7 +340,7 @@ static intptr_t tmpfs_deinit(Fs* _fs) {
 }
 static intptr_t tmpfs_mount(Fs* fs, Superblock* superblock, Inode* on) {
     if(on) kwarn("tmpfs: File `%p` provided in mount for tmpfs in unused", on);
-    TmpfsInode* root = directory_new(NULL, 0);
+    TmpfsInode* root = directory_new(superblock, NULL, 0);
     superblock->fs = fs;
     superblock->root = (inodeid_t)root;
     superblock->ops  = &tmpfs_superblock_ops;
@@ -359,10 +354,10 @@ Fs tmpfs = {
 };
 intptr_t tmpfs_register_device(Inode* parent, Inode* device, const char* name, size_t namelen) {
     if(parent->kind != INODE_DIR) return -IS_NOT_DIRECTORY;
-    TmpfsInode* inode=device_new(device, name, namelen);
+    TmpfsInode* inode=device_new(parent->superblock, device, name, namelen);
     if(!inode) return -NOT_ENOUGH_MEM;
     intptr_t e;
-    if((e=tmpfs_put(parent->priv, inode)) < 0) {
+    if((e=tmpfs_put((TmpfsInode*)parent, inode)) < 0) {
         tmpfs_inode_destroy(inode);
         return e;
     }
