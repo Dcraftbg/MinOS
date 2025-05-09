@@ -31,5 +31,6 @@ Tty* chrtty_new(Inode* inode) {
     device->getchar = chrtty_getchar;
     device->putchar = chrtty_putchar;
     device->deinit = chrtty_deinit;
+    tty_init(device, tty_cache);
     return device;
 }

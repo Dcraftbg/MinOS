@@ -10,6 +10,7 @@ typedef struct Ptty Ptty;
 // MinOSData
 #include <sockets/minos.h>
 struct Ptty {
+    Tty tty;
     atomic_size_t shared;
     MinOSData slave_ibuf; /*master_obuf*/
     Mutex slave_ibuf_lock;
@@ -18,13 +19,6 @@ struct Ptty {
 };
 
 static Cache* ptty_cache = NULL;  
-static Ptty* ptty_new(void) {
-    Ptty* ptty = cache_alloc(ptty_cache);
-    if(!ptty) return NULL;
-    memset(ptty, 0, sizeof(*ptty));
-    ptty->shared = 1;
-    return ptty;
-}
 static void ptty_drop(Ptty* ptty) {
     if(--ptty->shared == 0) {
         minos_data_free(&ptty->slave_ibuf);
@@ -38,7 +32,7 @@ static intptr_t ptty_stat(Inode*, Stats* stats) {
     return 0;
 }
 static void ptty_cleanup(Inode* inode) {
-    ptty_drop((Ptty*)inode->priv);
+    ptty_drop((Ptty*)inode);
 }
 // TODO: Separate Out. Just like how we should also separate out the MinOSData
 // from MinOS sockets to reuse them in Ptty, Pipes, MinOS sockets, etc.
@@ -56,14 +50,14 @@ static size_t minos_data_provide(MinOSData* data, const void* buf, size_t size) 
     return size;
 }
 static bool ptty_master_is_readable(Inode* file)  {
-    Ptty* ptty = file->priv;
+    Ptty* ptty = (Ptty*)file;
     if(mutex_try_lock(&ptty->slave_obuf_lock)) return false;
     size_t len = ptty->slave_obuf.len;
     mutex_unlock(&ptty->slave_obuf_lock);
     return len > 0;
 }
 static intptr_t ptty_master_read(Inode* file, void* buf, size_t size, off_t) {
-    Ptty* ptty = file->priv;
+    Ptty* ptty = (Ptty*)file;
     mutex_lock(&ptty->slave_obuf_lock);
     if(ptty->slave_obuf.len == 0) {
         mutex_unlock(&ptty->slave_obuf_lock);
@@ -74,7 +68,7 @@ static intptr_t ptty_master_read(Inode* file, void* buf, size_t size, off_t) {
     return size;
 }
 static intptr_t ptty_master_write(Inode* file, const void* buf, size_t size, off_t) {
-    Ptty* ptty = file->priv;
+    Ptty* ptty = (Ptty*)file;
     mutex_lock(&ptty->slave_ibuf_lock);
     intptr_t e;
     if((e=minos_data_reserve_at_least(&ptty->slave_ibuf, ptty->slave_ibuf.len + size)) < 0) {
@@ -85,20 +79,39 @@ static intptr_t ptty_master_write(Inode* file, const void* buf, size_t size, off
     mutex_unlock(&ptty->slave_ibuf_lock);
     return size;
 }
-static InodeOps ptty_master_inodeOps = {
-    .stat = ptty_stat,
-    .cleanup = ptty_cleanup,
-    .is_readable = ptty_master_is_readable,
-    .read = ptty_master_read,
-    .write = ptty_master_write,
-};
-static Inode* ptty_master_new(Ptty* ptty) {
-    Inode* inode = new_inode();
-    if(!inode) return NULL;
-    ptty->shared++;
-    inode->priv = ptty;
-    inode->ops = &ptty_master_inodeOps;
-    return inode;
+static uint32_t master_getchar(Tty* tty) {
+    Ptty* ptty = (Ptty*)tty;
+    mutex_lock(&ptty->slave_obuf_lock);
+    if(ptty->slave_obuf.len == 0) {
+        mutex_unlock(&ptty->slave_obuf_lock);
+        return -1;
+    }
+    char c;
+    minos_data_consume(&ptty->slave_obuf, &c, 1);
+    mutex_unlock(&ptty->slave_obuf_lock);
+    return c;
+}
+static void master_putchar(Tty* tty, uint32_t code) {
+    Ptty* ptty = (Ptty*)tty;
+    mutex_lock(&ptty->slave_ibuf_lock);
+    intptr_t e;
+    if((e=minos_data_reserve_at_least(&ptty->slave_ibuf, ptty->slave_ibuf.len + 1)) < 0) {
+        mutex_unlock(&ptty->slave_ibuf_lock);
+        kerror("Failed to reserve extra data: %s", status_str(e));
+        return;
+    }
+    minos_data_provide(&ptty->slave_ibuf, &code, 1);
+    mutex_unlock(&ptty->slave_ibuf_lock);
+}
+static Ptty* ptty_new(void) {
+    Ptty* ptty = cache_alloc(ptty_cache);
+    if(!ptty) return NULL;
+    memset(ptty, 0, sizeof(*ptty));
+    ptty->shared = 1;
+    ptty->tty.getchar = master_getchar;
+    ptty->tty.putchar = master_putchar;
+    tty_init(&ptty->tty, ptty_cache);
+    return ptty;
 }
 #if 0
 static bool ptty_slave_is_readable(Inode* file)  {
@@ -183,12 +196,13 @@ static Tty* ptty_slave_new(Ptty* ptty) {
     tty->priv = ptty;
     tty->getchar = ptty_slave_getchar;
     tty->putchar = ptty_slave_putchar;
+    tty_init(tty, tty_cache);
     return tty;
 }
 // NOTE:
 // I know its kind of confusing but pttys is used for both
 // a Cache and storing the actual data
-static Inode* pttys[MAX_PTTYS];
+static Ptty* pttys[MAX_PTTYS];
 static int ptty_pick(void) {
     for(size_t i = 0; i < MAX_PTTYS; ++i) {
         if(!pttys[i]) return i;
@@ -203,13 +217,14 @@ static intptr_t ptm_ioctl(Inode* me, Iop op, void*) {
         if(ptty_index < 0) return -LIMITS;
         Ptty* ptty = ptty_new();
         if(!ptty) return -NOT_ENOUGH_MEM;
-        if(!(pttys[ptty_index] = ptty_master_new(ptty))) {
+        tty_init(&ptty->tty, ptty_cache);
+        if(!(pttys[ptty_index] = ptty)) {
             ptty_drop(ptty);
             return -NOT_ENOUGH_MEM;
         }
-        Inode* slave = create_tty_device(ptty_slave_new(ptty));
+        Inode* slave = &ptty_slave_new(ptty)->inode;
         if(!slave) {
-            idrop(pttys[ptty_index]);
+            idrop(&pttys[ptty_index]->tty.inode);
             ptty_drop(ptty);
             pttys[ptty_index] = NULL;
             return -NOT_ENOUGH_MEM;
@@ -218,7 +233,7 @@ static intptr_t ptm_ioctl(Inode* me, Iop op, void*) {
         memcpy(name, "pts", 3);
         (name+3)[itoa(name+3, sizeof(name)-3-1, ptty_index)] = '\0';
         if((e=vfs_register_device(name, slave)) < 0) {
-            idrop(pttys[ptty_index]);
+            idrop(&pttys[ptty_index]->tty.inode);
             ptty_drop(ptty);
             pttys[ptty_index] = NULL;
             idrop(slave);
@@ -261,7 +276,7 @@ static intptr_t ptm_find(Inode*, const char* name, size_t namelen, Inode** resul
     }
     if(index >= MAX_PTTYS) return -NOT_FOUND;
     if(!pttys[index]) return -NOT_FOUND;
-    *result = iget(pttys[index]);
+    *result = iget(&pttys[index]->tty.inode);
     return 0;
 }
 static InodeOps inodeOps = {

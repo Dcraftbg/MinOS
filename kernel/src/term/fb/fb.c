@@ -1,4 +1,5 @@
 #include "fb.h"
+#include <devices/tty/tty.h>
 #include <timer.h>
 #include <fbwriter.h>
 #include <log.h>
@@ -85,6 +86,7 @@ typedef struct {
     size_t nums_count;
 } CsiParser;
 typedef struct {
+    Tty tty;
     Inode* keyboard;
     TtyScratch scratch;
     KeyState keystate;
@@ -106,7 +108,7 @@ typedef struct {
 } FbTty;
 static Cache* fbtty_cache = NULL;
 intptr_t init_fbtty(void) {
-    if(!(fbtty_cache = create_new_cache(sizeof(FbTty), "fbtty_cache")))
+    if(!(fbtty_cache = create_new_cache(sizeof(FbTty), "FbTty")))
         return -NOT_ENOUGH_MEM;
     return 0;
 }
@@ -117,8 +119,9 @@ void deinit_fbtty(void) {
 }
 static FbTty* fbtty_new_internal(Inode* keyboard, Framebuffer fb) {
     FbTty* tty = cache_alloc(fbtty_cache);
-    if(!tty) return tty;
+    if(!tty) return NULL;
     memset(tty, 0, sizeof(*tty));
+    tty_init(&tty->tty, fbtty_cache);
     tty->w  = fb.width/8;
     tty->h  = fb.height/16;
     tty->map = kernel_malloc(tty->w * tty->h * sizeof(tty->map[0]));
@@ -145,7 +148,7 @@ static void fbtty_fill_blink(FbTty* fb, uint32_t color) {
 #define TTY_MILISECOND_BLINK 500
 static uint32_t fbtty_getchar(Tty* device) {
     intptr_t e;
-    FbTty* fbtty = device->priv;
+    FbTty* fbtty = (FbTty*)device;
     Key key;
     // TODO: Potentially in the future we would collect all the key codes 
     // so that we aren't dependent on the keyboard keeping up with its circular buffer
@@ -349,7 +352,7 @@ static void fbtty_draw_char(FbTty* fbtty, uint32_t code) {
 }
 static void fbtty_putchar(Tty* device, uint32_t code) {
     mutex_lock(&device->mutex);
-    FbTty* fbtty = device->priv;
+    FbTty* fbtty = (FbTty*)device;
     switch(fbtty->state) {
     case STATE_NORMAL:
         if(code == 0x1B) {
@@ -415,7 +418,7 @@ static void fbtty_putchar(Tty* device, uint32_t code) {
     mutex_unlock(&device->mutex);
 }
 static intptr_t fbtty_deinit(Tty* device) {
-    FbTty* fbtty = device->priv;
+    FbTty* fbtty = (FbTty*)device;
     idrop(fbtty->keyboard);
     cache_dealloc(fbtty_cache, fbtty);
     return 0;
@@ -432,14 +435,9 @@ Tty* fbtty_new(Inode* keyboard, size_t framebuffer_id) {
     }
     FbTty* fbtty = fbtty_new_internal(keyboard, fb);
     if(!fbtty) return NULL;
-    Tty* tty = tty_new();
-    if(!tty) {
-        cache_dealloc(fbtty_cache, fbtty);
-        return NULL;
-    }
-    tty->priv = fbtty;
-    tty->putchar = fbtty_putchar;
-    tty->getchar = fbtty_getchar;
-    tty->deinit = fbtty_deinit;
-    return tty;
+    fbtty->tty.putchar = fbtty_putchar;
+    fbtty->tty.getchar = fbtty_getchar;
+    fbtty->tty.deinit = fbtty_deinit;
+    tty_init(&fbtty->tty, fbtty_cache);
+    return &fbtty->tty;
 }
