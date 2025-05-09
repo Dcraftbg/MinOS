@@ -138,7 +138,7 @@ intptr_t vfs_register_device(const char* name, Inode* device);
 // Inode* vfs_alloc_inode(Superblock* superblock);
 Inode* new_inode();
 // Initialise the inode with its default fields
-void init_inode(Inode* inode, Cache* cache);
+void inode_init(Inode* inode, Cache* cache);
 Inode* iget(Inode* inode);
 
 // Internal function. Destroys inode but doesn't remove it from the superblock list
