@@ -24,6 +24,7 @@ typedef struct Inode {
     InodeOps* ops;
     inodekind_t kind;
     inodeid_t id;
+    struct Cache* cache; // <- The Cache the object is in
     void* priv;
 } Inode;
 typedef uint32_t Iop;

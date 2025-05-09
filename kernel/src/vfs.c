@@ -11,7 +11,8 @@ struct Cache* hashpair_cache = NULL;
 Inode* new_inode() {
     Inode* inode = cache_alloc(kernel.inode_cache);
     if(inode) {
-        memset(inode, 0, sizeof(*inode));
+        memset(inode, 0, sizeof(*inode)); 
+        inode->cache = kernel.inode_cache;
         list_init(&inode->list);
         inode->shared = 1;
     }
@@ -23,7 +24,7 @@ Inode* iget(Inode* inode) {
 }
 void idestroy(Inode* inode) {
     inode_cleanup(inode);
-    cache_dealloc(kernel.inode_cache, inode);
+    cache_dealloc(inode->cache, inode);
 }
 void idrop(Inode* inode) {
     debug_assert(inode->shared);
