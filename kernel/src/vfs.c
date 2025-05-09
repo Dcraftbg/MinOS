@@ -8,14 +8,15 @@ struct Cache* hashpair_cache = NULL;
 #include "string.h"
 #include "debug.h"
 
+void inode_init(Inode* inode, Cache* cache) {
+    memset(inode, 0, sizeof(*inode));
+    inode->cache = cache;
+    list_init(&inode->list);
+    inode->shared = 1;
+}
 Inode* new_inode() {
     Inode* inode = cache_alloc(kernel.inode_cache);
-    if(inode) {
-        memset(inode, 0, sizeof(*inode)); 
-        inode->cache = kernel.inode_cache;
-        list_init(&inode->list);
-        inode->shared = 1;
-    }
+    if(inode) inode_init(inode, kernel.inode_cache);
     return inode;
 }
 Inode* iget(Inode* inode) {
