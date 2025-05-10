@@ -103,6 +103,11 @@ static void master_putchar(Tty* tty, uint32_t code) {
     minos_data_provide(&ptty->slave_ibuf, &code, 1);
     mutex_unlock(&ptty->slave_ibuf_lock);
 }
+static InodeOps master_inodeOps = {
+    .write = tty_write,
+    .read = tty_read,
+    .ioctl = tty_ioctl,
+};
 static Ptty* ptty_new(void) {
     Ptty* ptty = cache_alloc(ptty_cache);
     if(!ptty) return NULL;
@@ -111,6 +116,7 @@ static Ptty* ptty_new(void) {
     ptty->tty.getchar = master_getchar;
     ptty->tty.putchar = master_putchar;
     tty_init(&ptty->tty, ptty_cache);
+    ptty->tty.inode.ops = &master_inodeOps;
     return ptty;
 }
 #if 0
@@ -189,6 +195,11 @@ static intptr_t ptty_slave_deinit(Tty* tty) {
     ptty_drop((Ptty*)tty->priv);
     return 0;
 }
+static InodeOps slave_inodeOps = {
+    .write = tty_write,
+    .read = tty_read,
+    .ioctl = tty_ioctl,
+};
 static Tty* ptty_slave_new(Ptty* ptty) {
     Tty* tty = tty_new();
     if(!tty) return NULL;
@@ -197,6 +208,7 @@ static Tty* ptty_slave_new(Ptty* ptty) {
     tty->getchar = ptty_slave_getchar;
     tty->putchar = ptty_slave_putchar;
     tty_init(tty, tty_cache);
+    tty->inode.ops = &slave_inodeOps;
     return tty;
 }
 // NOTE:
@@ -217,7 +229,6 @@ static intptr_t ptm_ioctl(Inode* me, Iop op, void*) {
         if(ptty_index < 0) return -LIMITS;
         Ptty* ptty = ptty_new();
         if(!ptty) return -NOT_ENOUGH_MEM;
-        tty_init(&ptty->tty, ptty_cache);
         if(!(pttys[ptty_index] = ptty)) {
             ptty_drop(ptty);
             return -NOT_ENOUGH_MEM;

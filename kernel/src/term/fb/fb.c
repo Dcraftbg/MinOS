@@ -117,11 +117,24 @@ void deinit_fbtty(void) {
     // TODO: Implement cache_destory and remove this cache
     fbtty_cache = NULL;
 }
+
+static uint32_t fbtty_getchar(Tty* device);
+static void fbtty_putchar(Tty* device, uint32_t code);
+static intptr_t fbtty_deinit(Tty* device);
+static InodeOps inodeOps = {
+    .write = tty_write,
+    .read = tty_read,
+    .ioctl = tty_ioctl,
+};
 static FbTty* fbtty_new_internal(Inode* keyboard, Framebuffer fb) {
     FbTty* tty = cache_alloc(fbtty_cache);
     if(!tty) return NULL;
     memset(tty, 0, sizeof(*tty));
     tty_init(&tty->tty, fbtty_cache);
+    tty->tty.putchar = fbtty_putchar;
+    tty->tty.getchar = fbtty_getchar;
+    tty->tty.deinit = fbtty_deinit;
+    tty->tty.inode.ops = &inodeOps;
     tty->w  = fb.width/8;
     tty->h  = fb.height/16;
     tty->map = kernel_malloc(tty->w * tty->h * sizeof(tty->map[0]));
@@ -434,10 +447,5 @@ Tty* fbtty_new(Inode* keyboard, size_t framebuffer_id) {
         return NULL;
     }
     FbTty* fbtty = fbtty_new_internal(keyboard, fb);
-    if(!fbtty) return NULL;
-    fbtty->tty.putchar = fbtty_putchar;
-    fbtty->tty.getchar = fbtty_getchar;
-    fbtty->tty.deinit = fbtty_deinit;
-    tty_init(&fbtty->tty, fbtty_cache);
     return &fbtty->tty;
 }

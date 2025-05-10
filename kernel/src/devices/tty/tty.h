@@ -50,5 +50,8 @@ struct Tty {
 };
 void init_tty(void);
 extern Cache* tty_cache;
+intptr_t tty_write(Inode* file, const void* buf, size_t size, off_t offset);
+intptr_t tty_read(Inode* file, void* buf, size_t size, off_t offset);
+intptr_t tty_ioctl(Inode* file, Iop op, void* arg);
 void tty_init(Tty* tty, Cache* cache);
 Tty* tty_new(void);
