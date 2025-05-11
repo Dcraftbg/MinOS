@@ -166,7 +166,9 @@ void ps2_keyboard_handler() {
 end:
     irq_eoi(1);
 }
-
+static bool ps2keyboard_is_readable(Inode* file) {
+    return ((KeyQueue*)file->priv)->head != ((KeyQueue*)file->priv)->tail;
+}
 static intptr_t ps2keyboard_read(Inode* file, void* buf, size_t size, off_t offset) {
     (void)offset;
     if(size % sizeof(Key) != 0) return -SIZE_MISMATCH;
@@ -178,7 +180,8 @@ static intptr_t ps2keyboard_read(Inode* file, void* buf, size_t size, off_t offs
     return count * sizeof(Key);
 }
 static InodeOps inodeOps = {
-    .read = ps2keyboard_read 
+    .read = ps2keyboard_read,
+    .is_readable = ps2keyboard_is_readable
 };
 Inode* ps2_keyboard_device = NULL;
 #define KEYQUEUE_CAP 4096
