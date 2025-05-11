@@ -121,10 +121,39 @@ void deinit_fbtty(void) {
 static uint32_t fbtty_getchar(Tty* device);
 static void fbtty_putchar(Tty* device, uint32_t code);
 static intptr_t fbtty_deinit(Tty* device);
+
+static void fbtty_fill_blink(FbTty* fb, uint32_t color);
+
+#define TTY_MILISECOND_BLINK 500
+static bool fbtty_is_readable(Inode* device) {
+    FbTty* fbtty = (FbTty*)device;
+    if(inode_is_readable(fbtty->keyboard)) {
+        intptr_t e = 0;
+        Key key;
+        while((e=inode_read(fbtty->keyboard, &key, sizeof(key), 0)) > 0) {
+            key_set(&fbtty->keystate, key.code, key.attribs);
+            // FIXME: Ignores memory alloc failure. Shouldn't happen really
+            // Cuz the scratch buffer is never going to actually allocate any memory but yk
+            // Still leaving this comment just in case this becomes an issue in the future
+            if(!(key.attribs & KEY_ATTRIB_RELEASE)) 
+                key_extend(&fbtty->keystate, &fbtty->scratch, key.code);
+        }
+    }
+
+    size_t now = system_timer_milis();
+    if(now-fbtty->blink_time >= TTY_MILISECOND_BLINK) {
+        fbtty->blink = !fbtty->blink;
+        fbtty->blink_time = now;
+        fbtty_fill_blink(fbtty, fbtty->blink ? fbtty->fg : fbtty->bg);
+    }
+    if(fbtty->scratch.len > 0 || fbtty->tty.scratch.len > 0) return true;
+    return false;
+}
 static InodeOps inodeOps = {
     .write = tty_write,
     .read = tty_read,
     .ioctl = tty_ioctl,
+    .is_readable = fbtty_is_readable,
 };
 static FbTty* fbtty_new_internal(Inode* keyboard, Framebuffer fb) {
     FbTty* tty = cache_alloc(fbtty_cache);
@@ -158,35 +187,15 @@ static void fbtty_fill_blink(FbTty* fb, uint32_t color) {
     fb_draw_codepoint_at(&fb->fb, fb->x*8, fb->y*16, fb->map[fb->y * fb->w + fb->x].c, 0xffffffff - color, color);
 }
 
-#define TTY_MILISECOND_BLINK 500
 static uint32_t fbtty_getchar(Tty* device) {
-    intptr_t e;
     FbTty* fbtty = (FbTty*)device;
-    Key key;
     // TODO: Potentially in the future we would collect all the key codes 
     // so that we aren't dependent on the keyboard keeping up with its circular buffer
     // but this works for now.
     // IF YOU GO ABOUT THIS, CHECK ALLOCATION FAILURE
+
     while(fbtty->scratch.len == 0) {
-        // TODO: Thread blocker for this stuff
-        for(;;) {
-            if((e=inode_read(fbtty->keyboard, &key, sizeof(key), 0)) < 0) {
-                if(fbtty->blink) fbtty_fill_blink(fbtty, fbtty->bg);
-                return e;
-            } else if (e > 0) break;
-            size_t now = system_timer_milis();
-            if(now-fbtty->blink_time >= TTY_MILISECOND_BLINK) {
-                fbtty->blink = !fbtty->blink;
-                fbtty->blink_time = now;
-                fbtty_fill_blink(fbtty, fbtty->blink ? fbtty->fg : fbtty->bg);
-            }
-        }
-        key_set(&fbtty->keystate, key.code, key.attribs);
-        // FIXME: Ignores memory alloc failure. Shouldn't happen really
-        // Cuz the scratch buffer is never going to actually allocate any memory but yk
-        // Still leaving this comment just in case this becomes an issue in the future
-        if(!(key.attribs & KEY_ATTRIB_RELEASE)) 
-            key_extend(&fbtty->keystate, &fbtty->scratch, key.code);
+        while(!fbtty_is_readable(&fbtty->tty.inode));
     }
     char res = ttyscratch_popfront(&fbtty->scratch);
     ttyscratch_shrink(&fbtty->scratch);
