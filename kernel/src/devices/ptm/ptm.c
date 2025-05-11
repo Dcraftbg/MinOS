@@ -56,6 +56,7 @@ static bool ptty_master_is_readable(Inode* file)  {
     mutex_unlock(&ptty->slave_obuf_lock);
     return len > 0;
 }
+#if 0
 static intptr_t ptty_master_read(Inode* file, void* buf, size_t size, off_t) {
     Ptty* ptty = (Ptty*)file;
     mutex_lock(&ptty->slave_obuf_lock);
@@ -79,6 +80,7 @@ static intptr_t ptty_master_write(Inode* file, const void* buf, size_t size, off
     mutex_unlock(&ptty->slave_ibuf_lock);
     return size;
 }
+#endif
 static uint32_t master_getchar(Tty* tty) {
     Ptty* ptty = (Ptty*)tty;
     mutex_lock(&ptty->slave_obuf_lock);
@@ -107,6 +109,7 @@ static InodeOps master_inodeOps = {
     .write = tty_write,
     .read = tty_read,
     .ioctl = tty_ioctl,
+    .is_readable = ptty_master_is_readable
 };
 static Ptty* ptty_new(void) {
     Ptty* ptty = cache_alloc(ptty_cache);
@@ -119,14 +122,14 @@ static Ptty* ptty_new(void) {
     ptty->tty.inode.ops = &master_inodeOps;
     return ptty;
 }
-#if 0
 static bool ptty_slave_is_readable(Inode* file)  {
-    Ptty* ptty = file->priv;
+    Ptty* ptty = ((Tty*)file)->priv;
     if(mutex_try_lock(&ptty->slave_ibuf_lock)) return false;
     size_t len = ptty->slave_ibuf.len;
     mutex_unlock(&ptty->slave_ibuf_lock);
     return len > 0;
 }
+#if 0
 static intptr_t ptty_slave_read(Inode* file, void* buf, size_t size, off_t) {
     Ptty* ptty = file->priv;
     mutex_lock(&ptty->slave_ibuf_lock);
@@ -151,27 +154,11 @@ static intptr_t ptty_slave_write(Inode* file, const void* buf, size_t size, off_
     return size;
 }
 #endif
-/*
-static InodeOps ptty_slave_inodeOps = {
-    .stat = ptty_stat,
-    .is_readable = ptty_slave_is_readable,
-    .read = ptty_slave_read,
-    .write = ptty_slave_write,
-    .cleanup = ptty_cleanup,
-};
-*/
-// TODO: Stop this nonsense.
-// Like this is so unbelievably stupid.
-// Like the Tty cache should just not exist I don't think.
-// I.e. Every device should just have its own Cache for the different things.
-// Like jeez this is an annoying interface.
-// I wanna be able to override the Inode values without some intermediate thing.
-// Have Tty just inherit Inode as a header. Its that simple.
 static uint32_t ptty_slave_getchar(Tty* tty) {
     Ptty* ptty = tty->priv;
     for(;;) {
         mutex_lock(&ptty->slave_ibuf_lock);
-        if(ptty->slave_ibuf.len == 0) break; // <- Intentionally not unlock it here.
+        if(ptty->slave_ibuf.len > 0) break; // <- Intentionally not unlock it here.
         mutex_unlock(&ptty->slave_ibuf_lock);
     }
     uint8_t c;
@@ -199,6 +186,7 @@ static InodeOps slave_inodeOps = {
     .write = tty_write,
     .read = tty_read,
     .ioctl = tty_ioctl,
+    .is_readable = ptty_slave_is_readable,
 };
 static Tty* ptty_slave_new(Ptty* ptty) {
     Tty* tty = tty_new();
