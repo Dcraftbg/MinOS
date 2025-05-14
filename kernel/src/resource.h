@@ -11,7 +11,6 @@
 #include <minos/fsdefs.h>
 typedef struct {
     fflags_t flags;
-    atomic_size_t shared;
     off_t offset;
     Inode* inode;
 } Resource;

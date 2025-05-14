@@ -178,7 +178,7 @@ intptr_t sys_close(uintptr_t handle) {
     Process* current = current_process();
     Resource* res = resource_find_by_id(current->resources, handle);
     if(!res) return -INVALID_HANDLE;
-    if(res->shared == 1) idrop(res->inode);
+    idrop(res->inode);
     resource_remove(current->resources, handle);
     return 0;
 }

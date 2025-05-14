@@ -4,16 +4,12 @@
 
 static Resource* new_resource() {
     Resource* res = (Resource*)cache_alloc(kernel.resource_cache);
-    if(res) {
-        memset(res, 0, sizeof(*res));
-        res->shared = 1;
-    }
+    if(!res) return NULL;
+    memset(res, 0, sizeof(*res));
     return res;
 }
 static void resource_drop(Resource* resource) {
-    if((--resource->shared) == 0) {
-        cache_dealloc(kernel.resource_cache, resource);
-    }
+    cache_dealloc(kernel.resource_cache, resource);
 }
 
 Resource* resource_find_by_id(ResourceBlock* first, size_t id) {
@@ -62,9 +58,7 @@ Resource* resource_add(ResourceBlock* block, size_t* id) {
 }
 static void resourceblock_shallow_dealloc(ResourceBlock* block) {
     for(size_t i = 0; i < RESOURCES_PER_BLOCK; ++i) {
-        if(block->data[i]) {
-           resource_drop(block->data[i]); 
-        }
+        if(block->data[i]) resource_drop(block->data[i]); 
     }
     // @DEBUG
     memset(block, 0, sizeof(*block));
@@ -83,8 +77,9 @@ static ResourceBlock* resourceblock_shallow_clone(ResourceBlock* block) {
     if(!nblock) return NULL;
     for(size_t i = 0; i < RESOURCES_PER_BLOCK; ++i) {
         if(block->data[i]) {
-            block->data[i]->shared++;
-            nblock->data[i] = block->data[i];
+            nblock->data[i] = new_resource();
+            *nblock->data[i] = *block->data[i];
+            nblock->data[i]->inode = iget(block->data[i]->inode);
         }
     }
     nblock->next = NULL;
