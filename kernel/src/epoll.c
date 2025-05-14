@@ -58,24 +58,17 @@ bool epoll_poll(Epoll* epoll, Process* process) {
             terminal = true;
             continue;
         }
-        switch(res->kind) {
-        case RESOURCE_INODE:
-            fd->result_events = 0;
-            if((fd->event.events & EPOLLIN) && inode_is_readable(res->as.inode.inode)) {
-                fd->result_events |= EPOLLIN;
-            } else if ((fd->event.events & EPOLLOUT) && inode_is_writeable(res->as.inode.inode)) {
-                fd->result_events |= EPOLLOUT;
-            } else if ((fd->event.events & EPOLLHUP) && inode_is_hungup(res->as.inode.inode)) {
-                fd->result_events |= EPOLLHUP;
-            } else continue; // <- We didn't get any event. Shortcircuit 
-            if(fd->result_events) {
-                list_remove(head);
-                list_insert(head, &epoll->ready);
-                terminal = true;
-            }
-            break;
-        default:
-            kwarn("epoll p%zu> Non inode resource in epoll: %zu", process->id, fd->fd);
+        fd->result_events = 0;
+        if((fd->event.events & EPOLLIN) && inode_is_readable(res->inode)) {
+            fd->result_events |= EPOLLIN;
+        } else if ((fd->event.events & EPOLLOUT) && inode_is_writeable(res->inode)) {
+            fd->result_events |= EPOLLOUT;
+        } else if ((fd->event.events & EPOLLHUP) && inode_is_hungup(res->inode)) {
+            fd->result_events |= EPOLLHUP;
+        } else continue; // <- We didn't get any event. Shortcircuit 
+        if(fd->result_events) {
+            list_remove(head);
+            list_insert(head, &epoll->ready);
             terminal = true;
         }
     }

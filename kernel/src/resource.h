@@ -9,20 +9,11 @@
 #include "epoll.h"
 #include "socket.h"
 #include <minos/fsdefs.h>
-enum {
-    RESOURCE_INODE=1,
-};
-typedef uint32_t resourcekind_t;
 typedef struct {
-    resourcekind_t kind;
     fflags_t flags;
     atomic_size_t shared;
-    struct {
-        struct {
-            off_t offset;
-            Inode* inode;
-        } inode;
-    } as;
+    off_t offset;
+    Inode* inode;
 } Resource;
 #define RESOURCES_PER_BLOCK 1022
 typedef struct ResourceBlock {
