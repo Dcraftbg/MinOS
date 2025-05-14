@@ -30,6 +30,7 @@ intptr_t epoll_mod(Epoll* epoll, int fd, const struct epoll_event* event) {
     return 0;
 }
 static Cache* epoll_fd_cache = NULL;
+static Cache* epoll_cache = NULL;
 EpollFd* epoll_fd_new(int fd, const struct epoll_event* event) {
     EpollFd* entry = cache_alloc(epoll_fd_cache);
     if(!entry) return NULL;
@@ -42,6 +43,7 @@ void epoll_fd_delete(EpollFd* fd) {
 }
 void init_epoll_cache(void) {
     assert(epoll_fd_cache = create_new_cache(sizeof(EpollFd), "EpollFd"));
+    assert(epoll_cache = create_new_cache(sizeof(Epoll), "Epoll"));
 }
 bool epoll_poll(Epoll* epoll, Process* process) {
     debug_assert(list_empty(&epoll->ready));
@@ -80,11 +82,30 @@ bool epoll_poll(Epoll* epoll, Process* process) {
     return terminal;
 }
 
-void epoll_destroy(Epoll* epoll) {
+static void epoll_cleanup(Inode* inode) {
+    Epoll* epoll = (Epoll*)inode;
     struct list *next;
     for(struct list *head = epoll->unready.next; head != &epoll->unready; head = next) {
         next = head->next;
         list_remove(head);
         cache_dealloc(epoll_fd_cache, (EpollFd*)head);
     }
+    for(struct list *head = epoll->ready.next; head != &epoll->ready; head = next) {
+        next = head->next;
+        list_remove(head);
+        cache_dealloc(epoll_fd_cache, (EpollFd*)head);
+    }
+}
+static InodeOps epoll_ops = {
+    .cleanup = epoll_cleanup,
+};
+Epoll* epoll_new(void) {
+    Epoll* epoll = cache_alloc(epoll_cache);
+    if(!epoll) return NULL;
+    inode_init(&epoll->inode, epoll_cache);
+    epoll->inode.kind = INODE_EPOLL;
+    list_init(&epoll->unready);
+    list_init(&epoll->ready);
+    epoll->inode.ops = &epoll_ops;
+    return epoll;
 }

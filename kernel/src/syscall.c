@@ -192,9 +192,6 @@ intptr_t sys_close(uintptr_t handle) {
         case RESOURCE_INODE:
             idrop(res->as.inode.inode);
             break;
-        case RESOURCE_EPOLL:
-            epoll_destroy(&res->as.epoll);
-            break;
         }
     }
     resource_remove(current->resources, handle);
@@ -556,8 +553,11 @@ intptr_t sys_epoll_create1(int flags) {
     Process* current = current_process();
     Resource* resource = resource_add(current->resources, &id);
     if(!resource) return -NOT_ENOUGH_MEM;
-    resource->kind = RESOURCE_EPOLL;
-    epoll_init(&resource->as.epoll);
+    resource->as.inode.inode = (Inode*)epoll_new();
+    if(!resource->as.inode.inode) {
+        resource_remove(current->resources, id);
+        return -NOT_ENOUGH_MEM;
+    }
     return id;
 }
 // TODO: strace
@@ -569,20 +569,20 @@ intptr_t sys_epoll_ctl(int epfd, int op, int fd, const struct epoll_event *event
     if(epfd < 0 || fd < 0) return -INVALID_HANDLE;
     Resource* res = resource_find_by_id(current->resources, epfd);
     if(!res) return -INVALID_HANDLE;
-    if(res->kind != RESOURCE_EPOLL) return -INVALID_TYPE;
+    if(res->as.inode.inode->kind != INODE_EPOLL) return -INVALID_TYPE;
     switch(op) {
     case EPOLL_CTL_ADD: {
         EpollFd* entry = epoll_fd_new(fd, event);
         if(!entry) return -NOT_ENOUGH_MEM;
-        intptr_t e = epoll_add(&res->as.epoll, entry);
+        intptr_t e = epoll_add((Epoll*)res->as.inode.inode, entry);
         if(e < 0) epoll_fd_delete(entry);
         return e;
     } break;
     case EPOLL_CTL_MOD: {
-        return epoll_mod(&res->as.epoll, fd, event);
+        return epoll_mod((Epoll*)res->as.inode.inode, fd, event);
     } break;
     case EPOLL_CTL_DEL: {
-        return epoll_del(&res->as.epoll, fd);
+        return epoll_del((Epoll*)res->as.inode.inode, fd);
     } break;
     }
     return -INVALID_PATH;
@@ -593,8 +593,8 @@ intptr_t sys_epoll_wait(int epfd, struct epoll_event *events, int maxevents, int
     Process* current = current_process();
     Resource* res = resource_find_by_id(current->resources, epfd);
     if(!res) return -INVALID_HANDLE;
-    if(res->kind != RESOURCE_EPOLL) return -INVALID_TYPE;
-    Epoll* epoll = &res->as.epoll;
+    if(res->as.inode.inode->kind != INODE_EPOLL) return -INVALID_TYPE;
+    Epoll* epoll = (Epoll*)res->as.inode.inode;
     if(timeout == 0) epoll_poll(epoll, current);
     else {
         size_t until = 0xFFFFFFFFFFFFFFFFL;

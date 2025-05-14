@@ -127,7 +127,8 @@ static const char* inode_kind_map[] = {
     "DIR",
     "FILE",
     "DEVICE",
-    "SOCKET"
+    "SOCKET",
+    "EPOLL",
 };
 static_assert(ARRAY_LEN(inode_kind_map) == INODE_COUNT, "Update inode_kind_map");
 

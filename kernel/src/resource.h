@@ -11,7 +11,6 @@
 #include <minos/fsdefs.h>
 enum {
     RESOURCE_INODE=1,
-    RESOURCE_EPOLL,
 };
 typedef uint32_t resourcekind_t;
 typedef struct {
@@ -23,7 +22,6 @@ typedef struct {
             off_t offset;
             Inode* inode;
         } inode;
-        Epoll epoll;
     } as;
 } Resource;
 #define RESOURCES_PER_BLOCK 1022
