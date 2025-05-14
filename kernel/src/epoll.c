@@ -63,6 +63,8 @@ bool epoll_poll(Epoll* epoll, Process* process) {
                 fd->result_events |= EPOLLIN;
             } else if ((fd->event.events & EPOLLOUT) && inode_is_writeable(res->as.inode.inode)) {
                 fd->result_events |= EPOLLOUT;
+            } else if ((fd->event.events & EPOLLHUP) && inode_is_hungup(res->as.inode.inode)) {
+                fd->result_events |= EPOLLHUP;
             } else continue; // <- We didn't get any event. Shortcircuit 
             if(fd->result_events) {
                 list_remove(head);

@@ -81,6 +81,7 @@ struct InodeOps {
     // General API
     void (*cleanup)(Inode* inode); 
     bool (*is_readable)(Inode* file);
+    bool (*is_hungup)(Inode* file);
     bool (*is_writeable)(Inode* file);
     intptr_t (*stat)(Inode* inode, Stats* stats);
     // TODO: unlink which will free all memory of that inode. But only the inode itself, not its children (job of caller (vfs))
@@ -104,6 +105,8 @@ intptr_t inode_connect(Inode* sock, const struct sockaddr* addr, size_t addrlen)
 intptr_t inode_stat(Inode* inode, Stats* stats);
 // By default returns true
 bool inode_is_readable(Inode* file); 
+// By default returns false 
+bool inode_is_hungup(Inode* file);
 // By default returns true
 bool inode_is_writeable(Inode* file); 
 static intptr_t inode_size(Inode* inode) {

@@ -11,6 +11,7 @@ typedef struct Ptty Ptty;
 #include <sockets/minos.h>
 struct Ptty {
     Tty tty;
+    Inode* slave;
     atomic_size_t shared;
     MinOSData slave_ibuf; /*master_obuf*/
     Mutex slave_ibuf_lock;
@@ -49,7 +50,7 @@ static size_t minos_data_provide(MinOSData* data, const void* buf, size_t size) 
     data->len += size;
     return size;
 }
-static bool ptty_master_is_readable(Inode* file)  {
+static bool ptty_master_is_readable(Inode* file) {
     Ptty* ptty = (Ptty*)file;
     if(mutex_try_lock(&ptty->slave_obuf_lock)) return false;
     size_t len = ptty->slave_obuf.len;
@@ -105,11 +106,21 @@ static void master_putchar(Tty* tty, uint32_t code) {
     minos_data_provide(&ptty->slave_ibuf, &code, 1);
     mutex_unlock(&ptty->slave_ibuf_lock);
 }
+static bool master_is_hungup(Inode* inode) {
+    Ptty* ptty = (Ptty*)inode;
+    if(ptty->shared == 1) return true;
+    // FIXME: Potential race condition?
+    // I'm not too sure. Like if the shared gets decremented in the time between this check and the return.
+    // I guess it doesn't really matter but it might be UB if you're touching 
+    return ptty->slave->shared == 1; 
+}
+
 static InodeOps master_inodeOps = {
     .write = tty_write,
     .read = tty_read,
     .ioctl = tty_ioctl,
-    .is_readable = ptty_master_is_readable
+    .is_readable = ptty_master_is_readable,
+    .is_hungup = master_is_hungup,
 };
 static Ptty* ptty_new(void) {
     Ptty* ptty = cache_alloc(ptty_cache);
@@ -228,6 +239,7 @@ static intptr_t ptm_ioctl(Inode* me, Iop op, void*) {
             pttys[ptty_index] = NULL;
             return -NOT_ENOUGH_MEM;
         }
+        pttys[ptty_index]->slave = slave;
         char name[20];
         memcpy(name, "pts", 3);
         (name+3)[itoa(name+3, sizeof(name)-3-1, ptty_index)] = '\0';

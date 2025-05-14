@@ -8,6 +8,7 @@ typedef union epoll_data {
 } epoll_data_t;
 #define EPOLLIN  (1 << 0)
 #define EPOLLOUT (1 << 1)
+#define EPOLLHUP (1 << 2)
 struct epoll_event {
     uint32_t events;
     epoll_data_t data;

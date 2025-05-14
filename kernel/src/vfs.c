@@ -141,6 +141,10 @@ bool inode_is_readable(Inode* inode) {
     if(!inode->ops->is_readable) return true;
     return inode->ops->is_readable(inode);
 }
+bool inode_is_hungup(Inode* inode) {
+    if(!inode->ops->is_hungup) return false;
+    return inode->ops->is_hungup(inode);
+}
 bool inode_is_writeable(Inode* inode) {
     if(!inode->ops->is_writeable) return true;
     return inode->ops->is_writeable(inode);
