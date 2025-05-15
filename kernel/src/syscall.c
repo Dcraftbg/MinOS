@@ -300,7 +300,7 @@ intptr_t sys_exec(const char* path, const char** argv, size_t argc, const char**
 
 void sys_exit(int code) {
 #ifdef CONFIG_LOG_SYSCALLS
-    strace("sys_exec(%d)", code);
+    strace("sys_exit(%d)", code);
 #endif
     Process* cur_proc = current_process();
     Task* cur_task = current_task();
