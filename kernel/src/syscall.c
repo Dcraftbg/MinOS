@@ -42,6 +42,7 @@ intptr_t sys_open(const char* path, fmode_t mode, oflags_t flags) {
     if((e=parse_path(current, &p, path)) < 0) return e;
     Resource* resource = resource_add(current->resources, &id);
     if(!resource) return -NOT_ENOUGH_MEM;
+    resource->flags = flags;
     Inode* inode;
     if((e=vfs_find(&p, &inode)) < 0) {
         if(e == -NOT_FOUND && flags & O_CREAT) {
@@ -98,7 +99,7 @@ intptr_t sys_read(uintptr_t handle, void* buf, size_t size) {
     if(!res) return -INVALID_HANDLE;
     intptr_t e;
 
-    if(!(res->flags & FFLAGS_NONBLOCK) && !inode_is_readable(res->inode)) block_is_readable(current_task(), res->inode);
+    if(!(res->flags & O_NOBLOCK) && !inode_is_readable(res->inode)) block_is_readable(current_task(), res->inode);
     if((e=inode_read(res->inode, buf, size, res->offset)) < 0) return e;
     res->offset += e;
     return e;
@@ -629,7 +630,7 @@ intptr_t sys_send(uintptr_t sockfd, const void *buf, size_t len) {
     Process* current = current_process();
     Resource* res = resource_find_by_id(current->resources, sockfd);
     if(!res) return -INVALID_HANDLE;
-    if(!(res->flags & FFLAGS_NONBLOCK)) block_is_writeable(current_task(), res->inode);
+    if(!(res->flags & O_NOBLOCK)) block_is_writeable(current_task(), res->inode);
     return inode_write(res->inode, buf, len, res->offset);
 }
 // TODO: strace
@@ -637,7 +638,7 @@ intptr_t sys_recv(uintptr_t sockfd,       void *buf, size_t len) {
     Process* current = current_process();
     Resource* res = resource_find_by_id(current->resources, sockfd);
     if(!res) return -INVALID_HANDLE;
-    if(!(res->flags & FFLAGS_NONBLOCK)) block_is_readable(current_task(), res->inode);
+    if(!(res->flags & O_NOBLOCK)) block_is_readable(current_task(), res->inode);
     return inode_read(res->inode, buf, len, res->offset);
 }
 
@@ -656,7 +657,7 @@ intptr_t sys_accept(uintptr_t sockfd, struct sockaddr* addr, size_t *addrlen) {
         return -NOT_ENOUGH_MEM;
     }
     intptr_t e;
-    if(!(res->flags & FFLAGS_NONBLOCK)) block_is_readable(current_task(), res->inode);
+    if(!(res->flags & O_NOBLOCK)) block_is_readable(current_task(), res->inode);
     e = inode_accept(res->inode, result->inode, addr, addrlen);
     if(e < 0) {
         idrop(result->inode);

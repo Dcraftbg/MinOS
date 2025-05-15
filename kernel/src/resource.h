@@ -10,7 +10,7 @@
 #include "socket.h"
 #include <minos/fsdefs.h>
 typedef struct {
-    fflags_t flags;
+    oflags_t flags;
     off_t offset;
     Inode* inode;
 } Resource;
