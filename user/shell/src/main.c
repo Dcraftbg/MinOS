@@ -7,9 +7,12 @@
 #include <stdlib.h>
 #include <environ.h>
 #include <ctype.h>
+#include <assert.h>
+#include <minos/tty/tty.h>
 
 intptr_t readline(char* buf, size_t bufmax) {
     intptr_t e;
+    /*
     size_t i = 0;
     while(i < bufmax) {
         if((e = read(STDIN_FILENO, buf+i, 1)) < 0) {
@@ -18,6 +21,17 @@ intptr_t readline(char* buf, size_t bufmax) {
         if(buf[i++] == '\n') return i;
     }
     return -BUFFER_TOO_SMALL;
+    */
+    size_t n = 0;
+    while(n < bufmax) {
+        e = read(STDIN_FILENO, buf + n, bufmax - n);
+        if(e < 0) return e;
+        assert(e != 0);
+        n += e;
+        if(buf[n-1] == '\n') break;
+    }
+    if(n >= bufmax) return -BUFFER_TOO_SMALL;
+    return n;
 }
 char* trim_r(char* buf) {
     char* start = buf;
@@ -43,12 +57,6 @@ typedef struct {
 } Arena;
 #define _STRINGIFY(x) # x
 #define STRINGIFY(x) _STRINGIFY(x)
-#define assert(x) do {\
-        if(!(x)) {\
-            fputs(__FILE__ ":" STRINGIFY(__LINE__) "Assertion failed" STRINGIFY(x), stderr);\
-            exit(1);\
-        }\
-    } while(0)
 ArenaNode* arena_node_new(size_t size) {
     size = ((size+15)/16)*16;
     ArenaNode* node = malloc(sizeof(ArenaNode)+size);
@@ -140,29 +148,40 @@ const char* strip_arg(Arena* arena, const char** str_result) {
 }
 #define LINEBUF_MAX 1024
 #define MAX_ARGS 128
-void run_cmd(const char** argv, size_t argc) {
-    assert(argc > 0);
+typedef struct {
+    size_t pid;
+    size_t exit_code;
+} Cmd;
+#define EXEC_STATUS_OFF 1024 
+intptr_t spawn_cmd(Cmd* cmd, const char**argv, size_t argc) {
+    assert(argc);
     intptr_t e = fork();
     if(e == (-YOU_ARE_CHILD)) {
-        if((e=execvp(argv[0], argv, argc)) < 0) {
-            exit(-e);
-        }
-        // Unreachable
-        exit(0);
+        e = execvp(argv[0], argv, argc);
+        exit(EXEC_STATUS_OFF + (-e));
     } else if (e >= 0) {
-        size_t pid = e;
-        e=wait_pid(pid);
-        if(e != 0) {
-           if(e == NOT_FOUND) {
-               printf("Could not find command `%s`\n", argv[0]);
-           } else {
-               printf("%s exited with: %d\n", argv[0], (int)e);
-           }
-        }
-    } else {
-        printf("ERROR: fork %s\n",status_str(e));
+        cmd->pid = e;
+    } else return e;
+    return 0;
+}
+intptr_t wait_cmd(Cmd* cmd) {
+    intptr_t e = wait_pid(cmd->pid);
+    cmd->exit_code = e;
+    if(e < 0) return e;
+    return e > EXEC_STATUS_OFF ? -(e - EXEC_STATUS_OFF) : e; 
+}
+void run_cmd(const char** argv, size_t argc) {
+    Cmd cmd = { 0 };
+    intptr_t e;
+    if((e=spawn_cmd(&cmd, argv, argc)) < 0) {
+        fprintf(stderr, "ERROR: fork %s\n", status_str(e));
         exit(1);
     }
+    if((e=wait_cmd(&cmd)) < 0) {
+        fprintf(stderr, "ERROR: Failed to run %s: %s\n", argv[0], status_str(e));
+        return;
+    }
+    if(e != 0) printf("%s exited with: %d\n", argv[0], (int)e);
 }
 int main() {
     printf("Started MinOS shell\n");
@@ -225,6 +244,8 @@ int main() {
             if(arg_count > 1) fprintf(stderr, "Ignoring extra arguments to clear\n");
             printf("\033[2J\033[H");
             fflush(stdout);
+        } else if (strcmp(cmd, "reset") == 0) {
+            tty_set_flags(fileno(stdin), TTY_ECHO);
         } else if (strcmp(cmd, "cd") == 0) {
             if (arg_count < 2) {
                 fprintf(stderr, "Expected path after cd\n");
