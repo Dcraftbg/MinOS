@@ -315,6 +315,7 @@ void sys_exit(int code) {
     }
     kwarn("Hey. We couldn't find ourselves in the children list of the parent process. This is odd");
 end:
+    list_remove(&cur_task->list);
     enable_interrupts();
     // TODO: thread yield
     for(;;) asm volatile("hlt");
