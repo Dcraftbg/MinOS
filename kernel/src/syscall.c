@@ -231,11 +231,9 @@ intptr_t sys_fork() {
     process->curdir_inode = iget(current_proc->curdir_inode);
 
     Task* current = current_task();
-    disable_interrupts();
     Task* task = kernel_task_add();
     if(!task) {
         process_drop(process);
-        enable_interrupts();
         return -LIMITS;
     } 
     process->main_thread = task;
@@ -244,10 +242,8 @@ intptr_t sys_fork() {
     if((e=fork_trampoline(current, task)) < 0) {
         process_drop(process);
         drop_task(task);
-        enable_interrupts();
         return e;
     }
-    enable_interrupts();
     Task* now = current_task();
     if(now->id == task->id) {
         return -YOU_ARE_CHILD;
@@ -262,10 +258,8 @@ intptr_t sys_exec(const char* path, const char** argv, size_t argc, const char**
     Process* cur_proc = current_process();
     Task* cur_task = current_task();
     assert(cur_proc->main_thread == cur_task && "Exec on multiple threads is not supported yet");
-    disable_interrupts();
     Task* task = kernel_task_add();
     if(!task) {
-        enable_interrupts();
         return -LIMITS;
     }
     task->process = cur_proc;
@@ -274,12 +268,10 @@ intptr_t sys_exec(const char* path, const char** argv, size_t argc, const char**
     Path p;
     if((e=parse_path(cur_proc, &p, path)) < 0) {
         drop_task(task);
-        enable_interrupts();
         return e;
     }
     if((e=exec(task, &p, &args, &env)) < 0) {
         drop_task(task);
-        enable_interrupts();
         return e;
     }
     cur_task->image.flags &= ~(TASK_FLAG_PRESENT);
@@ -292,7 +284,6 @@ intptr_t sys_exec(const char* path, const char** argv, size_t argc, const char**
         heap_destroy(heap);
         heap = next;
     }
-    enable_interrupts();
     // TODO: thread yield
     for(;;) asm volatile("hlt");
     return 0;
