@@ -192,7 +192,7 @@ bool bootstrap_config(Build* build) {
 }
 bool bootstrap_submodules() {
     Nob_Cmd cmd = {0};
-    nob_cmd_append(&cmd, "git", "submodule", "update", "--init", "--depth", "1");
+    nob_cmd_append(&cmd, "git", "submodule", "update", "--init", "--depth", "1", "kernel/vendor/limine");
     if (!nob_cmd_run_sync(cmd)) {
         nob_cmd_free(cmd);
         return false;
