@@ -274,16 +274,16 @@ intptr_t sys_exec(const char* path, const char** argv, size_t argc, const char**
         drop_task(task);
         return e;
     }
-    cur_task->image.flags &= ~(TASK_FLAG_PRESENT);
-    cur_task->image.flags |= TASK_FLAG_DYING;
-    cur_proc->main_thread = task;
-    task->image.flags |= TASK_FLAG_PRESENT;
     Heap* heap = (Heap*)cur_proc->heap_list.next;
     while(&heap->list != &cur_proc->heap_list) {
         Heap* next = (Heap*)heap->list.next;
         heap_destroy(heap);
         heap = next;
     }
+    cur_task->image.flags &= ~(TASK_FLAG_PRESENT);
+    cur_task->image.flags |= TASK_FLAG_DYING;
+    cur_proc->main_thread = task;
+    task->image.flags |= TASK_FLAG_PRESENT;
     // TODO: thread yield
     for(;;) asm volatile("hlt");
     return 0;
