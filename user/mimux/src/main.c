@@ -143,6 +143,28 @@ void draw_window(Window* window) {
     // stui_window_border(window->region.x, window->region.y, window->region.width-1, window->region.height-1, '-', '|', '+');
     render_region_border(window->region, '-', '|', '+');
 }
+void window_putchar(Window* window, int c) {
+    switch(c) {
+    case '\n': {
+        da_push(&window->lines, ((Line){window->sb.len, 0}));
+    } break;
+    case '\b':
+        if(window->lines.items[window->lines.len-1].len > 0) {
+            window->lines.items[window->lines.len-1].len--;
+            window->sb.len--;
+            stui_putchar(window->cursor_x-1, window->cursor_y, ' ');
+        }
+        break;
+    default: {
+        if(window->cursor_x >= window->region.x + window->region.width-1) {
+            window->cursor_x = window->region.x + 1;
+            window->cursor_y++;
+        }
+        da_push(&window->sb, c);
+        window->lines.items[window->lines.len-1].len++;
+    }
+    }
+}
 typedef struct {
     Window* items;
     size_t len, cap;
@@ -187,6 +209,15 @@ int main(void) {
         for(size_t i = 0; i < (size_t)n; ++i) {
             struct epoll_event* event = &epoll_events[i];
             if(event->events & EPOLLIN) {
+                if (event->data.fd == fileno(stdin)) {
+                    e = read(fileno(stdin), buf_window, sizeof(buf_window));
+                    if(e < 0) {
+                        fprintf(stderr, "ERROR: Failed to read: %s\n", status_str(e));
+                        return 1;
+                    }
+                    write(prim_window.ptty.master_handle, buf_window, e);
+                    continue;
+                }
                 if(event->data.fd == prim_window.ptty.master_handle) {
                     e = read(prim_window.ptty.master_handle, buf_window, sizeof(buf_window));
                     if(e < 0) {
@@ -194,41 +225,8 @@ int main(void) {
                         return 1;
                     }
                     for(size_t i = 0; i < (size_t)e; ++i) {
-                        char c = buf_window[i];
-                        switch(c) {
-                        case -1:
-                            goto end;
-                        case '\n': {
-                            da_push(&prim_window.lines, ((Line){prim_window.sb.len, 0}));
-                        } break;
-                        case '\b':
-                            if(prim_window.lines.items[prim_window.lines.len-1].len > 0) {
-                                prim_window.lines.items[prim_window.lines.len-1].len--;
-                                prim_window.sb.len--;
-                                stui_putchar(prim_window.cursor_x-1, prim_window.cursor_y, ' ');
-                            }
-                            // if(x > 1) {
-                            //     stui_putchar(--x, y, ' ');
-                            // }
-                            break;
-                        default: {
-                            if(prim_window.cursor_x >= width-1) {
-                                prim_window.cursor_x = 1;
-                                prim_window.cursor_y++;
-                            }
-                            da_push(&prim_window.sb, c);
-                            prim_window.lines.items[prim_window.lines.len-1].len++;
-                        }
-                            // stui_putchar(x++, y, c);
-                        }
+                        window_putchar(&prim_window, buf_window[i]);
                     }
-                } else if (event->data.fd == fileno(stdin)) {
-                    e = read(fileno(stdin), buf_window, sizeof(buf_window));
-                    if(e < 0) {
-                        fprintf(stderr, "ERROR: Failed to read: %s\n", status_str(e));
-                        return 1;
-                    }
-                    write(prim_window.ptty.master_handle, buf_window, e);
                 }
             } else if(event->events & EPOLLHUP) {
                 stui_clear();
