@@ -208,8 +208,12 @@ int main(void) {
         const size_t window_width = screen.width/windows.len;
         // UI layout
         for(size_t i = 0; i < windows.len; ++i) {
+            if(i == windows.len-1) {
+                windows.items[i].region = screen;
+                continue;
+            }
             windows.items[i].region = region_chop_horiz(&screen, window_width-1);
-            windows.items[i].region.width++; // <- Make them share a border
+            windows.items[i].region.width++;
         }
         // Redrawing
         for(size_t i = 0; i < windows.len; ++i) {
@@ -239,6 +243,10 @@ int main(void) {
                         if(c == '`') {
                             selected = (selected+1) % windows.len;
                             continue;
+                        }
+                        if(c == '!') {
+                            create_new_window(&windows, epoll);
+                            break;
                         }
                         write(windows.items[selected].ptty.master_handle, &c, 1);
                     }
