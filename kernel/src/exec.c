@@ -324,7 +324,9 @@ intptr_t exec(Task* task, Path* path, Args* args, Args* envs) {
     frame->rsp    = (uint64_t)stack_head;
     task->image.ts_rsp = (void*)(KERNEL_STACK_PTR+sizeof(IRQFrame));
     task->image.rip    = header.entry;
+    disable_interrupts();
     page_join(kernel.pml4, task->image.cr3);
+    enable_interrupts();
     idrop(file);
     file = NULL;
     kernel_dealloc(pheaders, header.phnum * sizeof(Elf64ProgHeader));
