@@ -12,7 +12,6 @@ typedef struct {
     size_t index;
     int master_handle, slave_handle;
 } Ptty;
-Ptty _ptty;
 intptr_t ptty_setup(Ptty* ptty, const TtySize* size) {
     intptr_t e;
     if((e=open("/devices/ptm", 0, 0)) < 0) {
@@ -95,8 +94,18 @@ static void stui_fill(size_t l, size_t t, size_t r, size_t b, char c) {
         }
     }
 }
-
-int main() {
+typedef struct {
+    size_t x, y;
+    size_t width, height;
+    StringBuffer sb;
+    Lines lines;
+    Ptty ptty;
+} Window;
+typedef struct {
+    Window* items;
+    size_t len, cap;
+} Windows;
+int main(void) {
     init_flags = stui_term_get_flags();
     atexit(cleanup_tty_flags);
     stui_clear();
@@ -105,36 +114,39 @@ int main() {
     height--; // <- A temporary fix
     stui_setsize(width, height);
     stui_refresh();
-    TtySize size = { width, height };
-    assert(ptty_setup(&_ptty, &size) >= 0);
-    intptr_t e = ptty_spawn_shell(&_ptty);
+
+    Window prim_window = {
+        1, 1,
+        width-2, height-2
+    };
+    TtySize size = { prim_window.width, prim_window.height };
+    assert(ptty_setup(&prim_window.ptty, &size) >= 0);
+    intptr_t e = ptty_spawn_shell(&prim_window.ptty);
     assert(e >= 0);
     e = epoll_create1(0);
     assert(e >= 0);
     uintptr_t epoll = e;
-    assert(epoll_add_fd(epoll, fileno(stdin)      , EPOLLIN) >= 0);
-    assert(epoll_add_fd(epoll, _ptty.master_handle, EPOLLIN | EPOLLHUP) >= 0);
+    assert(epoll_add_fd(epoll, fileno(stdin), EPOLLIN) >= 0);
+    assert(epoll_add_fd(epoll, prim_window.ptty.master_handle, EPOLLIN | EPOLLHUP) >= 0);
     #define MAX_EPOLL_EVENTS 120
     static struct epoll_event epoll_events[MAX_EPOLL_EVENTS];
-    tty_set_flags(_ptty.master_handle, TTY_INSTANT | TTY_ECHO);
+    tty_set_flags(prim_window.ptty.master_handle, TTY_INSTANT | TTY_ECHO);
     tty_set_flags(fileno(stdin), TTY_INSTANT);
-    Lines lines = { 0 };
-    da_push(&lines, ((Line){0, 0}));
-    StringBuffer sb = { 0 };
-    da_reserve(&sb, 1);
+    da_push(&prim_window.lines, ((Line){0, 0}));
+    da_reserve(&prim_window.sb, 1);
     for(;;) {
         size_t window_x = 1, window_y = 1;
         size_t window_width = width-2, window_height = height-2;
         size_t x, y = window_y;
-        size_t lines_start = lines.len < window_height-1 ? 0 : lines.len - (window_height-1);
+        size_t lines_start = prim_window.lines.len < window_height-1 ? 0 : prim_window.lines.len - (window_height-1);
         stui_fill(window_x, window_y, window_x + window_width, window_y + window_height, ' ');
-        for(size_t i = lines_start; i < lines.len && y < window_height; i++) {
+        for(size_t i = lines_start; i < prim_window.lines.len && y < window_height; i++) {
             x = window_x;
-            Line* line = &lines.items[i];
+            Line* line = &prim_window.lines.items[i];
             for(size_t j = 0; j < line->len && x < window_width; ++j, ++x) {
-                stui_putchar(x, y, (sb.items + line->offset)[j]);
+                stui_putchar(x, y, (prim_window.sb.items + line->offset)[j]);
             }
-            if(i != lines.len-1) y++;
+            if(i != prim_window.lines.len-1) y++;
         }
         stui_window_border(0, 0, width-1, height-1, '-', '|', '+');
         stui_refresh();
@@ -145,8 +157,8 @@ int main() {
         for(size_t i = 0; i < (size_t)n; ++i) {
             struct epoll_event* event = &epoll_events[i];
             if(event->events & EPOLLIN) {
-                if(event->data.fd == _ptty.master_handle) {
-                    e = read(_ptty.master_handle, buf_window, sizeof(buf_window));
+                if(event->data.fd == prim_window.ptty.master_handle) {
+                    e = read(prim_window.ptty.master_handle, buf_window, sizeof(buf_window));
                     if(e < 0) {
                         fprintf(stderr, "ERROR: Failed to read: %s\n", status_str(e));
                         return 1;
@@ -157,12 +169,12 @@ int main() {
                         case -1:
                             goto end;
                         case '\n': {
-                            da_push(&lines, ((Line){sb.len, 0}));
+                            da_push(&prim_window.lines, ((Line){prim_window.sb.len, 0}));
                         } break;
                         case '\b':
-                            if(lines.items[lines.len-1].len > 0) {
-                                lines.items[lines.len-1].len--;
-                                sb.len--;
+                            if(prim_window.lines.items[prim_window.lines.len-1].len > 0) {
+                                prim_window.lines.items[prim_window.lines.len-1].len--;
+                                prim_window.sb.len--;
                                 stui_putchar(x-1, y, ' ');
                             }
                             // if(x > 1) {
@@ -174,8 +186,8 @@ int main() {
                                 x = 1;
                                 y++;
                             }
-                            da_push(&sb, c);
-                            lines.items[lines.len-1].len++;
+                            da_push(&prim_window.sb, c);
+                            prim_window.lines.items[prim_window.lines.len-1].len++;
                         }
                             // stui_putchar(x++, y, c);
                         }
@@ -186,7 +198,7 @@ int main() {
                         fprintf(stderr, "ERROR: Failed to read: %s\n", status_str(e));
                         return 1;
                     }
-                    write(_ptty.master_handle, buf_window, e);
+                    write(prim_window.ptty.master_handle, buf_window, e);
                 }
             } else if(event->events & EPOLLHUP) {
                 stui_clear();
