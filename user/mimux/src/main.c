@@ -12,7 +12,7 @@ typedef struct {
     size_t index;
     int master_handle, slave_handle;
 } Ptty;
-intptr_t ptty_setup(Ptty* ptty, const TtySize* size) {
+intptr_t ptty_setup(Ptty* ptty) {
     intptr_t e;
     if((e=open("/devices/ptm", 0, 0)) < 0) {
         fprintf(stderr, "ERROR: Failed to open ptm: %s\n", status_str(e));
@@ -36,7 +36,6 @@ intptr_t ptty_setup(Ptty* ptty, const TtySize* size) {
         return e;
     }
     ptty->master_handle = e;
-    assert(tty_set_size(ptty->master_handle, size) >= 0);
     return 0;
 }
 intptr_t ptty_spawn_shell(Ptty* ptty) {
@@ -169,6 +168,17 @@ typedef struct {
     Window* items;
     size_t len, cap;
 } Windows;
+void create_new_window(Windows* windows, uintptr_t epoll) {
+    da_push(windows, (Window){0});
+    Window* window = &windows->items[windows->len-1];
+    assert(ptty_setup(&window->ptty) >= 0);
+    intptr_t e = ptty_spawn_shell(&window->ptty);
+    assert(e >= 0);
+    assert(epoll_add_fd(epoll, window->ptty.master_handle, EPOLLIN | EPOLLHUP) >= 0);
+    tty_set_flags(window->ptty.master_handle, TTY_INSTANT | TTY_ECHO);
+    da_push(&window->lines, ((Line){0, 0}));
+    da_reserve(&window->sb, 1);
+}
 int main(void) {
     init_flags = stui_term_get_flags();
     atexit(cleanup_tty_flags);
@@ -181,31 +191,34 @@ int main(void) {
 
     Windows windows = { 0 };
     size_t selected = 0;
-    da_push(&windows, (Window){0});
-    TtySize size = { windows.items[windows.len-1].region.width, windows.items[windows.len-1].region.height };
-    assert(ptty_setup(&windows.items[windows.len-1].ptty, &size) >= 0);
-    intptr_t e = ptty_spawn_shell(&windows.items[windows.len-1].ptty);
-    assert(e >= 0);
-    e = epoll_create1(0);
+    intptr_t e = epoll_create1(0);
     assert(e >= 0);
     uintptr_t epoll = e;
     assert(epoll_add_fd(epoll, fileno(stdin), EPOLLIN) >= 0);
-    assert(epoll_add_fd(epoll, windows.items[windows.len-1].ptty.master_handle, EPOLLIN | EPOLLHUP) >= 0);
     #define MAX_EPOLL_EVENTS 120
     static struct epoll_event epoll_events[MAX_EPOLL_EVENTS];
-    tty_set_flags(windows.items[windows.len-1].ptty.master_handle, TTY_INSTANT | TTY_ECHO);
     tty_set_flags(fileno(stdin), TTY_INSTANT);
-    da_push(&windows.items[windows.len-1].lines, ((Line){0, 0}));
-    da_reserve(&windows.items[windows.len-1].sb, 1);
+    create_new_window(&windows, epoll);
+    create_new_window(&windows, epoll);
     for(;;) {
         Region screen = {
             0, 0,
             width, height
         };
         const size_t window_width = screen.width/windows.len;
+        // UI layout
         for(size_t i = 0; i < windows.len; ++i) {
-            windows.items[i].region = region_chop_horiz(&screen, window_width);
+            windows.items[i].region = region_chop_horiz(&screen, window_width-1);
+            windows.items[i].region.width++; // <- Make them share a border
+        }
+        // Redrawing
+        for(size_t i = 0; i < windows.len; ++i) {
             draw_window(&windows.items[i]);
+        }
+        // Updating size
+        for(size_t i = 0; i < windows.len; ++i) {
+            TtySize size = { windows.items[i].region.width - 1, windows.items[i].region.height - 1 };
+            tty_set_size(windows.items[i].ptty.master_handle, &size);
         }
         stui_refresh();
         stui_goto(windows.items[selected].cursor_x, windows.items[selected].cursor_y);
@@ -231,9 +244,10 @@ int main(void) {
                             fprintf(stderr, "ERROR: Failed to read: %s\n", status_str(e));
                             return 1;
                         }
-                        for(size_t i = 0; i < (size_t)e; ++i) {
-                            window_putchar(&windows.items[i], buf_window[i]);
+                        for(size_t j = 0; j < (size_t)e; ++j) {
+                            window_putchar(&windows.items[i], buf_window[j]);
                         }
+                        break;
                     }
                 }
             } else if(event->events & EPOLLHUP) {
