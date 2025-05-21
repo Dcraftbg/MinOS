@@ -46,6 +46,8 @@ struct Tty {
     void* priv;
     uint32_t (*getchar)(Tty* device);
     void     (*putchar)(Tty* device, uint32_t code);
+    intptr_t (*getsize)(Tty* device, TtySize* size);
+    intptr_t (*setsize)(Tty* device, const TtySize* size);
     intptr_t (*deinit )(Tty* device);
 };
 void init_tty(void);

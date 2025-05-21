@@ -11,6 +11,7 @@ typedef struct Ptty Ptty;
 #include <sockets/minos.h>
 struct Ptty {
     Tty tty;
+    TtySize size;
     Inode* slave;
     atomic_size_t shared;
     MinOSData slave_ibuf; /*master_obuf*/
@@ -106,6 +107,16 @@ static void master_putchar(Tty* tty, uint32_t code) {
     minos_data_provide(&ptty->slave_ibuf, &code, 1);
     mutex_unlock(&ptty->slave_ibuf_lock);
 }
+static intptr_t master_getsize(Tty* tty, TtySize* size) {
+    Ptty* ptty = (Ptty*)tty;
+    *size = ptty->size;
+    return 0;
+}
+static intptr_t master_setsize(Tty* tty, const TtySize* size) {
+    Ptty* ptty = (Ptty*)tty;
+    ptty->size = *size;
+    return 0;
+}
 static bool master_is_hungup(Inode* inode) {
     Ptty* ptty = (Ptty*)inode;
     if(ptty->shared == 1) return true;
@@ -129,6 +140,8 @@ static Ptty* ptty_new(void) {
     ptty->shared = 1;
     ptty->tty.getchar = master_getchar;
     ptty->tty.putchar = master_putchar;
+    ptty->tty.setsize = master_setsize;
+    ptty->tty.getsize = master_getsize;
     tty_init(&ptty->tty, ptty_cache);
     ptty->tty.inode.ops = &master_inodeOps;
     return ptty;
@@ -189,6 +202,11 @@ static void ptty_slave_putchar(Tty* tty, uint32_t code) {
     minos_data_provide(&ptty->slave_obuf, &code, 1);
     mutex_unlock(&ptty->slave_obuf_lock);
 }
+static intptr_t ptty_slave_getsize(Tty* tty, TtySize* size) {
+    Ptty* ptty = tty->priv;
+    *size = ptty->size;
+    return 0;
+}
 static intptr_t ptty_slave_deinit(Tty* tty) {
     ptty_drop((Ptty*)tty->priv);
     return 0;
@@ -206,6 +224,7 @@ static Tty* ptty_slave_new(Ptty* ptty) {
     tty->priv = ptty;
     tty->getchar = ptty_slave_getchar;
     tty->putchar = ptty_slave_putchar;
+    tty->getsize = ptty_slave_getsize;
     tty_init(tty, tty_cache);
     tty->inode.ops = &slave_inodeOps;
     return tty;

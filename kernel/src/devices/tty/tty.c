@@ -204,6 +204,12 @@ intptr_t tty_ioctl(Inode* file, Iop op, void* arg) {
     case TTY_IOCTL_GET_FLAGS:
         *((ttyflags_t*)arg) = tty->flags;
         break;
+    case TTY_IOCTL_GET_SIZE:
+        if(!tty->getsize) return -UNSUPPORTED;
+        return tty->getsize(tty, (TtySize*)arg);
+    case TTY_IOCTL_SET_SIZE:
+        if(!tty->setsize) return -UNSUPPORTED;
+        return tty->setsize(tty, (const TtySize*)arg);
     default:
         return -UNSUPPORTED;
     }

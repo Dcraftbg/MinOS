@@ -6,5 +6,10 @@ enum {
 enum {
     TTY_IOCTL_SET_FLAGS=1,
     TTY_IOCTL_GET_FLAGS,
+    TTY_IOCTL_GET_SIZE,
+    TTY_IOCTL_SET_SIZE,
 };
 typedef uint32_t ttyflags_t;
+typedef struct {
+    uint32_t width, height;
+} TtySize;

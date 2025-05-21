@@ -120,6 +120,7 @@ void deinit_fbtty(void) {
 
 static uint32_t fbtty_getchar(Tty* device);
 static void fbtty_putchar(Tty* device, uint32_t code);
+static intptr_t fbtty_getsize(Tty* device, TtySize* size);
 static intptr_t fbtty_deinit(Tty* device);
 
 static void fbtty_fill_blink(FbTty* fb, uint32_t color);
@@ -162,6 +163,7 @@ static FbTty* fbtty_new_internal(Inode* keyboard, Framebuffer fb) {
     tty_init(&tty->tty, fbtty_cache);
     tty->tty.putchar = fbtty_putchar;
     tty->tty.getchar = fbtty_getchar;
+    tty->tty.getsize = fbtty_getsize;
     tty->tty.deinit = fbtty_deinit;
     tty->tty.inode.ops = &inodeOps;
     tty->w  = fb.width/8;
@@ -186,7 +188,12 @@ static FbTty* fbtty_new_internal(Inode* keyboard, Framebuffer fb) {
 static void fbtty_fill_blink(FbTty* fb, uint32_t color) {
     fb_draw_codepoint_at(&fb->fb, fb->x*8, fb->y*16, fb->map[fb->y * fb->w + fb->x].c, 0xffffffff - color, color);
 }
-
+static intptr_t fbtty_getsize(Tty* device, TtySize* size) {
+    FbTty* fbtty = (FbTty*)device;
+    size->width  = fbtty->w;
+    size->height = fbtty->h;
+    return 0;
+}
 static uint32_t fbtty_getchar(Tty* device) {
     FbTty* fbtty = (FbTty*)device;
     // TODO: Potentially in the future we would collect all the key codes 

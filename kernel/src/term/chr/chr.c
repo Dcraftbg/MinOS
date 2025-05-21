@@ -31,6 +31,11 @@ static intptr_t chrtty_deinit(Tty* device) {
     device->priv = NULL;
     return 0;
 }
+static intptr_t chrtty_getsize(Tty*, TtySize* size) {
+    size->width = 80;
+    size->height = 24;
+    return 0;
+}
 static InodeOps inodeOps = {
     .write = tty_write,
     .read  = tty_read,
@@ -43,6 +48,7 @@ Tty* chrtty_new(Inode* inode) {
     device->priv = inode;
     device->getchar = chrtty_getchar;
     device->putchar = chrtty_putchar;
+    device->getsize = chrtty_getsize;
     device->deinit = chrtty_deinit;
     tty_init(device, tty_cache);
     device->inode.ops = &inodeOps;
