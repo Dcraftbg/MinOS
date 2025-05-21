@@ -106,10 +106,10 @@ void draw_window(Window* window) {
     size_t x, y = window->y + 1;
     size_t lines_start = window->lines.len < window->height-2 ? 0 : window->lines.len - (window->height-2);
     stui_fill(window->x + 1, window->y + 1, window->x + window->width-1, window->y + window->height-1, ' ');
-    for(size_t i = lines_start; i < window->lines.len && y < window->y + window->height; i++) {
+    for(size_t i = lines_start; i < window->lines.len && y < window->y + window->height-1; i++) {
         x = window->x + 1;
         Line* line = &window->lines.items[i];
-        for(size_t j = 0; j < line->len && x < window->x + window->width; ++j, ++x) {
+        for(size_t j = 0; j < line->len && x < window->x + window->width-1; ++j, ++x) {
             stui_putchar(x, y, (window->sb.items + line->offset)[j]);
         }
         if(i != window->lines.len-1) y++;
