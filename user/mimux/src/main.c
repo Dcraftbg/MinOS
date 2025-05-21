@@ -234,7 +234,14 @@ int main(void) {
                         fprintf(stderr, "ERROR: Failed to read: %s\n", status_str(e));
                         return 1;
                     }
-                    write(windows.items[selected].ptty.master_handle, buf_window, e);
+                    for(size_t i = 0; i < (size_t)e; ++i) {
+                        char c = buf_window[i];
+                        if(c == '`') {
+                            selected = (selected+1) % windows.len;
+                            continue;
+                        }
+                        write(windows.items[selected].ptty.master_handle, &c, 1);
+                    }
                     continue;
                 }
                 for(size_t i = 0; i < windows.len; ++i) {
