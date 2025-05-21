@@ -179,37 +179,36 @@ int main(void) {
     stui_setsize(width, height);
     stui_refresh();
 
-    Window prim_window = { 0 };
-    prim_window.region.x = width/4;
-    prim_window.region.y = height/4;
-    prim_window.region.width = width/2;
-    prim_window.region.height = height/2;
-    TtySize size = { prim_window.region.width, prim_window.region.height };
-    assert(ptty_setup(&prim_window.ptty, &size) >= 0);
-    intptr_t e = ptty_spawn_shell(&prim_window.ptty);
+    Windows windows = { 0 };
+    size_t selected = 0;
+    da_push(&windows, (Window){0});
+    TtySize size = { windows.items[windows.len-1].region.width, windows.items[windows.len-1].region.height };
+    assert(ptty_setup(&windows.items[windows.len-1].ptty, &size) >= 0);
+    intptr_t e = ptty_spawn_shell(&windows.items[windows.len-1].ptty);
     assert(e >= 0);
     e = epoll_create1(0);
     assert(e >= 0);
     uintptr_t epoll = e;
     assert(epoll_add_fd(epoll, fileno(stdin), EPOLLIN) >= 0);
-    assert(epoll_add_fd(epoll, prim_window.ptty.master_handle, EPOLLIN | EPOLLHUP) >= 0);
+    assert(epoll_add_fd(epoll, windows.items[windows.len-1].ptty.master_handle, EPOLLIN | EPOLLHUP) >= 0);
     #define MAX_EPOLL_EVENTS 120
     static struct epoll_event epoll_events[MAX_EPOLL_EVENTS];
-    tty_set_flags(prim_window.ptty.master_handle, TTY_INSTANT | TTY_ECHO);
+    tty_set_flags(windows.items[windows.len-1].ptty.master_handle, TTY_INSTANT | TTY_ECHO);
     tty_set_flags(fileno(stdin), TTY_INSTANT);
-    da_push(&prim_window.lines, ((Line){0, 0}));
-    da_reserve(&prim_window.sb, 1);
+    da_push(&windows.items[windows.len-1].lines, ((Line){0, 0}));
+    da_reserve(&windows.items[windows.len-1].sb, 1);
     for(;;) {
         Region screen = {
             0, 0,
             width, height
         };
-        const size_t windows_count = 1;
-        const size_t window_width = screen.width/windows_count;
-        prim_window.region = region_chop_horiz(&screen, window_width);
-        draw_window(&prim_window);
+        const size_t window_width = screen.width/windows.len;
+        for(size_t i = 0; i < windows.len; ++i) {
+            windows.items[i].region = region_chop_horiz(&screen, window_width);
+            draw_window(&windows.items[i]);
+        }
         stui_refresh();
-        stui_goto(prim_window.cursor_x, prim_window.cursor_y);
+        stui_goto(windows.items[selected].cursor_x, windows.items[selected].cursor_y);
         int n = epoll_wait(epoll, epoll_events, MAX_EPOLL_EVENTS, -1);
         assert(n >= 0);
         static char buf_window[1024];
@@ -222,17 +221,17 @@ int main(void) {
                         fprintf(stderr, "ERROR: Failed to read: %s\n", status_str(e));
                         return 1;
                     }
-                    write(prim_window.ptty.master_handle, buf_window, e);
+                    write(windows.items[selected].ptty.master_handle, buf_window, e);
                     continue;
                 }
-                if(event->data.fd == prim_window.ptty.master_handle) {
-                    e = read(prim_window.ptty.master_handle, buf_window, sizeof(buf_window));
+                if(event->data.fd == windows.items[selected].ptty.master_handle) {
+                    e = read(windows.items[selected].ptty.master_handle, buf_window, sizeof(buf_window));
                     if(e < 0) {
                         fprintf(stderr, "ERROR: Failed to read: %s\n", status_str(e));
                         return 1;
                     }
                     for(size_t i = 0; i < (size_t)e; ++i) {
-                        window_putchar(&prim_window, buf_window[i]);
+                        window_putchar(&windows.items[selected], buf_window[i]);
                     }
                 }
             } else if(event->events & EPOLLHUP) {
