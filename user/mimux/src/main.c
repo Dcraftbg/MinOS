@@ -100,7 +100,24 @@ typedef struct {
     StringBuffer sb;
     Lines lines;
     Ptty ptty;
+    size_t cursor_x, cursor_y;
 } Window;
+void draw_window(Window* window) {
+    size_t x, y = window->y + 1;
+    size_t lines_start = window->lines.len < window->height-2 ? 0 : window->lines.len - (window->height-2);
+    stui_fill(window->x + 1, window->y + 1, window->x + window->width-1, window->y + window->height-1, ' ');
+    for(size_t i = lines_start; i < window->lines.len && y < window->y + window->height; i++) {
+        x = window->x + 1;
+        Line* line = &window->lines.items[i];
+        for(size_t j = 0; j < line->len && x < window->width-2; ++j, ++x) {
+            stui_putchar(x, y, (window->sb.items + line->offset)[j]);
+        }
+        if(i != window->lines.len-1) y++;
+    }
+    window->cursor_x = x;
+    window->cursor_y = y;
+    stui_window_border(window->x, window->y, window->width-1, window->height-1, '-', '|', '+');
+}
 typedef struct {
     Window* items;
     size_t len, cap;
@@ -115,10 +132,9 @@ int main(void) {
     stui_setsize(width, height);
     stui_refresh();
 
-    Window prim_window = {
-        1, 1,
-        width-2, height-2
-    };
+    Window prim_window = { 0 };
+    prim_window.width = width;
+    prim_window.height = height;
     TtySize size = { prim_window.width, prim_window.height };
     assert(ptty_setup(&prim_window.ptty, &size) >= 0);
     intptr_t e = ptty_spawn_shell(&prim_window.ptty);
@@ -135,22 +151,9 @@ int main(void) {
     da_push(&prim_window.lines, ((Line){0, 0}));
     da_reserve(&prim_window.sb, 1);
     for(;;) {
-        size_t window_x = 1, window_y = 1;
-        size_t window_width = width-2, window_height = height-2;
-        size_t x, y = window_y;
-        size_t lines_start = prim_window.lines.len < window_height-1 ? 0 : prim_window.lines.len - (window_height-1);
-        stui_fill(window_x, window_y, window_x + window_width, window_y + window_height, ' ');
-        for(size_t i = lines_start; i < prim_window.lines.len && y < window_height; i++) {
-            x = window_x;
-            Line* line = &prim_window.lines.items[i];
-            for(size_t j = 0; j < line->len && x < window_width; ++j, ++x) {
-                stui_putchar(x, y, (prim_window.sb.items + line->offset)[j]);
-            }
-            if(i != prim_window.lines.len-1) y++;
-        }
-        stui_window_border(0, 0, width-1, height-1, '-', '|', '+');
+        draw_window(&prim_window);
         stui_refresh();
-        stui_goto(x, y);
+        stui_goto(prim_window.cursor_x, prim_window.cursor_y);
         int n = epoll_wait(epoll, epoll_events, MAX_EPOLL_EVENTS, -1);
         assert(n >= 0);
         static char buf_window[1024];
@@ -175,16 +178,16 @@ int main(void) {
                             if(prim_window.lines.items[prim_window.lines.len-1].len > 0) {
                                 prim_window.lines.items[prim_window.lines.len-1].len--;
                                 prim_window.sb.len--;
-                                stui_putchar(x-1, y, ' ');
+                                stui_putchar(prim_window.cursor_x-1, prim_window.cursor_y, ' ');
                             }
                             // if(x > 1) {
                             //     stui_putchar(--x, y, ' ');
                             // }
                             break;
                         default: {
-                            if(x >= width-1) {
-                                x = 1;
-                                y++;
+                            if(prim_window.cursor_x >= width-1) {
+                                prim_window.cursor_x = 1;
+                                prim_window.cursor_y++;
                             }
                             da_push(&prim_window.sb, c);
                             prim_window.lines.items[prim_window.lines.len-1].len++;
