@@ -97,26 +97,51 @@ static void stui_fill(size_t l, size_t t, size_t r, size_t b, char c) {
 typedef struct {
     size_t x, y;
     size_t width, height;
+} Region;
+static void render_region_border(Region region, int tb, int lr, int corner) {
+    stui_window_border(region.x, region.y, region.width-1, region.height-1, tb, lr, corner);
+}
+static Region region_chop_vert(Region* region, size_t height) {
+    Region result = {
+        region->x, region->y,
+        region->width, height
+    };
+    region->y += height;
+    region->height -= height;
+    return result;
+}
+static Region region_chop_horiz(Region* region, size_t width) {
+    Region result = {
+        region->x, region->y,
+        width, region->height
+    };
+    region->x += width;
+    region->width -= width;
+    return result;
+}
+typedef struct {
+    Region region;
     StringBuffer sb;
     Lines lines;
     Ptty ptty;
     size_t cursor_x, cursor_y;
 } Window;
 void draw_window(Window* window) {
-    size_t x, y = window->y + 1;
-    size_t lines_start = window->lines.len < window->height-2 ? 0 : window->lines.len - (window->height-2);
-    stui_fill(window->x + 1, window->y + 1, window->x + window->width-1, window->y + window->height-1, ' ');
-    for(size_t i = lines_start; i < window->lines.len && y < window->y + window->height-1; i++) {
-        x = window->x + 1;
+    size_t x, y = window->region.y + 1;
+    size_t lines_start = window->lines.len < window->region.height-2 ? 0 : window->lines.len - (window->region.height-2);
+    stui_fill(window->region.x + 1, window->region.y + 1, window->region.x + window->region.width-1, window->region.y + window->region.height-1, ' ');
+    for(size_t i = lines_start; i < window->lines.len && y < window->region.y + window->region.height-1; i++) {
+        x = window->region.x + 1;
         Line* line = &window->lines.items[i];
-        for(size_t j = 0; j < line->len && x < window->x + window->width-1; ++j, ++x) {
+        for(size_t j = 0; j < line->len && x < window->region.x + window->region.width-1; ++j, ++x) {
             stui_putchar(x, y, (window->sb.items + line->offset)[j]);
         }
         if(i != window->lines.len-1) y++;
     }
     window->cursor_x = x;
     window->cursor_y = y;
-    stui_window_border(window->x, window->y, window->width-1, window->height-1, '-', '|', '+');
+    // stui_window_border(window->region.x, window->region.y, window->region.width-1, window->region.height-1, '-', '|', '+');
+    render_region_border(window->region, '-', '|', '+');
 }
 typedef struct {
     Window* items;
@@ -133,9 +158,11 @@ int main(void) {
     stui_refresh();
 
     Window prim_window = { 0 };
-    prim_window.width = width;
-    prim_window.height = height;
-    TtySize size = { prim_window.width, prim_window.height };
+    prim_window.region.x = width/4;
+    prim_window.region.y = height/4;
+    prim_window.region.width = width/2;
+    prim_window.region.height = height/2;
+    TtySize size = { prim_window.region.width, prim_window.region.height };
     assert(ptty_setup(&prim_window.ptty, &size) >= 0);
     intptr_t e = ptty_spawn_shell(&prim_window.ptty);
     assert(e >= 0);
