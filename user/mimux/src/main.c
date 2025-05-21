@@ -224,14 +224,16 @@ int main(void) {
                     write(windows.items[selected].ptty.master_handle, buf_window, e);
                     continue;
                 }
-                if(event->data.fd == windows.items[selected].ptty.master_handle) {
-                    e = read(windows.items[selected].ptty.master_handle, buf_window, sizeof(buf_window));
-                    if(e < 0) {
-                        fprintf(stderr, "ERROR: Failed to read: %s\n", status_str(e));
-                        return 1;
-                    }
-                    for(size_t i = 0; i < (size_t)e; ++i) {
-                        window_putchar(&windows.items[selected], buf_window[i]);
+                for(size_t i = 0; i < windows.len; ++i) {
+                    if(event->data.fd == windows.items[i].ptty.master_handle) {
+                        e = read(windows.items[i].ptty.master_handle, buf_window, sizeof(buf_window));
+                        if(e < 0) {
+                            fprintf(stderr, "ERROR: Failed to read: %s\n", status_str(e));
+                            return 1;
+                        }
+                        for(size_t i = 0; i < (size_t)e; ++i) {
+                            window_putchar(&windows.items[i], buf_window[i]);
+                        }
                     }
                 }
             } else if(event->events & EPOLLHUP) {
