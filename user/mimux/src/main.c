@@ -109,7 +109,7 @@ void draw_window(Window* window) {
     for(size_t i = lines_start; i < window->lines.len && y < window->y + window->height; i++) {
         x = window->x + 1;
         Line* line = &window->lines.items[i];
-        for(size_t j = 0; j < line->len && x < window->width-2; ++j, ++x) {
+        for(size_t j = 0; j < line->len && x < window->x + window->width; ++j, ++x) {
             stui_putchar(x, y, (window->sb.items + line->offset)[j]);
         }
         if(i != window->lines.len-1) y++;
