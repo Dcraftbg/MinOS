@@ -200,6 +200,13 @@ int main(void) {
     da_push(&prim_window.lines, ((Line){0, 0}));
     da_reserve(&prim_window.sb, 1);
     for(;;) {
+        Region screen = {
+            0, 0,
+            width, height
+        };
+        const size_t windows_count = 1;
+        const size_t window_width = screen.width/windows_count;
+        prim_window.region = region_chop_horiz(&screen, window_width);
         draw_window(&prim_window);
         stui_refresh();
         stui_goto(prim_window.cursor_x, prim_window.cursor_y);
