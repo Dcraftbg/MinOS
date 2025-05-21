@@ -3,10 +3,8 @@ bool gdb(Build* build) {
     nob_cmd_append(
         &cmd,
         "gdb",
-        "-tui",
-        "-ex", "symbol-file ./bin/iso/kernel",
-        "-ex", "target remote :1234",
-        "-ex", "set disassembly-flavor intel"
+        // "-tui",
+        "-x", "script.gdb"
     );
     if (!nob_cmd_run_sync(cmd)) {
         nob_cmd_free(cmd);
