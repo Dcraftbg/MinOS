@@ -13,7 +13,7 @@ typedef struct {
     int master_handle, slave_handle;
 } Ptty;
 Ptty _ptty;
-intptr_t ptty_setup(Ptty* ptty) {
+intptr_t ptty_setup(Ptty* ptty, const TtySize* size) {
     intptr_t e;
     if((e=open("/devices/ptm", 0, 0)) < 0) {
         fprintf(stderr, "ERROR: Failed to open ptm: %s\n", status_str(e));
@@ -37,6 +37,7 @@ intptr_t ptty_setup(Ptty* ptty) {
         return e;
     }
     ptty->master_handle = e;
+    assert(tty_set_size(ptty->master_handle, size) >= 0);
     return 0;
 }
 intptr_t ptty_spawn_shell(Ptty* ptty) {
@@ -101,9 +102,11 @@ int main() {
     stui_clear();
     size_t width, height;
     stui_term_get_size(&width, &height);
+    height--; // <- A temporary fix
     stui_setsize(width, height);
     stui_refresh();
-    assert(ptty_setup(&_ptty) >= 0);
+    TtySize size = { width, height };
+    assert(ptty_setup(&_ptty, &size) >= 0);
     intptr_t e = ptty_spawn_shell(&_ptty);
     assert(e >= 0);
     e = epoll_create1(0);
