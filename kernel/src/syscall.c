@@ -297,9 +297,6 @@ void sys_exit(int code) {
     Task* cur_task = current_task();
     Process* parent_proc = cur_proc->parent;
     disable_interrupts();
-    cur_task->image.flags &= ~(TASK_FLAG_PRESENT);
-    cur_task->image.flags |= TASK_FLAG_DYING;
-    cur_proc->flags |= PROC_FLAG_DYING;
     if(!parent_proc) {
         kwarn("Called exit on init process maybe? Thats kind of bad.");
         kwarn(" process_id: %zu", cur_proc->id);
@@ -316,6 +313,23 @@ void sys_exit(int code) {
     kwarn("Hey. We couldn't find ourselves in the children list of the parent process. This is odd");
 end:
     list_remove(&cur_task->list);
+    {
+        ResourceBlock* block = cur_proc->resources;
+        while(block) {
+            ResourceBlock* next = block->next;
+            for(size_t i = 0; i < RESOURCES_PER_BLOCK; ++i) {
+                if(block->data[i]) {
+                    idrop(block->data[i]->inode);
+                    cache_dealloc(kernel.resource_cache, block->data[i]);
+                }
+            }
+            kernel_dealloc(block, sizeof(*block));
+            block = next;
+        }
+    }
+    cur_task->image.flags &= ~(TASK_FLAG_PRESENT);
+    cur_task->image.flags |= TASK_FLAG_DYING;
+    cur_proc->flags |= PROC_FLAG_DYING;
     enable_interrupts();
     // TODO: thread yield
     for(;;) asm volatile("hlt");
