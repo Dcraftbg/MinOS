@@ -837,6 +837,7 @@ int fileno(FILE* f) {
 void perror(const char *s) {
     if(s) fprintf(stderr, "%s: ", s);
     fputs(strerror(errno), stderr);
+    fprintf(stderr, "\n");
 }
 int puts(const char* restrict str) {
     int e;
