@@ -202,6 +202,7 @@ static intptr_t load_elf(Task* task, Inode* file, uintptr_t offset, Elf64Header*
         idrop(interp_file);
         return e;
     }
+    task->image.eoe = eoe + offset;
     for(size_t i = 0; i < header->phnum; ++i) {
         Elf64ProgHeader* pheader = &pheaders[i];
 #if 0

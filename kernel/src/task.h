@@ -21,6 +21,7 @@ typedef struct {
     const char** argv;
     size_t envc;
     const char** envv;
+    uintptr_t eoe;
     struct list memlist;
     // Task switch rsp
     // The rsp of the task switch at which the swap initialially happened
