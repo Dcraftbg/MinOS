@@ -43,6 +43,7 @@ Task* kernel_task_add() {
     if(id == kernel.tasks.len) kernel.tasks.len++;
     memset(task, 0, sizeof(Task));
     task->id = id;
+    list_init(&task->list);
     list_init(&task->image.memlist);
     kernel.tasks.items[id] = task;
     mutex_unlock(&kernel.tasks_mutex);
