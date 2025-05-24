@@ -1485,7 +1485,7 @@ const char* nob_get_ext(const char* path) {
         if(*end == '/' || *end == '\\') break;
         end--;
     }
-    return path + strlen(path);
+    return NULL;
 }
 
 bool nob_c_needs_rebuild(Nob_String_Builder* string_buffer, Nob_File_Paths* paths, const char* output_path, const char **input_paths, size_t input_paths_count) {
@@ -1494,7 +1494,9 @@ bool nob_c_needs_rebuild(Nob_String_Builder* string_buffer, Nob_File_Paths* path
     string_buffer->count = 0;
     size_t temp = nob_temp_save();
     const char* ext = nob_get_ext(output_path);
-    const char* d_file = nob_temp_sprintf("%.*s.d", (int)(ext - output_path), output_path);
+    const char* d_file = 
+        ext ? nob_temp_sprintf("%.*s.d", (int)(ext - output_path - 1), output_path) :
+              nob_temp_sprintf("%s.d", output_path);
     if(nob_needs_rebuild(d_file, input_paths, input_paths_count) != 0) {
         nob_temp_rewind(temp);
         return true;
