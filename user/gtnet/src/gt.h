@@ -139,6 +139,7 @@ void gtblockfd(unsigned int fd, uint32_t events) {
 void gtinit(void) {
     list_init(&scheduler.queue);
     list_init(&scheduler.polling);
+    list_init(&scheduler.dead);
     intptr_t e = epoll_create1(0);
     assert(e >= 0);
     scheduler.epoll = e;
