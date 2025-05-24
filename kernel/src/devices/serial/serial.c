@@ -60,9 +60,14 @@ static intptr_t serial_dev_read(Inode* file, void* buf, size_t size, off_t offse
     }
     return size;
 }
+static bool serial_dev_is_readable(Inode* file) {
+    CharQueue* cq = (CharQueue*)file->priv;
+    return cq->head != cq->tail;
+}
 static InodeOps inodeOps = {
     .read = serial_dev_read,
-    .write = serial_dev_write
+    .write = serial_dev_write,
+    .is_readable = serial_dev_is_readable
 };
 static void serial_init_irqs(void) {
     irq_register(4, idt_serial_handler, 0);
