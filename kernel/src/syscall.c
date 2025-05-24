@@ -380,6 +380,7 @@ intptr_t sys_heap_create(uint64_t flags, void* addr, size_t size_min) {
     if(!pages_min) pages_min = MIN_HEAP_PAGES;
     if(pages_max < pages_min) pages_max = pages_min;
     if(flags & HEAP_EXACT) pages_max = 0xFFFFFFFFFFFFFLL;
+    if(addr == NULL) addr = (void*)cur_task->image.eoe;
     // FIXME: Region must be shared between all tasks and must be available in all tasks
     MemoryList* insert_into = memlist_find_available(&cur_task->image.memlist, region, addr, pages_min, pages_max);
     if(!insert_into) {

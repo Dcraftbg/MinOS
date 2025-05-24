@@ -30,7 +30,7 @@ static intptr_t fb_ioctl(Inode* file, Iop op, void* arg) {
     }
     return -INVALID_PARAM;
 }
-
+#include "task.h"
 // NOTE: Assumes the framebuffer is one continious chunk of physical memory (which it is)
 // But in case this is ever an issue I'm putting this note here
 static intptr_t fb_mmap(Inode* file, MmapContext* context, void** addr, size_t size_pages) {
@@ -66,7 +66,7 @@ static intptr_t fb_mmap(Inode* file, MmapContext* context, void** addr, size_t s
         return -NOT_ENOUGH_MEM;
     }
     // FIXME: Consider taking into consideration *addr
-    MemoryList* insert_into = memlist_find_available(context->memlist, region, NULL, pages, pages);
+    MemoryList* insert_into = memlist_find_available(context->memlist, region, (void*)current_task()->image.eoe, pages, pages);
     if(!insert_into) {
         e=-NOT_ENOUGH_MEM;
         goto err_no_insert_point;
