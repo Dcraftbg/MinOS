@@ -109,8 +109,7 @@ typedef struct {
     struct list list;
     char name[WINDOW_NAME_MAX];
     Rectangle rect;
-    // TODO: uint32_t* instead of Image
-    Image content;
+    uint32_t* content;
     // Border:
     uint32_t border_color;
     uint32_t border_thick;
@@ -344,12 +343,12 @@ static void window_redraw_region(const Framebuffer* fb, const Window* win, const
         Rectangle area = rect_collision_rect(&content_rect, rect);
         size_t local_l = area.l - content_rect.l;
         size_t local_t = area.t - content_rect.t;
-        size_t content_pitch_bytes = (content_rect.r - content_rect.l) * sizeof(*win->content.pixels);
+        size_t content_pitch_bytes = (content_rect.r - content_rect.l) * sizeof(*win->content);
         Image image = {
-            .pixels = ((uint32_t*)(((uint8_t*)win->content.pixels) + (local_t * content_pitch_bytes))) + (local_l),
+            .pixels = ((uint32_t*)(((uint8_t*)win->content) + (local_t * content_pitch_bytes))) + (local_l),
             .width = area.r - area.l,
             .height = area.b - area.t,
-            .pitch_bytes = (content_rect.r - content_rect.l) * sizeof(*win->content.pixels)
+            .pitch_bytes = (content_rect.r - content_rect.l) * sizeof(*win->content)
         };
         draw_image(fb, &image, area.l, area.t);
     }
@@ -677,20 +676,20 @@ void client_thread(void* client_void) {
             window->rect.b = info.y + info.height;
 
             // TODO: check for out of memory
-            // memset(window->content.pixels, 0, (content.r-content.l) * (content.b-content.t) * sizeof(uint32_t));
+            // memset(window->content, 0, (content.r-content.l) * (content.b-content.t) * sizeof(uint32_t));
             // window->clear_color = 0xFF00FF00;
             window->border_thick = 1;
             window->menu_color = 0xFF888888;
             window->menu_height = 14;
             Rectangle content = window_get_content_rect(window);
-            window->content.pixels = realloc(window->content.pixels, (content.r-content.l) * (content.b-content.t) * sizeof(uint32_t));
+            window->content = realloc(window->content, (content.r-content.l) * (content.b-content.t) * sizeof(uint32_t));
             size_t width = (content.r-content.l);
             size_t height = (content.b-content.t);
             for(size_t y = 0; y < height; ++y) {
                 for(size_t x = 0; x < width; ++x) {
                     uint8_t r = (uint8_t)(255.0f * (((float)x) / ((float)width)));
                     uint8_t g = (uint8_t)(255.0f * (((float)y) / ((float)height)));
-                    window->content.pixels[y * width + x] = 0xFF000000 | (r << 16) | (g << 8);
+                    window->content[y * width + x] = 0xFF000000 | (r << 16) | (g << 8);
                 }
             }
             da_push(&client->child_windows, window);
