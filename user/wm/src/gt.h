@@ -108,7 +108,7 @@ void* gtswitch(void* sp) {
     scheduler.thread_current = thread;
     return thread->sp;
 }
-static void gtprelude(void) {
+static void __attribute__((naked)) gtprelude(void) {
     GThread* thread = gthread_current();
     thread->entry(thread->arg);
     list_remove(&thread->list);
