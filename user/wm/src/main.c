@@ -648,13 +648,18 @@ void client_thread(void* client_void) {
             }
             memset(window, 0, sizeof(*window));
             list_init(&window->list);
+            memcpy(window->name, info.title, info.title_len);
             // TODO: Maybe place randomly
             if(info.x == (uint32_t)-1) info.x = 0;
             if(info.y == (uint32_t)-1) info.y = 0;
+
+            // TODO: Minimum bound checking
+            // TODO: Verify min_width/height and max_width/height and actually use them
             if(info.width > fb0.width) info.width = fb0.width;
             if(info.x + info.width > fb0.width) info.x = fb0.width - info.width;
             if(info.height > fb0.height) info.height = fb0.height;
             if(info.y + info.height > fb0.height) info.x = fb0.height - info.height;
+
             window->rect.l = info.x;
             window->rect.t = info.y;
             window->rect.r = info.x + info.width;
