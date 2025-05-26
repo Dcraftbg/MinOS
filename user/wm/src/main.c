@@ -39,6 +39,31 @@ static intptr_t gtwrite_exact(uintptr_t fd, const void* buf, size_t size) {
     }
     return 0;
 }
+// Other helpers
+static intptr_t gtread_u32(uintptr_t fd, uint32_t* data) {
+    return gtread_exact(fd, data, sizeof(*data));
+}
+static intptr_t gtread_u16(uintptr_t fd, uint16_t* data) {
+    return gtread_exact(fd, data, sizeof(*data));
+}
+static intptr_t gtread_u8(uintptr_t fd, uint8_t* data) {
+    return gtread_exact(fd, data, sizeof(*data));
+}
+
+static intptr_t gtwrite_u32(uintptr_t fd, uint32_t data) {
+    return gtwrite_exact(fd, &data, sizeof(data));
+}
+static intptr_t gtwrite_u16(uintptr_t fd, uint16_t data) {
+    return gtwrite_exact(fd, &data, sizeof(data));
+}
+static intptr_t gtwrite_u8(uintptr_t fd, uint8_t data) {
+    return gtwrite_exact(fd, &data, sizeof(data));
+}
+static intptr_t gtwrite_i32(uintptr_t fd,  int32_t data) {
+    return gtwrite_u32(fd, (uint32_t)data);
+}
+
+
 #define error(...) (fprintf(stderr, "ERROR:" __VA_ARGS__), fprintf(stderr, "\n"))
 #define info(...)  (fprintf(stderr, "INFO:"  __VA_ARGS__), fprintf(stderr, "\n"))
 #if 1
@@ -423,11 +448,13 @@ void flush_framebuffer(Framebuffer* fb) {
 
 // Client packet
 enum {
-    PACKET_TAG_CREATE_WINDOW=0x01
+    PACKET_TAG_CREATE_WINDOW=0x01,
+    PACKET_TAG_CS_COUNT,
 };
 // Server packet tags
 enum {
     PACKET_TAG_RESULT=0x01,
+    PACKET_TAG_SC_COUNT,
 };
 typedef struct {
     uint32_t payload_size;
@@ -435,7 +462,7 @@ typedef struct {
 } Packet;
 intptr_t read_packet(int fd, Packet* packet) {
     intptr_t e;
-    e = gtread_exact(fd, &packet->payload_size, sizeof(packet->payload_size));
+    e = gtread_u32(fd, &packet->payload_size);
     if(e < 0) {
         error("Failed to read on fd. %s", status_str(e));
         return e;
@@ -444,7 +471,7 @@ intptr_t read_packet(int fd, Packet* packet) {
         error("Payload size may not be less than %zu!", sizeof(packet->tag));
         return -SIZE_MISMATCH;
     }
-    e = gtread_exact(fd, &packet->tag, sizeof(packet->tag));
+    e = gtread_u16(fd, &packet->tag);
     if(e < 0) {
         error("Failed to read tag: %s", status_str(e));
         return e;
@@ -468,35 +495,170 @@ intptr_t send_response_packet(int fd, int resp) {
     if((e=write_packet(fd, sizeof(resp), PACKET_TAG_RESULT)) < 0) return e;
     return gtwrite_exact(fd, &resp, sizeof(resp));
 }
+typedef struct {
+    uint32_t x, y;
+    uint32_t width, height;
+    uint32_t min_width, min_height;
+    uint32_t max_width, max_height;
+    uint32_t flags;
+    uint32_t title_len;
+    char* title;
+} WmCreateWindowInfo;
+#define SIZE_CHECK(T, n) static_assert(sizeof(T) == n, "Update " # T "_PACKET");
+SIZE_CHECK(WmCreateWindowInfo, 40 + sizeof(char*));
+#define WmCreateWindowInfo_PACKET \
+    PCONST(uint32_t, x, u32) \
+    PCONST(uint32_t, y, u32) \
+    PCONST(uint32_t, width, u32) \
+    PCONST(uint32_t, height, u32) \
+    PCONST(uint32_t, min_width, u32) \
+    PCONST(uint32_t, min_height, u32) \
+    PCONST(uint32_t, max_width, u32) \
+    PCONST(uint32_t, max_height, u32) \
+    PCONST(uint32_t, flags, u32) \
+    PCONST(uint32_t, title_len, u32) \
+    PSTRING(title, title_len, WINDOW_NAME_MAX)
+// TODO: deserialise memory thingies for u8, u16, u32 etc.
+#define PCONST_DESERIALISE_MEMORY(type, field, ...)\
+    if(payload_size < sizeof(type)) { \
+        e = -SIZE_MISMATCH; \
+        goto err; \
+    } \
+    memcpy(&payload->field, buf, sizeof(type));\
+    buf += sizeof(type);\
+    payload_size -= sizeof(type);
+#define PSTRING_DESERIALISE_MEMORY(field, len, max) \
+    if(payload->len > max) { \
+        e = -LIMITS; \
+        goto err; \
+    } \
+    if(payload_size < payload->len) { \
+        e = -SIZE_MISMATCH; \
+        goto err; \
+    } \
+    payload->field = malloc(payload->len + 1); \
+    if(!payload->field) { \
+        e = -NOT_ENOUGH_MEM; \
+        goto err; \
+    } \
+    memcpy(payload->field, buf, payload->len);\
+    payload->field[payload->len] = '\0'; \
+    buf += payload->len; \
+    payload_size -= payload->len;
+
+#define PSTRING_CLEANUP(field, ...) if(payload->field) free(payload->field);
+
+static inline size_t min_wmCreateWindowInfo_size(void) {
+    #define PCONST(type, ...) sizeof(type) +
+    #define PSTRING(...)      0 +
+    return WmCreateWindowInfo_PACKET 0;
+    #undef PCONST
+    #undef PSTRING
+}
+static inline size_t max_wmCreateWindowInfo_size(void) {
+    #define PCONST(type, ...) sizeof(type) + 
+    #define PSTRING(_1, _2, max) max +
+    return WmCreateWindowInfo_PACKET 0;
+    #undef PCONST
+    #undef PSTRING
+}
+static void cleanup_wmCreateWindowInfo(WmCreateWindowInfo* payload) {
+    #define PCONST(...) 
+    #define PSTRING PSTRING_CLEANUP
+    WmCreateWindowInfo_PACKET
+    #undef PCONST
+    #undef PSTRING
+}
+// TODO: Generalise these.
+// Take generic read_exact function
+static intptr_t read_memory_wmCreateWindowInfo(void* buf, size_t payload_size, WmCreateWindowInfo* payload) {
+    intptr_t e;
+    #define PCONST  PCONST_DESERIALISE_MEMORY
+    #define PSTRING PSTRING_DESERIALISE_MEMORY
+    WmCreateWindowInfo_PACKET
+    #undef PCONST
+    #undef PSTRING
+    return 0;
+err:
+    cleanup_wmCreateWindowInfo(payload);
+    return e;
+}
+static size_t size_wmCreateWindowInfo(const WmCreateWindowInfo* payload) {
+    #define PCONST(type, ...) sizeof(type) + 
+    #define PSTRING(_1, len, ...) payload->len + 
+    return WmCreateWindowInfo_PACKET 0;
+    #undef PCONST
+    #undef PSTRING
+}
+static intptr_t write_wmCreateWindowInfo(int fd, const WmCreateWindowInfo* payload) {
+    intptr_t e;
+    #define PCONST(type, field, mode) if((e = gtwrite_ ## mode (fd, payload->field)) < 0) return e;
+    #define PSTRING(field, len, ...)  if((e = gtwrite_exact(fd, payload->field, payload->len)) < 0) return e;
+    WmCreateWindowInfo_PACKET
+    return e;
+    #undef PCONST
+    #undef PSTRING
+}
 void client_thread(void* client_void) {
     Client* client = client_void;
     intptr_t e;
-    Packet* packet = malloc(sizeof(*packet));
-    if(!packet) {
-        error("Could not allocate Packet. Not enough memory!");
-        close(client->fd);
-        return;
-    }
+    Packet packet = { 0 };
+    struct {
+        uint8_t* items;
+        size_t len, cap;
+    } payload_buffer = { 0 };
     for(;;) {
-        if((e = read_packet(client->fd, packet)) < 0) {
+        if((e = read_packet(client->fd, &packet)) < 0) {
             error("Failed to read_packet: %s", status_str(e));
             break;
         }
-        switch(packet->tag) {
-        case PACKET_TAG_CREATE_WINDOW:
-            trace("Creating window");
+        switch(packet.tag) {
+        case PACKET_TAG_CREATE_WINDOW: {
+            if(packet.payload_size < min_wmCreateWindowInfo_size()) {
+                error("Packet too small in WmCreateWindowInfo");
+                send_response_packet(client->fd, -SIZE_MISMATCH);
+                continue;
+            }
+            if(packet.payload_size > max_wmCreateWindowInfo_size()) {
+                error("Packet too big in WmCreateWindowInfo");
+                send_response_packet(client->fd, -LIMITS);
+                continue;
+            }
+            da_reserve(&payload_buffer, packet.payload_size);
+            if((e = gtread_exact(client->fd, payload_buffer.items, packet.payload_size)) < 0) {
+                error("Failed to read payload for WmCreateWindowInfo");
+                send_response_packet(client->fd, e);
+                continue;
+            }
+            // TODO: first load into memory and then deserialise
+            WmCreateWindowInfo info = { 0 };
+            if((e=read_memory_wmCreateWindowInfo(payload_buffer.items, packet.payload_size, &info)) < 0) {
+                error("Failed to read WmCreateWindowInfo");
+                send_response_packet(client->fd, e);
+                continue;
+            }
+
+            trace("Creating window `%s`", info.title);
             Window* window = malloc(sizeof(*window));
             if(!window) {
+                cleanup_wmCreateWindowInfo(&info);
                 error("Out of memory");
                 send_response_packet(client->fd, -NOT_ENOUGH_MEM);
                 continue;
             }
             memset(window, 0, sizeof(*window));
             list_init(&window->list);
-            window->rect.l = 500;
-            window->rect.t = 50;
-            window->rect.r = window->rect.l + 500;
-            window->rect.b = window->rect.t + 500;
+            // TODO: Maybe place randomly
+            if(info.x == (uint32_t)-1) info.x = 0;
+            if(info.y == (uint32_t)-1) info.y = 0;
+            if(info.width > fb0.width) info.width = fb0.width;
+            if(info.x + info.width > fb0.width) info.x = fb0.width - info.width;
+            if(info.height > fb0.height) info.height = fb0.height;
+            if(info.y + info.height > fb0.height) info.x = fb0.height - info.height;
+            window->rect.l = info.x;
+            window->rect.t = info.y;
+            window->rect.r = info.x + info.width;
+            window->rect.b = info.y + info.height;
             window->clear_color = 0xFF00FF00;
             window->border_thick = 1;
             window->menu_color = 0xFF888888;
@@ -505,10 +667,13 @@ void client_thread(void* client_void) {
             list_insert(&window->list, &windows);
             redraw_region(&fb0, &window->rect);
             flush_framebuffer(&fb0);
-            send_response_packet(client->fd, 0);
+            send_response_packet(client->fd, client->child_windows.len-1);
+            cleanup_wmCreateWindowInfo(&info);
+        } break;
+        case 0x69:
             break;
         default:
-            // error("Unsupported packet %04X", packet->tag);
+            error("Unsupported packet %04X", packet.tag);
             send_response_packet(client->fd, -UNSUPPORTED);
         }
     }
@@ -776,6 +941,7 @@ static int key_unicode(Keyboard* keyboard, uint16_t code) {
         return code;
     }
 }
+
 void keyboard_thread(void*) { 
     intptr_t e;
     if((e=open("/devices/keyboard", MODE_READ, 0)) < 0) {
