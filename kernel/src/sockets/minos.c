@@ -204,6 +204,8 @@ static intptr_t minos_accept(Inode* sock, Inode* result, struct sockaddr* addr, 
     rwlock_end_write(&server->pending.lock);
     return 0;
 }
+// FIXME: This causes a deadlock.
+// try_lock
 static bool minos_server_is_readable(Inode* sock) {
     MinOSServer* server = &((MinOSSocket*)sock->priv)->server;
     rwlock_begin_write(&server->pending.lock);
