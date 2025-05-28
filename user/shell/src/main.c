@@ -12,16 +12,6 @@
 
 intptr_t readline(char* buf, size_t bufmax) {
     intptr_t e;
-    /*
-    size_t i = 0;
-    while(i < bufmax) {
-        if((e = read(STDIN_FILENO, buf+i, 1)) < 0) {
-            return e;
-        }
-        if(buf[i++] == '\n') return i;
-    }
-    return -BUFFER_TOO_SMALL;
-    */
     size_t n = 0;
     while(n < bufmax) {
         e = read(STDIN_FILENO, buf + n, bufmax - n);
