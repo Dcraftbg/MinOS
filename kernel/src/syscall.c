@@ -10,6 +10,7 @@
 #include "arch/x86_64/idt.h"
 #include <minos/heap.h>
 #include <minos/time.h>
+#include "mem/shared_mem.h"
 
 void init_syscalls() {
     idt_register(0x80, syscall_base, IDT_SOFTWARE_TYPE);
@@ -312,6 +313,7 @@ void sys_exit(int code) {
     }
     kwarn("Hey. We couldn't find ourselves in the children list of the parent process. This is odd");
 end:
+    // TODO: Remove all child tasks.
     list_remove(&cur_task->list);
     {
         ResourceBlock* block = cur_proc->resources;
@@ -326,6 +328,14 @@ end:
             kernel_dealloc(block, sizeof(*block));
             block = next;
         }
+    }
+    {
+        for(size_t i = 0; i < cur_proc->shared_memory.len; ++i) {
+            if(cur_proc->shared_memory.items[i]) {
+                shmdrop(cur_proc->shared_memory.items[i]);
+            }
+        }
+        kernel_dealloc(cur_proc->shared_memory.items, cur_proc->shared_memory.cap * PAGE_SIZE);
     }
     cur_task->image.flags &= ~(TASK_FLAG_PRESENT);
     cur_task->image.flags |= TASK_FLAG_DYING;
@@ -372,7 +382,7 @@ intptr_t sys_heap_create(uint64_t flags, void* addr, size_t size_min) {
     if(!region) return -NOT_ENOUGH_MEM;
     MemoryList* list = memlist_new(region);
     if(!list) {
-        memregion_drop(region, NULL);
+    memregion_drop(region, NULL);
         return -NOT_ENOUGH_MEM;
     }
     size_t pages_max = MAX_HEAP_PAGES;
@@ -695,4 +705,104 @@ intptr_t sys_connect(uintptr_t sockfd, const struct sockaddr* addr, size_t addrl
     if(!res) return -INVALID_HANDLE;
     return inode_connect(res->inode, addr, addrlen);
 }
+// TODO: strace
+intptr_t sys_shmcreate(size_t size) {
+    size_t pages = (size + (PAGE_SIZE-1)) / PAGE_SIZE;
+    if(pages == 0) return -INVALID_PARAM;
+    SharedMemory* shm = cache_alloc(kernel.shared_memory_cache);
+    if(!shm) return -NOT_ENOUGH_MEM;
+    memset(shm, 0, sizeof(*shm));
+    void* mem = kernel_malloc(PAGE_SIZE*pages);
+    if(!mem) {
+        cache_dealloc(kernel.shared_memory_cache, shm);
+        return -NOT_ENOUGH_MEM;
+    }
+    shm->phys = (paddr_t)((uintptr_t)mem - KERNEL_MEMORY_MASK);
+    shm->pages_count = pages;
+    mutex_lock(&kernel.shared_memory_mutex);
+    if(!ptr_darray_reserve(&kernel.shared_memory, 1)) {
+        mutex_unlock(&kernel.shared_memory_mutex);
+        shmdrop(shm);
+        return -NOT_ENOUGH_MEM;
+    }
+    size_t n = ptr_darray_pick_empty_slot(&kernel.shared_memory);
+    if(n == kernel.shared_memory.len) kernel.shared_memory.len++;
+    kernel.shared_memory.items[n] = shm;
+    mutex_unlock(&kernel.shared_memory_mutex);
+    return n;
+}
+intptr_t sys_shmmap(size_t key, void** addr) {
+    intptr_t e;
+    mutex_lock(&kernel.shared_memory_mutex);
+    if(key >= kernel.shared_memory.len  || kernel.shared_memory.items[key] == NULL) {
+        e = -INVALID_HANDLE;
+        goto err_invalid_handle;
+    }
+    SharedMemory* shm = kernel.shared_memory.items[key];
+    MemoryRegion* region = memregion_new(
+            MEMREG_WRITE,
+            KERNEL_PFLAG_USER | KERNEL_PTYPE_USER | KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_EXEC_DISABLE,
+            0,
+            0
+        );
+    if(!region) {
+        e = -NOT_ENOUGH_MEM;
+        goto err_region;
+    }
+    MemoryList* list = memlist_new(region);
+    if(!list) {
+        e = -NOT_ENOUGH_MEM;
+        goto err_list;
+    }
 
+    Task* cur_task = current_task();
+    MemoryList* insert_into = memlist_find_available(&cur_task->image.memlist, region, (void*)cur_task->image.eoe, shm->pages_count, shm->pages_count);
+    if(!insert_into) {
+        e = -NOT_ENOUGH_MEM;
+        goto err_memlist_find_available;
+    }
+    Process* cur_proc = current_process();
+    mutex_lock(&cur_proc->shared_memory_mutex);
+    if(!ptr_darray_reserve(&cur_proc->shared_memory, 1)) {
+        e = -NOT_ENOUGH_MEM;
+        goto err_shared_memory;
+    }
+    size_t n = ptr_darray_pick_empty_slot(&cur_proc->shared_memory);
+    if(!page_mmap(cur_task->image.cr3, shm->phys, region->address, region->pages, region->pageflags)) {
+        e = -NOT_ENOUGH_MEM; 
+        goto err_page_mmap;
+    }
+    shm->shared++;
+
+    if(n == cur_proc->shared_memory.len) cur_proc->shared_memory.len++;
+    cur_proc->shared_memory.items[n] = shm;
+    invalidate_pages((void*)region->address, region->pages);
+    list_append(&list->list, &insert_into->list);
+    mutex_unlock(&cur_proc->shared_memory_mutex);
+    mutex_unlock(&kernel.shared_memory_mutex);
+    *addr = (void*)region->address;
+    return 0;
+err_page_mmap:
+err_shared_memory:
+    mutex_unlock(&cur_proc->shared_memory_mutex);
+err_memlist_find_available:
+    memlist_dealloc(list, NULL);
+    goto err_region;
+err_list:
+    memregion_drop(region, NULL);
+err_region:
+err_invalid_handle:
+    mutex_unlock(&kernel.shared_memory_mutex);
+    return e;
+}
+intptr_t sys_shmrem(size_t key) {
+    mutex_lock(&kernel.shared_memory_mutex);
+    if(key >= kernel.shared_memory.len || kernel.shared_memory.items[key] == NULL) {
+        mutex_unlock(&kernel.shared_memory_mutex);
+        return -INVALID_HANDLE;
+    }
+    shmdrop(kernel.shared_memory.items[key]);
+    kernel.shared_memory.items[key] = NULL;
+    mutex_unlock(&kernel.shared_memory_mutex);
+    return 0;
+}

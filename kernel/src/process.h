@@ -50,6 +50,8 @@ struct Process {
     Inode* curdir_inode;
     char* curdir /*[PATH_MAX]*/;
     ChildProcess children[MAX_CHILD_PROCESSES];
+    PtrDarray shared_memory;
+    Mutex shared_memory_mutex;
 };
 
 void init_processes();

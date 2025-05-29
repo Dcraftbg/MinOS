@@ -44,6 +44,7 @@
 #include "epoll.h"
 #include "sockets/minos.h"
 #include "smp.h"
+#include "mem/shared_mem.h"
 
 #include "term/fb/fb.h"
 
@@ -114,6 +115,7 @@ void _start() {
     init_task_switch();
     init_syscalls();
     init_resources();
+    init_shm_cache();
     // VFS
     init_vfs();
     init_rootfs();

@@ -31,6 +31,8 @@ typedef struct {
     Mutex processes_mutex;
     PtrDarray tasks;
     Mutex tasks_mutex;
+    PtrDarray shared_memory;
+    Mutex shared_memory_mutex;
 
     Cache *cache_cache;
     Cache *inode_cache;
@@ -44,6 +46,7 @@ typedef struct {
     Cache *charqueue_cache;
     Cache *pci_device_cache;
     Cache *cache64, *cache256;
+    Cache *shared_memory_cache;
 
     size_t task_switch_irq;
     IntController* interrupt_controller;

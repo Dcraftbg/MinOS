@@ -33,6 +33,9 @@ extern sys_bind
 extern sys_listen
 extern sys_connect
 extern sys_get_dir_entries
+extern sys_shmcreate
+extern sys_shmmap
+extern sys_shmrem
 %define KERNEL_UNSUPPORTED 7
 section .text
 global syscall_base
@@ -70,6 +73,9 @@ syscall_table:
    dq sys_listen
    dq sys_connect
    dq sys_get_dir_entries
+   dq sys_shmcreate
+   dq sys_shmmap
+   dq sys_shmrem
 syscall_table_end:
 section .text
 syscall_base:
