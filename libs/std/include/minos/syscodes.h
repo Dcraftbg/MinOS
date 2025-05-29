@@ -32,4 +32,7 @@ enum {
     SYS_LISTEN,
     SYS_CONNECT,
     SYS_GET_DIR_ENTRIES,
+    SYS_SHMCREATE,
+    SYS_SHMMAP,
+    SYS_SHMREM,
 };

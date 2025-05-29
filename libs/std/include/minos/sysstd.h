@@ -110,3 +110,12 @@ static intptr_t _listen(uintptr_t sockfd, size_t n) {
 static intptr_t _connect(uintptr_t sockfd, const struct sockaddr* addr, size_t addrlen) {
     return syscall3(SYS_CONNECT, sockfd, addr, addrlen);
 }
+static intptr_t _shmcreate(size_t size) {
+    return syscall1(SYS_SHMCREATE, size);
+}
+static intptr_t _shmmap(size_t key, void** addr) {
+    return syscall2(SYS_SHMMAP, key, addr);
+}
+static intptr_t _shmrem(size_t key) {
+    return syscall1(SYS_SHMREM, key);
+}
