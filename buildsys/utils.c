@@ -29,10 +29,6 @@ const char* strip_prefix(const char* str, const char* prefix) {
     if(strncmp(str, prefix, strlen(prefix))==0) return str+len;
     return NULL;
 }
-bool nob_mkdir_if_not_exists_silent(const char *path) {
-    if(nob_file_exists(path)) return true;
-    return nob_mkdir_if_not_exists(path);
-}
 bool remove_objs(const char* dirpath) {
     DIR *dir = opendir(dirpath);
     if (dir == NULL) {

@@ -40,9 +40,7 @@ typedef struct {
 #include "build/crt.h"
 #include "build/libc.h"
 #include "build/std.h"
-#include "build/kernel.h"
 #include "user.h"
-#include "link_kernel.h"
 #include "subcmd.h"
 typedef struct {
    const char* name;
@@ -195,9 +193,7 @@ int main(int argc, char** argv) {
 #include "build/crt.c"
 #include "build/libc.c"
 #include "build/std.c"
-#include "build/kernel.c"
 #include "user.c"
-#include "link_kernel.c"
 // Subcommands
 #include "subcmd/help.c"
 #include "subcmd/build.c"
