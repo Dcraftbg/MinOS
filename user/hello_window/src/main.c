@@ -39,6 +39,31 @@ static intptr_t write_packet(int fd, uint32_t payload_size, uint16_t tag) {
     if((e=write_exact(fd, &tag, sizeof(tag))) < 0) return e;
     return 0;
 }
+#if 0
+static intptr_t read_u32(uintptr_t fd, uint32_t* data) {
+    return read_exact(fd, data, sizeof(*data));
+}
+static intptr_t read_u16(uintptr_t fd, uint16_t* data) {
+    return read_exact(fd, data, sizeof(*data));
+}
+static intptr_t read_u8(uintptr_t fd, uint8_t* data) {
+    return read_exact(fd, data, sizeof(*data));
+}
+#endif
+
+static intptr_t write_u32(uintptr_t fd, uint32_t data) {
+    return write_exact(fd, &data, sizeof(data));
+}
+static intptr_t write_u16(uintptr_t fd, uint16_t data) {
+    return write_exact(fd, &data, sizeof(data));
+}
+static intptr_t write_u8(uintptr_t fd, uint8_t data) {
+    return write_exact(fd, &data, sizeof(data));
+}
+static intptr_t write_i32(uintptr_t fd,  int32_t data) {
+    return write_u32(fd, (uint32_t)data);
+}
+
 static void sleep_milis(size_t milis) {
     MinOS_Duration duration;
     size_t secs = milis / 1000, rem = milis % 1000;
@@ -56,13 +81,25 @@ int main(void) {
     }
     printf("Connected!\n");
     printf("Creating window!\n");
-    write_packet(wm, 0, 0x01);
+    write_packet(wm, 40 + 12, 0x01);
+    write_i32(wm, -1);  // x
+    write_i32(wm, -1);  // y
+    write_u32(wm, 500); // w
+    write_u32(wm, 500); // h
+    write_i32(wm, -1);  // min w
+    write_i32(wm, -1);  // min h
+    write_i32(wm, -1);  // max w
+    write_i32(wm, -1);  // max h
+    write_u32(wm, 0);   // flags
+    const char* title = "Hello Window";
+    write_u32(wm, strlen(title)); // title length
+    write_exact(wm, title, strlen(title)); // title
     for(size_t i = 0; i < 16; ++i) {
-        fprintf(stderr, "Sending test packet\n");
-        fprintf(stderr, "(1 sec between packets)\n");
+        fprintf(stderr, "Sending test packet (1 sec between packets)\n");
         write_packet(wm, 0, 0x69);
         sleep_milis(1000);
     }
+    for(;;);
     close(wm);
     return 0;
 }
