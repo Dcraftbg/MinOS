@@ -46,6 +46,12 @@ int main(int argc, char** argv) {
     if(!cc) cc = "cc";
     char* bindir = getenv("BINDIR");
     if(!bindir) bindir = "bin";
+    char* kroot = getenv("KROOT");
+    if(!kroot) {
+        nob_log(NOB_ERROR, "Missing KROOT environmental variable");
+        nob_log(NOB_INFO, "KROOT should point to the root of the MinOS **kernel**");
+        return false;
+    }
     if(!nob_mkdir_if_not_exists_silent(bindir)) return 1;
     if(!nob_mkdir_if_not_exists_silent(nob_temp_sprintf("%s/libc", bindir))) return 1;
     if(!nob_mkdir_if_not_exists_silent(nob_temp_sprintf("%s/crt" , bindir))) return 1;
@@ -97,7 +103,7 @@ int main(int argc, char** argv) {
             // "-mno-sse", "-mno-sse2",
             "-mno-3dnow",
             "-fPIC",
-            "-I", "../../libs/std/include",
+            "-I", nob_temp_sprintf("%s/shared/include", kroot),
             "-I", "include"
         );
         cmd_append(&cmd, "-c", src, "-o", out);
@@ -143,7 +149,7 @@ int main(int argc, char** argv) {
             // "-mno-sse", "-mno-sse2",
             "-mno-3dnow",
             "-fPIC",
-            "-I", "../../libs/std/include",
+            "-I", nob_temp_sprintf("%s/shared/include", kroot),
             "-I", "include"
         );
         cmd_append(&cmd, "-c", src, "-o", out);

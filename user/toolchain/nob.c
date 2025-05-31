@@ -3,9 +3,6 @@
 
 
 // Environment parameters
-#ifndef MINOSROOT
-#   define MINOSROOT "../../"
-#endif
 // Number of threads (jobs) to pass to make in -j
 // by default its 12 since gcc builds slow as shit
 #ifndef NUM_THREADS
@@ -96,13 +93,22 @@ defer:
 }
 
 bool setup_sysroot(Nob_Cmd* cmd) {
+    char* minos_root = getenv("MINOSROOT");
+    if(!minos_root) {
+        nob_log(NOB_ERROR, "Missing the MINOSROOT environmental variable!");
+        nob_log(NOB_INFO, "MINOSROOT should contain an absolute path to MinOS's root directory");
+        return false;
+    }
+    // I know KROOT exists, but we already depend on the MINOSROOT
+    // to exist so I feel like its just easier for me to depend on less and do more
+    char* kroot = nob_temp_sprintf("%s/kernel", minos_root);
     if(!nob_mkdir_if_not_exists_silent(SYSROOT "/usr")) return false;
     if(!nob_mkdir_if_not_exists_silent(SYSROOT "/usr/lib")) return false;
-    if(!nob_copy_need_update_directory_recursively(MINOSROOT "user/libc/include", SYSROOT "/usr/include")) return false;
-    if(!nob_copy_need_update_directory_recursively(MINOSROOT "libs/std/include", SYSROOT "/usr/include")) return false;
-    if(nob_needs_rebuild1(SYSROOT "/usr/lib/crt0.o", MINOSROOT "bin/crt/start.o") && !nob_copy_file(MINOSROOT "bin/crt/start.o", SYSROOT "/usr/lib/crt0.o")) return false;
+    if(!nob_copy_need_update_directory_recursively(nob_temp_sprintf("%s/user/libc/include", minos_root), SYSROOT "/usr/include")) return false;
+    if(!nob_copy_need_update_directory_recursively(nob_temp_sprintf("%s/shared/include", kroot), SYSROOT "/usr/include")) return false;
+    if(nob_needs_rebuild1(SYSROOT "/usr/lib/crt0.o", nob_temp_sprintf("%s/bin/crt/start.o", minos_root)) && !nob_copy_file(nob_temp_sprintf("%s/bin/crt/start.o", minos_root), SYSROOT "/usr/lib/crt0.o")) return false;
     Nob_File_Paths paths = { 0 };
-    if(!find_objs(MINOSROOT "bin/libc", &paths) || !find_objs(MINOSROOT "bin/std", &paths)) {
+    if(!find_objs(nob_temp_sprintf("%s/bin/libc", minos_root), &paths) || !find_objs(nob_temp_sprintf("%s/bin/shared", minos_root), &paths)) {
         nob_da_free(paths);
         return false;
     }
@@ -114,7 +120,7 @@ bool setup_sysroot(Nob_Cmd* cmd) {
         nob_da_free(paths);
         return false;
     }
-    if(nob_mkdir_if_not_exists(MINOSROOT "initrd/lib") && !nob_copy_file(SYSROOT "/usr/lib/libc.so", MINOSROOT "initrd/lib/libc.so")) {
+    if(nob_mkdir_if_not_exists(nob_temp_sprintf("%s/initrd/lib", minos_root)) && !nob_copy_file(SYSROOT "/usr/lib/libc.so", nob_temp_sprintf("%s/initrd/lib/libc.so", minos_root))) {
         nob_da_free(paths);
         return false;
     } 
