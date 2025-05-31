@@ -9,6 +9,7 @@
 #define INITRD    MINOS_ROOT "initrd/"
 #if 1
 #   define COPY_DIR INITRD "user/"
+#   define COPY_RES INITRD "res"
 #endif
 
 #define c_compiler(cmd)     nob_cmd_append(cmd, "x86_64-minos-gcc")
@@ -51,6 +52,13 @@ bool copy_exe(void) {
     return true;
 #endif
 }
+bool copy_resources(void) {
+#ifdef COPY_RES
+    return nob_copy_need_update_directory_recursively("res", COPY_RES);
+#else
+    return true;
+#endif
+}
 int main(int argc, char **argv) {
     NOB_GO_REBUILD_URSELF(argc, argv);
     Nob_Cmd cmd = { 0 };
@@ -62,6 +70,7 @@ int main(int argc, char **argv) {
     if(!build_vendor(&sbuf, &path_buf, &cmd)) return 1;
     if(!build_main(&sbuf, &path_buf, &cmd)) return 1;
     if(!copy_exe()) return 1;
+    if(!copy_resources()) return 1;
     return 0;
 }
 
