@@ -3,7 +3,6 @@ bin/
 gcc/
 backup.py
 bootstrap
-build.exe
 *.exe
 *.old
 *.ini
@@ -18,3 +17,5 @@ user/task_a/
 user/task_b/
 initrd/
 aoc2024/
+nob
+
