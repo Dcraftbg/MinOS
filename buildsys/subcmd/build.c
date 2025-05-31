@@ -36,38 +36,15 @@ bool make_limine() {
 // TODO Separate these out maybe? Idk
 bool build(Build* build) {
     if(!make_build_dirs()) return false;
-    if(build->build_what.count > 0) {
-        for(size_t i = 0; i < build->build_what.count; ++i) {
-            const char* what = build->build_what.items[i];
-            if(strcmp(what, "std") == 0) {
-                if(!build_std(build->forced)) return false;
-            } else if(strcmp(what, "initrd") == 0) {
-                if(!initrd_setup()) return false;
-            } else if (strcmp(what, "limine") == 0) {
-                if(!make_limine()) return false;
-            } else if(strcmp(what, "iso") == 0) {
-                if(!make_limine()) return false;
-                if(!make_iso()) return false;
-            } else if (strcmp(what, "user") == 0) {
-                if(!build_user(NULL)) return false;
-            } else if(strstarts(what, "user/")) {
-                if(!build_user(what+5)) return false;
-            } else {
-                nob_log(NOB_ERROR, "Don't know how to build `%s`", what);
-                return false;
-            }
-        }
-    } else {
-        if(!build_std(build->forced)) return false;
-        if(!build_user(NULL)) return false;
-        if(!embed_fs()) return false;
-        if(!initrd_setup()) return false;
-        Nob_Cmd cmd = { 0 };
-        setenv("BINDIR", "../bin", 1);
-        setenv("CC", strcmp(GCC, "./gcc/bin/x86_64-elf-gcc") == 0 ? "."GCC : GCC, 1);
-        setenv("LD", strcmp(LD, "./gcc/bin/x86_64-elf-ld") == 0 ? "."LD : LD, 1);
-        go_run_nob_inside(&cmd, "kernel", NULL, 0);
-        if(!make_iso()) return false;
-    }
+    setenv("BINDIR", nob_temp_realpath("bin"), 1);
+    setenv("CC", strcmp(GCC, "./gcc/bin/x86_64-elf-gcc") == 0 ? nob_temp_realpath(GCC) : GCC, 1);
+    setenv("LD", strcmp(LD, "./gcc/bin/x86_64-elf-ld") == 0 ? nob_temp_realpath(LD) : LD, 1);
+    if(!build_std(build->forced)) return false;
+    if(!build_user()) return false;
+    if(!embed_fs()) return false;
+    if(!initrd_setup()) return false;
+    Nob_Cmd cmd = { 0 };
+    go_run_nob_inside(&cmd, "kernel", NULL, 0);
+    if(!make_iso()) return false;
     return true;
 }

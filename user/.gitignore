@@ -1,2 +1,5 @@
 rust-port/
 doodle/
+bin/
+nob
+*.old
