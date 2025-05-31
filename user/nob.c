@@ -4,8 +4,6 @@
 
 
 const char* projects[] = {
-    "libc",
-    "toolchain",
     // "libwm",
     "ansi_test",
     "cat",
@@ -47,15 +45,40 @@ bool go_run_nob_inside(Nob_Cmd* cmd, const char* dir, const char** argv, size_t 
 int main(int argc, char** argv) {
     NOB_GO_REBUILD_URSELF(argc, argv);
     Cmd cmd = { 0 };
+
+    // Always build libc first
+    if(!go_run_nob_inside(&cmd, "libc", NULL, 0)) return 1;
+    if(file_exists("toolchain/bin/binutils/bin/x86_64-minos-gcc") != 1 && !go_run_nob_inside(&cmd, "toolchain", NULL, 0)) return false;
+    // Then update the toolchain sysroot
+    {
+        const char* args[] = {
+            "sysroot"
+        };
+        if(!go_run_nob_inside(&cmd, "toolchain", args, ARRAY_LEN(args))) return 1;
+    }
+    // Then check for x86_64-minos-gcc in PATH
+    cmd_append(&cmd, "x86_64-minos-gcc", "-v");
+    if(!cmd_run_sync_and_reset(&cmd)) {
+        nob_log(NOB_WARNING, "Automatically adding toolchain to PATH...");
+        size_t temp = nob_temp_save();
+        const char* toolchain_path = nob_temp_realpath("toolchain/bin/binutils/bin/");
+        if(!toolchain_path) return false;
+        const char* path = getenv("PATH");
+        if(!path) setenv("PATH", toolchain_path, 0);
+        else {
+            char sep =
+            #if _WIN32
+                ';'
+            #else
+                ':'
+            #endif
+            ;
+            setenv("PATH", nob_temp_sprintf("%s%c%s", path, sep, toolchain_path), 1);
+        }
+        nob_temp_rewind(temp);
+    }
     for(size_t i = 0; i < ARRAY_LEN(projects); ++i) {
         nob_log(NOB_INFO, "Build %s", projects[i]);
-        if(strcmp(projects[i], "toolchain") == 0) {
-            const char* args[] = {
-                "sysroot"
-            };
-            if(!go_run_nob_inside(&cmd, projects[i], args, ARRAY_LEN(args))) return 1;
-            continue;
-        }
         if(!go_run_nob_inside(&cmd, projects[i], NULL, 0)) return 1;
     }
 }
