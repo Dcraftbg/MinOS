@@ -2,8 +2,7 @@
 // Also much love to Tsoding (https://github.com/tsoding) for providing this awesome library for making build 'scripts'! 
 // 
 // Philosophy:
-// bootstrap.c is a bootstrapper for the actual build system that is found under
-// ./buildsys/
+// bootstrap.c is a bootstrapper for the actual build system nob.c
 // 
 // It relies on two tools being available
 // 1. the C compiler used to build the bootstrapper (pretty self explanatory)
@@ -55,12 +54,12 @@ const char* c_compiler =
 ;
 bool bootstrap_build() {
     Nob_Cmd cmd = {0};
-    nob_cmd_append(&cmd, c_compiler, "./buildsys/main.c", "-o");
+    nob_cmd_append(&cmd, c_compiler, "nob.c", "-o");
 
 #if defined(__clang__) && defined(_WIN32)    // Clang is weird on windows as it doesn't add the .exe suffix
-    nob_cmd_append(&cmd, "build.exe");
+    nob_cmd_append(&cmd, "nob.exe");
 #else 
-    nob_cmd_append(&cmd, "build");
+    nob_cmd_append(&cmd, "nob");
 #endif
     bool res = nob_cmd_run_sync(cmd);
     nob_cmd_free(cmd);
@@ -178,10 +177,6 @@ bool bootstrap_config(Build* build) {
      fprintf(f, "//// Place GDT and IDT in global storage\n");
      fprintf(f, "//// Instead of allocating them in the bitmap heap\n");
      fprintf(f, "// #define GLOBAL_STORAGE_GDT_IDT\n");
-     fprintf(f, "//// Enable embedfs which is a file system that is embedded\n");
-     fprintf(f, "//// Into the kernel itself\n");
-     fprintf(f, "//// NOTE: This has now been deprecated and is no longer supported for most build in favour of initrd\n");
-     fprintf(f, "// #define ENABLE_EMBED_FS\n");
      fprintf(f, "//// Enable the Welcome.txt message (will be created at runtime)\n");
      fprintf(f, "//// NOTE: This like embedfs has been superseeded by initrd\n");
      fprintf(f, "// #define ENABLE_WELCOME\n");
