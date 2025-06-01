@@ -81,6 +81,8 @@ int main(int argc, char** argv) {
         }
         nob_temp_rewind(temp);
     }
+    setenv("CC", "x86_64-minos-gcc", 1);
+    setenv("LD", "x86_64-minos-ld", 1);
     for(size_t i = 0; i < ARRAY_LEN(projects); ++i) {
         nob_log(NOB_INFO, "Build %s", projects[i]);
         if(!go_run_nob_inside(&cmd, projects[i], NULL, 0)) return 1;
