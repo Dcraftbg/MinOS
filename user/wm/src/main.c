@@ -638,7 +638,109 @@ void client_thread(void* client_void) {
             da_push(&client->shm_regions, region);
             send_response_packet(client->fd, region.key);
         } break;
+        case WM_PACKET_TAG_DRAW_SHM_REGION: {
+            if(packet.payload_size < min_WmDrawSHMRegion_size) {
+                error("Packet too small in WmDrawSHMRegion");
+                send_response_packet(client->fd, -SIZE_MISMATCH);
+                continue;
+            }
+            if(packet.payload_size > max_WmDrawSHMRegion_size) {
+                error("Packet too big in WmDrawSHMRegion");
+                send_response_packet(client->fd, -LIMITS);
+                continue;
+            }
+            da_reserve(&payload_buffer, packet.payload_size);
+            if((e = gtread_exact(client->fd, payload_buffer.items, packet.payload_size)) < 0) {
+                error("Failed to read payload for WmDrawSHMRegion");
+                send_response_packet(client->fd, e);
+                continue;
+            }
+            WmDrawSHMRegion info = { 0 };
+            if((e=read_memory_WmDrawSHMRegion(payload_buffer.items, packet.payload_size, &info)) < 0) {
+                error("Failed to read WmDrawSHMRegion");
+                send_response_packet(client->fd, e);
+                continue;
+            }
+            if(info.pitch_bytes % 4 != 0) {
+                error("Invalid pitch_bytes alignment in WmDrawSHMRegion");
+                send_response_packet(client->fd, -SIZE_MISMATCH);
+                continue;
+            }
+            if(info.offset_bytes % 4 != 0) {
+                error("Invalid offset alignment in WmDrawSHMRegion");
+                send_response_packet(client->fd, -SIZE_MISMATCH);
+                continue;
+            }
+            if(info.window >= client->child_windows.len || !client->child_windows.items[info.window]) {
+                error("Invalid window handle in WmDrawSHMRegion");
+                send_response_packet(client->fd, -INVALID_HANDLE);
+                continue;
+            }
+            if(info.width == 0 || info.height == 0) {
+                error("Invalid width or height in WmDrawSHMRegion");
+                send_response_packet(client->fd, -INVALID_PARAM);
+                continue;
+            }
+            Window* window = client->child_windows.items[info.window];
+            Rectangle content = window_get_content_rect(window);
+            size_t width  = (content.r-content.l);
+            size_t height = (content.b-content.t);
+            if(info.window_x >= width) {
+                error("Invalid window_x in WmDrawSHMRegion");
+                send_response_packet(client->fd, -INVALID_OFFSET);
+                continue;
+            }
+            if(info.window_y >= height) {
+                error("Invalid window_x in WmDrawSHMRegion");
+                send_response_packet(client->fd, -INVALID_OFFSET);
+                continue;
+            }
+            if(info.width > width || info.window_x + info.width > width) {
+                error("Invalid width in WmDrawSHMRegion");
+                send_response_packet(client->fd, -INVALID_OFFSET);
+                continue;
+            }
+            if(info.window_y >= height) {
+                error("Invalid window_y in WmDrawSHMRegion");
+                send_response_packet(client->fd, -INVALID_OFFSET);
+                continue;
+            }
+            if(info.height > height || info.window_y + info.height > height) {
+                error("Invalid height in WmDrawSHMRegion");
+                send_response_packet(client->fd, -INVALID_OFFSET);
+                continue;
+            }
+
+            int shm_region = -1;
+            for(size_t i = 0; i < client->shm_regions.len; ++i) {
+                if(client->shm_regions.items[i].key == info.shm_key) {
+                    shm_region = i;
+                }
+            }
+            if(shm_region < 0) {
+                error("Invalid shm_region");
+                send_response_packet(client->fd, -INVALID_HANDLE);
+                continue;
+            }
+            SHMRegion* shm = &client->shm_regions.items[shm_region];
+            // TODO: bound check this sheize
+            uint32_t* pixels = (uint32_t*)(((uint8_t*)shm->addr) + info.offset_bytes);
+            uint32_t* head = window->content + info.window_y * width + info.window_x;
+            for(size_t dy = 0; dy < info.height; ++dy) {
+                for(size_t dx = 0; dx < info.width; ++dx) {
+                    head[dx] = pixels[dx];
+                }
+                pixels = (uint32_t*)(((uint8_t*)pixels) + info.pitch_bytes);
+                head += width;
+            }
+            // TODO: don't redraw entire window content.
+            redraw_region(&fb0, &window->rect);
+            draw_image(&fb0, &cursor, mouse_x, mouse_y);
+            flush_framebuffer(&fb0);
+            send_response_packet(client->fd, 0);
+        } break;
         default:
+            // TODO: consume packet somehow?
             error("Unsupported packet %04X", packet.tag);
             send_response_packet(client->fd, -UNSUPPORTED);
         }
@@ -652,9 +754,11 @@ void client_thread(void* client_void) {
         free(window);
         redraw_region(&fb0, &rect);
     }
+    free(client->child_windows.items);
     for(size_t i = 0; i < client->shm_regions.len; ++i) {
         _shmrem(client->shm_regions.items[i].key);
     }
+    free(client->shm_regions.items);
     list_remove(&client->list);
     free(client);
     flush_framebuffer(&fb0);
