@@ -91,6 +91,13 @@ int create_window(int wm, WmCreateWindowInfo* info) {
     assert(read_response(wm, &resp) == 0);
     return resp;
 }
+int create_shm_region(int wm, WmCreateSHMRegion* info) {
+    write_packet(wm, size_WmCreateSHMRegion(info), WM_PACKET_TAG_CREATE_SHM_REGION);
+    write_WmCreateSHMRegion((void*)(uintptr_t)wm, wmwrite, info);
+    int32_t resp;
+    assert(read_response(wm, &resp) == 0);
+    return resp;
+}
 int main(void) {
     printf("Hello World!\n");
     printf("Connecting...\n");
@@ -103,19 +110,17 @@ int main(void) {
     printf("Creating window!\n");
 
     WmCreateWindowInfo info = {
-        .x = 0,
-        .y = 0,
         .width = 500,
         .height = 500,
-        .min_width = 500,
-        .min_height = 500,
-        .max_width = 500,
-        .max_height = 500,
-        .flags = 0,
         .title = "Hello bro",
     };
     info.title_len = strlen(info.title);
-    fprintf(stderr, "Create window: %d", create_window(wm, &info));
+    int window = create_window(wm, &info);
+    assert(window >= 0);
+    WmCreateSHMRegion shm_info = {
+        .size = info.width * info.height
+    };
+    int shm = create_shm_region(wm, &shm_info);
     for(;;);
     close(wm);
     return 0;
