@@ -5,7 +5,8 @@
 
 #define PACKETS \
     X(WmCreateWindowInfo) \
-    X(WmCreateSHMRegion)
+    X(WmCreateSHMRegion) \
+    X(WmDrawSHMRegion)
 
 // min
 #define PCONST(type, ...) sizeof(type) +

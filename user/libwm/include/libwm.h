@@ -26,3 +26,15 @@ typedef struct WmCreateSHMRegion {
     uint64_t size;
 } WmCreateSHMRegion;
 WM_METHODS(WmCreateSHMRegion);
+
+typedef struct WmDrawSHMRegion {
+    uint32_t window; 
+    uint32_t window_x, window_y;
+    uint32_t shm_key;
+    uint32_t width, height;
+    // MUST be aligned by 4
+    uint64_t pitch_bytes;
+    // MUST be aligned by 4
+    uint64_t offset_bytes;
+} WmDrawSHMRegion;
+WM_METHODS(WmDrawSHMRegion);
