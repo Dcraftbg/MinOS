@@ -17,7 +17,6 @@ const char* projects[] = {
     "mimux",
     "my_basic",
     "shell",
-    "shm_test",
     "simpdump",
     // "tinycc",
     "wm",
