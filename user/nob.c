@@ -15,12 +15,10 @@ const char* projects[] = {
     "init",
     "ls",
     "mimux",
-    "mishualiser",
     "my_basic",
     "shell",
     "shm_test",
     "simpdump",
-    "testy",
     // "tinycc",
     "wm",
 };
