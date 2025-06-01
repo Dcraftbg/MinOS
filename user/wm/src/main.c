@@ -16,6 +16,7 @@
 #include "darray.h"
 
 #include <libwm.h>
+#include <libwm/tags.h>
 
 #define gtaccept(fd, ...) (gtblockfd(fd, GTBLOCKIN), accept(fd, __VA_ARGS__))
 #define gtread(fd, ...)   (gtblockfd(fd, GTBLOCKIN), recv(fd, __VA_ARGS__, 0))
@@ -123,10 +124,21 @@ typedef struct {
     Window **items;
     size_t len, cap;
 } Windows;
+// TODO: only map when necessary
+typedef struct {
+    long key;
+    void* addr;
+    size_t size;
+} SHMRegion;
+typedef struct {
+    SHMRegion* items;
+    size_t len, cap;
+} SHMRegions;
 typedef struct {
     struct list list;
     int fd;
     Windows child_windows;
+    SHMRegions shm_regions;
 } Client;
 
 
@@ -458,16 +470,6 @@ void flush_framebuffer(Framebuffer* fb) {
     }
 }
 
-// Client packet
-enum {
-    PACKET_TAG_CREATE_WINDOW=0x01,
-    PACKET_TAG_CS_COUNT,
-};
-// Server packet tags
-enum {
-    PACKET_TAG_RESULT=0x01,
-    PACKET_TAG_SC_COUNT,
-};
 typedef struct {
     uint32_t payload_size;
     uint16_t tag;
@@ -499,7 +501,7 @@ intptr_t write_packet(int fd, uint32_t payload_size, uint16_t tag) {
 }
 intptr_t send_response_packet(int fd, int resp) {
     intptr_t e;
-    if((e=write_packet(fd, sizeof(resp), PACKET_TAG_RESULT)) < 0) return e;
+    if((e=write_packet(fd, sizeof(resp), WM_PACKET_TAG_RESULT)) < 0) return e;
     return gtwrite_exact(fd, &resp, sizeof(resp));
 }
 void client_thread(void* client_void) {
@@ -516,7 +518,7 @@ void client_thread(void* client_void) {
             break;
         }
         switch(packet.tag) {
-        case PACKET_TAG_CREATE_WINDOW: {
+        case WM_PACKET_TAG_CREATE_WINDOW: {
             if(packet.payload_size < min_WmCreateWindowInfo_size) {
                 error("Packet too small in WmCreateWindowInfo");
                 send_response_packet(client->fd, -SIZE_MISMATCH);
@@ -533,7 +535,6 @@ void client_thread(void* client_void) {
                 send_response_packet(client->fd, e);
                 continue;
             }
-            // TODO: first load into memory and then deserialise
             WmCreateWindowInfo info = { 0 };
             if((e=read_memory_WmCreateWindowInfo(payload_buffer.items, packet.payload_size, &info)) < 0) {
                 error("Failed to read WmCreateWindowInfo");
@@ -593,8 +594,50 @@ void client_thread(void* client_void) {
             send_response_packet(client->fd, client->child_windows.len-1);
             cleanup_WmCreateWindowInfo(&info);
         } break;
-        case 0x69:
-            break;
+        case WM_PACKET_TAG_CREATE_SHM_REGION: {
+            if(packet.payload_size < min_WmCreateSHMRegion_size) {
+                error("Packet too small in WmCreateSHMRegion");
+                send_response_packet(client->fd, -SIZE_MISMATCH);
+                continue;
+            }
+            if(packet.payload_size > max_WmCreateSHMRegion_size) {
+                error("Packet too big in WmCreateSHMRegion");
+                send_response_packet(client->fd, -LIMITS);
+                continue;
+            }
+            da_reserve(&payload_buffer, packet.payload_size);
+            if((e = gtread_exact(client->fd, payload_buffer.items, packet.payload_size)) < 0) {
+                error("Failed to read payload for WmCreateSHMRegion");
+                send_response_packet(client->fd, e);
+                continue;
+            }
+            WmCreateSHMRegion info = { 0 };
+            if((e=read_memory_WmCreateSHMRegion(payload_buffer.items, packet.payload_size, &info)) < 0) {
+                error("Failed to read WmCreateSHMRegion");
+                send_response_packet(client->fd, e);
+                continue;
+            }
+            SHMRegion region = {
+                .key = -1,
+                .addr = NULL,
+                .size = info.size,
+            };
+            // TODO: sanitize the info.size.
+            region.key = _shmcreate(info.size);
+            if(region.key < 0) {
+                error("Failed to create SHMRegion: %s", status_str(region.key));
+                send_response_packet(client->fd, region.key);
+                continue;
+            }
+            if((e = _shmmap(region.key, &region.addr)) < 0) {
+                error("Failed to map: %s", status_str(e));
+                _shmrem(region.key);
+                send_response_packet(client->fd, e);
+                continue;
+            }
+            da_push(&client->shm_regions, region);
+            send_response_packet(client->fd, region.key);
+        } break;
         default:
             error("Unsupported packet %04X", packet.tag);
             send_response_packet(client->fd, -UNSUPPORTED);
@@ -608,6 +651,9 @@ void client_thread(void* client_void) {
         list_remove(&window->list);
         free(window);
         redraw_region(&fb0, &rect);
+    }
+    for(size_t i = 0; i < client->shm_regions.len; ++i) {
+        _shmrem(client->shm_regions.items[i].key);
     }
     list_remove(&client->list);
     free(client);
