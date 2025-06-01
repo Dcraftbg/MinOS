@@ -21,3 +21,8 @@ typedef struct WmCreateWindowInfo {
     char* title;
 } WmCreateWindowInfo;
 WM_METHODS(WmCreateWindowInfo);
+
+typedef struct WmCreateSHMRegion {
+    uint64_t size;
+} WmCreateSHMRegion;
+WM_METHODS(WmCreateSHMRegion);

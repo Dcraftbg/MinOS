@@ -4,7 +4,8 @@
 #include <string.h>
 
 #define PACKETS \
-    X(WmCreateWindowInfo)
+    X(WmCreateWindowInfo) \
+    X(WmCreateSHMRegion)
 
 // min
 #define PCONST(type, ...) sizeof(type) +
@@ -23,7 +24,7 @@ PACKETS
 #undef PCONST
 #undef PSTRING
 // size
-#define PCONST(type, ...) sizeof(type) + 
+#define PCONST(type, field) ((void)payload->field, sizeof(type)) + 
 #define PSTRING(_1, len, ...) payload->len + 
 #define X(T) size_t size_##T (const T* payload) { return T##_PACKET 0; }
 PACKETS
@@ -31,7 +32,7 @@ PACKETS
 #undef PCONST
 #undef PSTRING
 // cleanup
-#define PCONST(...)
+#define PCONST(type, field) (void)payload->field;
 #define PSTRING(field, ...) if(payload->field) free(payload->field);
 #define X(T) \
     void cleanup_##T (T* payload) { \
@@ -42,7 +43,7 @@ PACKETS
 #undef PCONST
 #undef PSTRING
 // read_memory
-#define PCONST(type, field, ...) \
+#define PCONST(type, field) \
     if(payload_size < sizeof(type)) { \
         e = -SIZE_MISMATCH; \
         goto err; \
@@ -94,10 +95,10 @@ static ssize_t _write_exact(void* fd, write_t write, const void* buf, size_t siz
     }
     return 0;
 }
-#define PCONST(type, field, ...)  if((e = _write_exact(fd, write, &payload->field, sizeof(payload->field))) < 0) return e;
+#define PCONST(type, field)  if((e = _write_exact(fd, write, &payload->field, sizeof(payload->field))) < 0) return e;
 #define PSTRING(field, len, ...)  if((e = _write_exact(fd, write, payload->field, payload->len)) < 0) return e;
 #define X(T) \
-    ssize_t write_##T (void* fd, write_t write, const WmCreateWindowInfo* payload) { \
+    ssize_t write_##T (void* fd, write_t write, const T* payload) { \
         ssize_t e; \
         T##_PACKET \
         return 0; \
