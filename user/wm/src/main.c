@@ -569,8 +569,8 @@ void client_thread(void* client_void) {
 
             window->rect.l = info.x;
             window->rect.t = info.y;
-            window->rect.r = info.x + info.width;
-            window->rect.b = info.y + info.height + window->menu_height;
+            window->rect.r = info.x + info.width + window->border_thick * 2;
+            window->rect.b = info.y + info.height + window->menu_height + window->border_thick * 2;
 
             // TODO: check for out of memory
             // memset(window->content, 0, (content.r-content.l) * (content.b-content.t) * sizeof(uint32_t));
