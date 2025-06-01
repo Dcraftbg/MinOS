@@ -48,7 +48,15 @@ int main(int argc, char** argv) {
 
     // Always build libc first
     if(!go_run_nob_inside(&cmd, "libc", NULL, 0)) return 1;
-    if(file_exists("toolchain/bin/binutils/bin/x86_64-minos-gcc") != 1 && !go_run_nob_inside(&cmd, "toolchain", NULL, 0)) return false;
+    if(file_exists("toolchain/bin/binutils/bin/x86_64-minos-gcc") != 1) {
+        char* cc = getenv("CC");
+        char* ld = getenv("LD");
+        unsetenv("CC");
+        unsetenv("LD");
+        if(!go_run_nob_inside(&cmd, "toolchain", NULL, 0)) return 1;
+        setenv("CC", cc, 0);
+        setenv("LD", ld, 0);
+    }
     // Then update the toolchain sysroot
     {
         const char* args[] = {
