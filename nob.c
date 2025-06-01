@@ -71,6 +71,7 @@ static bool build(Build*, Cmd* cmd) {
     setenv("CC"       , strcmp(GCC, "./gcc/bin/x86_64-elf-gcc") == 0 ? nob_temp_realpath(GCC) : GCC, 1);
     setenv("LD"       , strcmp(LD, "./gcc/bin/x86_64-elf-ld") == 0 ? nob_temp_realpath(LD) : LD, 1);
     setenv("KROOT"    , nob_temp_realpath("kernel"), 1);
+    setenv("ROOTDIR"  , nob_temp_realpath("initrd"), 1);
     setenv("MINOSROOT", nob_get_current_dir_temp(), 1);
     if(!go_run_nob_inside(cmd, "kernel")) return false;
     if(!go_run_nob_inside(cmd, "user")) return false;
