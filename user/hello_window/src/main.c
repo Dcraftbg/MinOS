@@ -98,6 +98,13 @@ int create_shm_region(int wm, WmCreateSHMRegion* info) {
     assert(read_response(wm, &resp) == 0);
     return resp;
 }
+int draw_shm_region(int wm, WmDrawSHMRegion* info) {
+    write_packet(wm, size_WmDrawSHMRegion(info), WM_PACKET_TAG_DRAW_SHM_REGION);
+    write_WmDrawSHMRegion((void*)(uintptr_t)wm, wmwrite, info);
+    int32_t resp;
+    assert(read_response(wm, &resp) == 0);
+    return resp;
+}
 int main(void) {
     printf("Hello World!\n");
     printf("Connecting...\n");
@@ -118,10 +125,56 @@ int main(void) {
     int window = create_window(wm, &info);
     assert(window >= 0);
     WmCreateSHMRegion shm_info = {
-        .size = info.width * info.height
+        .size = info.width * info.height * sizeof(uint32_t)
     };
     int shm = create_shm_region(wm, &shm_info);
-    for(;;);
+    assert(shm >= 0);
+    uint32_t* addr = NULL;
+    assert(_shmmap(shm, (void**)&addr) >= 0);
+    int dvd_x = 0, dvd_y = 0;
+    int dvd_dx = 1, dvd_dy = 1;
+    int dvd_w = 100;
+    int dvd_h = 30;
+    for(;;) {
+        dvd_x += dvd_dx;
+        dvd_y += dvd_dy;
+        if(dvd_x < 0) {
+            dvd_x = 0;
+            dvd_dx = -dvd_dx;
+        }
+        if(dvd_x + dvd_w > info.width) {
+            dvd_x = info.width-dvd_w;
+            dvd_dx = -dvd_dx;
+        }
+        if(dvd_y < 0) {
+            dvd_y = 0;
+            dvd_dy = -dvd_dy;
+        }
+        if(dvd_y + dvd_h > info.height) {
+            dvd_y = info.height-dvd_h;
+            dvd_dy = -dvd_dy;
+        }
+
+        for(size_t y = 0; y < info.height; ++y) {
+            for(size_t x = 0; x < info.width; ++x) {
+                addr[y * info.width + x] = 0xFF111111;
+            }
+        }
+        for(size_t y = dvd_y; y < dvd_y + dvd_h; ++y) {
+            for(size_t x = dvd_x; x < dvd_x + dvd_w; ++x) {
+                addr[y * info.width + x] = 0xFFFF0000;
+            }
+        }
+        WmDrawSHMRegion draw_info = {
+            .window = window,
+            .shm_key = shm,
+            .width = info.width,
+            .height = info.height,
+            .pitch_bytes = info.width * sizeof(uint32_t),
+        };
+        assert(draw_shm_region(wm, &draw_info) >= 0);
+        sleep_milis(1000/60);
+    }
     close(wm);
     return 0;
 }
