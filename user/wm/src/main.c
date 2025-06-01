@@ -563,17 +563,18 @@ void client_thread(void* client_void) {
             if(info.height > fb0.height) info.height = fb0.height;
             if(info.y + info.height > fb0.height) info.x = fb0.height - info.height;
 
+            window->border_thick = 1;
+            window->menu_color = 0xFF888888;
+            window->menu_height = 14;
+
             window->rect.l = info.x;
             window->rect.t = info.y;
             window->rect.r = info.x + info.width;
-            window->rect.b = info.y + info.height;
+            window->rect.b = info.y + info.height + window->menu_height;
 
             // TODO: check for out of memory
             // memset(window->content, 0, (content.r-content.l) * (content.b-content.t) * sizeof(uint32_t));
             // window->clear_color = 0xFF00FF00;
-            window->border_thick = 1;
-            window->menu_color = 0xFF888888;
-            window->menu_height = 14;
             Rectangle content = window_get_content_rect(window);
             window->content = realloc(window->content, (content.r-content.l) * (content.b-content.t) * sizeof(uint32_t));
             size_t width = (content.r-content.l);
