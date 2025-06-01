@@ -32,7 +32,7 @@ int main(int argc, char **argv) {
         if(!nob_cmd_run_sync_and_reset(&cmd)) return 1;
     }
     char* rootdir = getenv("ROOTDIR");
-    if(rootdir && !copy_file(output, temp_sprintf("%s/user/hello_window", rootdir))) 
+    if(rootdir && !copy_file(output, temp_sprintf("%s/user/hello-window", rootdir))) 
         return 1;
 }
 
