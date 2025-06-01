@@ -28,6 +28,9 @@ bool build_main(Nob_String_Builder* sbuf, Nob_File_Paths* path_buf, Nob_Cmd* cmd
     nob_cmd_append(cmd, "-Werror");
     nob_cmd_append(cmd, "-O2");
     nob_cmd_append(cmd, BUILD_DIR "stb_image.o");
+    nob_cmd_append(cmd, "-L" MINOS_ROOT "bin/libwm");
+    nob_cmd_append(cmd, "-lwm");
+    nob_cmd_append(cmd, "-I../libwm/include");
     nob_da_append_many(cmd, sources, sources_count);
     nob_cmd_append(cmd, "-Ivendor/stb");
     c_output(cmd, BUILD_DIR EXE);
