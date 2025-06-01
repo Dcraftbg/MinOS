@@ -13,7 +13,6 @@ const char* projects[] = {
     "hello",
     "hello_window",
     "init",
-    "libwm",
     "ls",
     "mimux",
     "mishualiser",
