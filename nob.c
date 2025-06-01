@@ -66,6 +66,7 @@ static bool ustar_zip(Cmd* cmd, const char* dir, const char* result) {
 static bool build(Build*, Cmd* cmd) {
     if(!nob_mkdir_if_not_exists_silent("bin")) return false;
     if(!nob_mkdir_if_not_exists_silent("initrd")) return false;
+    if(!nob_mkdir_if_not_exists_silent("initrd/user")) return false;
     setenv("BINDIR"   , nob_temp_realpath("bin"), 1);
     setenv("CC"       , strcmp(GCC, "./gcc/bin/x86_64-elf-gcc") == 0 ? nob_temp_realpath(GCC) : GCC, 1);
     setenv("LD"       , strcmp(LD, "./gcc/bin/x86_64-elf-ld") == 0 ? nob_temp_realpath(LD) : LD, 1);
