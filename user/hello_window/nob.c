@@ -25,6 +25,7 @@ int main(int argc, char **argv) {
     String_Builder stb = { 0 };
     if(nob_c_needs_rebuild(&stb, &pathb, output, sources, ARRAY_LEN(sources))) {
         cmd_append(&cmd, cc, "-o", output);
+        cmd_append(&cmd, "-O2");
         cmd_append(&cmd, temp_sprintf("-L%s/bin/libwm", minos_root));
         cmd_append(&cmd, "-lwm");
         cmd_append(&cmd, "-I../libwm/include");
