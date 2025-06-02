@@ -578,15 +578,9 @@ void client_thread(void* client_void) {
             // window->clear_color = 0xFF00FF00;
             Rectangle content = window_get_content_rect(window);
             window->content = realloc(window->content, (content.r-content.l) * (content.b-content.t) * sizeof(uint32_t));
+            memset(window->content, 0, (content.r-content.l) * (content.b-content.t) * sizeof(uint32_t));
             size_t width = (content.r-content.l);
             size_t height = (content.b-content.t);
-            for(size_t y = 0; y < height; ++y) {
-                for(size_t x = 0; x < width; ++x) {
-                    uint8_t r = (uint8_t)(255.0f * (((float)x) / ((float)width)));
-                    uint8_t g = (uint8_t)(255.0f * (((float)y) / ((float)height)));
-                    window->content[y * width + x] = 0xFF000000 | (r << 16) | (g << 8);
-                }
-            }
             da_push(&client->child_windows, window);
             list_insert(&window->list, &windows);
             redraw_region(&fb0, &window->rect);
