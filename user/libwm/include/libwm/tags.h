@@ -9,5 +9,6 @@ enum {
 // Server packet tags
 enum {
     WM_PACKET_TAG_RESULT=0x01,
+    WM_PACKET_TAG_EVENT,
     WM_PACKET_TAG_SC_COUNT,
 };

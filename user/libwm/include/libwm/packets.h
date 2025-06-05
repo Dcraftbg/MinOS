@@ -33,3 +33,10 @@ SIZE_CHECK(WmDrawSHMRegion, 40);
     PCONST(uint64_t, pitch_bytes)\
     PCONST(uint64_t, offset_bytes)
 
+SIZE_CHECK(WmEvent, 24);
+#define WmEvent_PACKET \
+    PCONST(uint32_t, window) \
+    PCONST(uint16_t, event) \
+    PCONST(uint16_t, _reserved0) \
+    PCONST(uint64_t, arg0) \
+    PCONST(uint64_t, arg1)

@@ -1,0 +1,9 @@
+#pragma once
+
+enum {
+    WM_EVENT_INVALID,
+    WM_EVENT_KEY_DOWN,
+    WM_EVENT_KEY_UP,
+    WM_EVENT_MOUSE_BUTTON,
+    WM_EVENT_MOUSE_MOVE,
+};

@@ -38,3 +38,13 @@ typedef struct WmDrawSHMRegion {
     uint64_t offset_bytes;
 } WmDrawSHMRegion;
 WM_METHODS(WmDrawSHMRegion);
+
+// SC (Server-Client) packets
+typedef struct WmEvent {
+    uint32_t window;
+    uint16_t event;
+    uint16_t _reserved0;
+    uint64_t arg0;
+    uint64_t arg1;
+} WmEvent;
+WM_METHODS(WmEvent);

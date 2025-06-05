@@ -4,9 +4,12 @@
 #include <string.h>
 
 #define PACKETS \
+    /*CS packets*/\
     X(WmCreateWindowInfo) \
     X(WmCreateSHMRegion) \
-    X(WmDrawSHMRegion)
+    X(WmDrawSHMRegion) \
+    /*SC packets*/ \
+    X(WmEvent)
 
 // min
 #define PCONST(type, ...) sizeof(type) +
