@@ -17,10 +17,15 @@
 
 #include <libwm.h>
 #include <libwm/tags.h>
+#include <libwm/events.h>
+#include <libwm/key.h>
 
 #define gtaccept(fd, ...) (gtblockfd(fd, GTBLOCKIN), accept(fd, __VA_ARGS__))
 #define gtread(fd, ...)   (gtblockfd(fd, GTBLOCKIN), recv(fd, __VA_ARGS__, 0))
-#define gtwrite(fd, ...)  (gtblockfd(fd, GTBLOCKOUT), send(fd, __VA_ARGS__, 0))
+static ssize_t gtwrite(uintptr_t fd, const void* buf, size_t size) {
+    gtblockfd(fd, GTBLOCKOUT);
+    return send(fd, buf, size, 0);
+}
 
 static intptr_t gtread_exact(uintptr_t fd, void* buf, size_t size) {
     while(size) {
@@ -108,11 +113,16 @@ typedef struct {
     uint32_t* pixels;
     size_t width, height, pitch_bytes;
 } Image;
+typedef struct Client Client;
 typedef struct {
     struct list list;
     char name[WINDOW_NAME_MAX];
     Rectangle rect;
     uint32_t* content;
+    // The client this window belongs to
+    Client* parent_client;
+    // Index within the child list;
+    size_t child_index;
     // Border:
     uint32_t border_color;
     uint32_t border_thick;
@@ -134,7 +144,7 @@ typedef struct {
     SHMRegion* items;
     size_t len, cap;
 } SHMRegions;
-typedef struct {
+typedef struct Client {
     struct list list;
     int fd;
     Windows child_windows;
@@ -493,16 +503,30 @@ intptr_t read_packet(int fd, Packet* packet) {
     packet->payload_size -= sizeof(packet->tag);
     return 0;
 }
-intptr_t write_packet(int fd, uint32_t payload_size, uint16_t tag) {
-    intptr_t e;
+size_t write_memory_packet(void* buf, uint32_t payload_size, uint16_t tag) {
     payload_size += sizeof(tag);
-    if((e = gtwrite_exact(fd, &payload_size, sizeof(payload_size))) < 0) return e;
-    return gtwrite_exact(fd, &tag, sizeof(tag));
+    size_t n = 0;
+    *(uint32_t*)(((char*)buf) + n) = payload_size;
+    n += 4;
+    *(uint16_t*)(((char*)buf) + n) = tag;
+    n += 2;
+    return n;
 }
 intptr_t send_response_packet(int fd, int resp) {
-    intptr_t e;
-    if((e=write_packet(fd, sizeof(resp), WM_PACKET_TAG_RESULT)) < 0) return e;
-    return gtwrite_exact(fd, &resp, sizeof(resp));
+    char buf[128];
+    size_t n = 0;
+    n += write_memory_packet(buf + n, sizeof(uint32_t), WM_PACKET_TAG_RESULT);
+    *(uint32_t*)(((char*)buf) + n) = resp;
+    n += 4;
+    return gtwrite_exact(fd, buf, n);
+}
+typedef ssize_t (*wm_write_t)(void*, const void*, size_t);
+intptr_t send_event(uintptr_t fd, const WmEvent* event) {
+    char buf[128];
+    size_t n = 0;
+    n += write_memory_packet(buf + n, size_WmEvent(event), WM_PACKET_TAG_EVENT);
+    n += write_memory_WmEvent(buf + n, event);
+    return gtwrite_exact(fd, buf, n);
 }
 void client_thread(void* client_void) {
     Client* client = client_void;
@@ -552,6 +576,7 @@ void client_thread(void* client_void) {
             }
             memset(window, 0, sizeof(*window));
             list_init(&window->list);
+            window->parent_client = client;
             memcpy(window->name, info.title, info.title_len);
             // TODO: Maybe place randomly
             if(info.x == (uint32_t)-1) info.x = 100;
@@ -585,7 +610,8 @@ void client_thread(void* client_void) {
             list_insert(&window->list, &windows);
             redraw_region(&fb0, &window->rect);
             flush_framebuffer(&fb0);
-            send_response_packet(client->fd, client->child_windows.len-1);
+            window->child_index = client->child_windows.len-1;
+            send_response_packet(client->fd, window->child_index);
             cleanup_WmCreateWindowInfo(&info);
         } break;
         case WM_PACKET_TAG_CREATE_SHM_REGION: {
@@ -1023,6 +1049,15 @@ void keyboard_thread(void*) {
         key_set(&kb_state, key.code, key.attribs);
         if(key_unicode(&kb_state, key.code) == 'e' && key_get(&kb_state, MINOS_KEY_LEFT_ALT) && key_get(&kb_state, MINOS_KEY_LEFT_CTRL)) 
             break; 
+        if(list_empty(&windows))
+            continue;
+        Window* window = (Window*)windows.next;
+        WmEvent event = { 0 };
+        event.window = window->child_index;
+        event.event = (key.attribs & KEY_ATTRIB_RELEASE) ? WM_EVENT_KEY_UP : WM_EVENT_KEY_DOWN;
+        WM_SETKEY(&event, key.code);
+        WM_SETKEYCODE(&event, key_unicode(&kb_state, key.code));
+        send_event(window->parent_client->fd, &event);
     }
     Rectangle rect = {
         0, 0,
