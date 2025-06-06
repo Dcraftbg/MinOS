@@ -9,6 +9,7 @@ struc jmp_buf
     .rip resq 1
     .rsp resq 1
     .rbp resq 1
+    .rbx resq 1
     .r12 resq 1
     .r13 resq 1
     .r14 resq 1
@@ -18,6 +19,7 @@ endstruc
 setjmp:
     mov rax, [rsp]
     mov [rdi+jmp_buf.rip], rax
+    mov [rdi+jmp_buf.rbx], rbx
     mov [rdi+jmp_buf.rbp], rbp
     mov [rdi+jmp_buf.r12], r12
     mov [rdi+jmp_buf.r13], r13
@@ -34,7 +36,8 @@ longjmp:
     mov rax, 1
     test rsi, rsi
     cmovnz rax, rsi
-    mov rbp, [rdi+jmp_buf.rbp] 
+    mov rbp, [rdi+jmp_buf.rbp]
+    mov rbx, [rdi+jmp_buf.rbx]
     mov r12, [rdi+jmp_buf.r12] 
     mov r13, [rdi+jmp_buf.r13] 
     mov r14, [rdi+jmp_buf.r14] 
