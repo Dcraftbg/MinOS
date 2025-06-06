@@ -87,6 +87,23 @@ PACKETS
 #undef X
 #undef PCONST
 #undef PSTRING
+// write memory
+#define PCONST(type, field) \
+    memcpy(buf + n, &payload->field, sizeof(type));\
+    n += sizeof(type);
+#define PSTRING(field, len, ...) \
+    memcpy(buf + n, payload->field, payload->len);\
+    n += payload->len;
+#define X(T) \
+    size_t write_memory_##T (void* buf, const T* payload) { \
+        size_t n = 0; \
+        T##_PACKET \
+        return n; \
+    }
+PACKETS
+#undef X
+#undef PCONST
+#undef PSTRING
 // write
 typedef ssize_t (*write_t)(void* fd, const void* data, size_t n); 
 static ssize_t _write_exact(void* fd, write_t write, const void* buf, size_t size) {
