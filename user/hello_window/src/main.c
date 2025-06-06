@@ -7,6 +7,7 @@
 #include <libwm.h>
 #include <libwm/tags.h>
 #include <assert.h>
+#include <sys/epoll.h>
 
 #define WM_PATH "/sockets/wm"
 static int minos_connectto(const char* addr) {
@@ -74,14 +75,25 @@ ssize_t read_packet(int fd, Packet* packet) {
     return 0;
 }
 ssize_t read_response(int fd, int32_t* resp) {
-    Packet packet;
-    ssize_t e = read_packet(fd, &packet);
-    if(e < 0) return e;
-    assert(packet.tag  == WM_PACKET_TAG_RESULT);
-    assert(packet.payload_size == sizeof(*resp));
-    e = read(fd, resp, sizeof(*resp));
-    if(e < 0) return e;
-    if(e != 4) return -PREMATURE_EOF;
+    for(;;) {
+        Packet packet;
+        WmEvent event;
+        ssize_t e = read_packet(fd, &packet);
+        if(e < 0) return e;
+        if(packet.tag == WM_PACKET_TAG_EVENT) {
+            assert(packet.payload_size == sizeof(WmEvent));
+            e = read(fd, &event, sizeof(event));
+            if(e < 0) return e;
+            fprintf(stderr, "Skipping event: %d\n", event.event);
+            continue;
+        }
+        assert(packet.tag == WM_PACKET_TAG_RESULT);
+        assert(packet.payload_size == sizeof(*resp));
+        e = read(fd, resp, sizeof(*resp));
+        if(e < 0) return e;
+        if(e != 4) return -PREMATURE_EOF;
+        break;
+    }
     return 0;
 }
 int create_window(int wm, WmCreateWindowInfo* info) {
@@ -135,6 +147,10 @@ int main(void) {
     int dvd_dx = 1, dvd_dy = 1;
     int dvd_w = 100;
     int dvd_h = 30;
+    int epoll = epoll_create1(0);
+    struct epoll_event ev;
+    ev.events = EPOLLIN;
+    epoll_ctl(epoll, EPOLL_CTL_ADD, wm, &ev);
     for(;;) {
         dvd_x += dvd_dx;
         dvd_y += dvd_dy;
@@ -173,7 +189,8 @@ int main(void) {
             .pitch_bytes = info.width * sizeof(uint32_t),
         };
         assert(draw_shm_region(wm, &draw_info) >= 0);
-        sleep_milis(1000/60);
+        int n = epoll_wait(epoll, 0, 0, 0);
+        // sleep_milis(1000/60);
     }
     close(wm);
     return 0;
