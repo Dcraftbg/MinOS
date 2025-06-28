@@ -25,10 +25,13 @@ int main(int argc, char **argv) {
     String_Builder stb = { 0 };
     if(nob_c_needs_rebuild(&stb, &pathb, output, sources, ARRAY_LEN(sources))) {
         cmd_append(&cmd, cc, "-o", output);
-        cmd_append(&cmd, "-O2");
+        cmd_append(&cmd, "-O0", "-g", "-Wall", "-Werror", "-Wextra", "-Wno-unused-function");
         cmd_append(&cmd, temp_sprintf("-L%s/bin/libwm", minos_root));
         cmd_append(&cmd, "-lwm");
         cmd_append(&cmd, "-I../libwm/include");
+        cmd_append(&cmd, temp_sprintf("-L%s/bin/libpluto", minos_root));
+        cmd_append(&cmd, "-lpluto");
+        cmd_append(&cmd, "-I../libpluto/include");
         da_append_many(&cmd, sources, ARRAY_LEN(sources));
         if(!nob_cmd_run_sync_and_reset(&cmd)) return 1;
     }
