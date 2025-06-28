@@ -75,8 +75,8 @@ PACKETS
     buf += payload->len; \
     payload_size -= payload->len;
 #define X(T) \
-    ssize_t read_memory_##T (void* buf, size_t payload_size, T* payload) { \
-        ssize_t e; \
+    int read_memory_##T (void* buf, size_t payload_size, T* payload) { \
+        int e; \
         T##_PACKET \
         return 0; \
     err: \
@@ -104,25 +104,3 @@ PACKETS
 #undef X
 #undef PCONST
 #undef PSTRING
-// write
-typedef ssize_t (*write_t)(void* fd, const void* data, size_t n); 
-static ssize_t _write_exact(void* fd, write_t write, const void* buf, size_t size) {
-    while(size) {
-        ssize_t e = write(fd, buf, size);
-        if(e < 0) return e;
-        if(e == 0) return -PREMATURE_EOF;
-        buf = ((char*)buf) + (size_t)e;
-        size -= (size_t)e;
-    }
-    return 0;
-}
-#define PCONST(type, field)  if((e = _write_exact(fd, write, &payload->field, sizeof(payload->field))) < 0) return e;
-#define PSTRING(field, len, ...)  if((e = _write_exact(fd, write, payload->field, payload->len)) < 0) return e;
-#define X(T) \
-    ssize_t write_##T (void* fd, write_t write, const T* payload) { \
-        ssize_t e; \
-        T##_PACKET \
-        return 0; \
-    }
-
-PACKETS

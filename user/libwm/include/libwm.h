@@ -8,10 +8,9 @@
                   max_##T##_size;\
     size_t size_##T (const T* payload);\
     void cleanup_##T (T* payload); \
-    ssize_t read_memory_##T (void* buf, size_t payload_size, T* payload); \
+    int read_memory_##T (void* buf, size_t payload_size, T* payload); \
     /*The caller must ensure buf has at least size_##T amount of bytes before any call*/\
-    size_t write_memory_##T (void* buf, const T* payload); \
-    ssize_t write_##T (void* fd, ssize_t (*write)(void* fd, const void* data, size_t n), const T* payload);
+    size_t write_memory_##T (void* buf, const T* payload); 
 
 typedef struct WmCreateWindowInfo {
     uint32_t x, y;
