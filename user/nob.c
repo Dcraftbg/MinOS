@@ -5,6 +5,7 @@
 
 const char* projects[] = {
     "libwm",
+    "libpluto",
     "ansi_test",
     "cat",
     "dynld",
