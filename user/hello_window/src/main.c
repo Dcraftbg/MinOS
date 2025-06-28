@@ -51,73 +51,246 @@ static void sleep_milis(size_t milis) {
     duration.nano = rem * 1000000;
     sleepfor(&duration);
 }
-#define wmwrite ((ssize_t (*)(void*, const void*, size_t)) write)
+typedef WmEvent PlutoEvent;
 typedef struct {
-    uint32_t payload_size;
+    PlutoEvent* buffer;
+    uint32_t head, tail, cap;
+} PlutoEventQueue;
+typedef struct {
+    PlutoEventQueue event_queue;
+} PlutoWindow;
+typedef struct {
+    PlutoWindow** items;
+    size_t len, cap;
+} PlutoWindows;
+typedef struct {
+    int client_handle;
+    PlutoWindows windows;
+} PlutoInstance;
+typedef enum { 
+    // i.e. check errno for error
+    PLUTO_ERR_NETWORKING = 1,
+    PLUTO_ERR_CORRUPTED_PACKET,
+    PLUTO_ERR_INVALID_PACKET_SIZE,
+    PLUTO_ERR_INVALID_PACKET_TAG,
+    PLUTO_ERR_PACKET_SIZE_TOO_BIG,
+    PLUTO_ERR_INVALID_WINDOW_HANDLE,
+    PLUTO_ERR_NOT_ENOUGH_MEMORY,
+
+    PLUTO_ERR_COUNT,
+} PlutoError;
+#define WM_HEADER_SIZE (sizeof(uint32_t)+sizeof(uint16_t))
+size_t _pluto_write_wm_header(char* buf, uint32_t size, uint16_t tag) {
+    *(uint32_t*)(buf + 0) = size + sizeof(tag);
+    *(uint16_t*)(buf + 4) = tag;
+    return WM_HEADER_SIZE;
+}
+int _pluto_write(int handle, const void* buf, size_t n) {
+    intptr_t e = write(handle, buf, n);
+    fprintf(stderr, "write!\n");
+    if(e != (intptr_t)n) {
+        fprintf(stderr, "on write: %s\n", status_str(e));
+        errno = e < 0 ? _status_to_errno(e) : EMSGSIZE;
+        return -PLUTO_ERR_NETWORKING;
+    }
+    return 0;
+}
+int _pluto_read(int handle, void* buf, size_t n) {
+    intptr_t e = read(handle, buf, n);
+    fprintf(stderr, "read!\n");
+    if(e != (intptr_t)n) {
+        fprintf(stderr, "on read: %s (%ld; %zu)\n", status_str(e), e, n);
+        errno = e < 0 ? _status_to_errno(e) : EBADMSG;
+        return -PLUTO_ERR_NETWORKING;
+    }
+    return 0;
+}
+// 1  => it was an event
+// 0  => it was a response
+// <0 => error
+int pluto_read_next_packet(PlutoInstance* instance, int32_t* response) {
+    uint32_t size;
+    int e = _pluto_read(instance->client_handle, &size, sizeof(size));
+    if(e < 0) return e;
+    if(size < 2) return -PLUTO_ERR_CORRUPTED_PACKET;
+    size -= 2;
     uint16_t tag;
-} Packet;
-ssize_t read_packet(int fd, Packet* packet) {
-    ssize_t e = read(fd, &packet->payload_size, sizeof(packet->payload_size));
-    if(e < 0) {
-        fprintf(stderr, "Failed to read on fd. %s\n", status_str(e));
-        return e;
-    }
-    if(packet->payload_size < sizeof(packet->tag)) {
-        fprintf(stderr, "Payload size may not be less than %zu!\n", sizeof(packet->tag));
-        return -SIZE_MISMATCH;
-    }
-    e = read(fd, &packet->tag, sizeof(packet->tag));
-    if(e < 0) {
-        fprintf(stderr, "Failed to read tag: %s\n", status_str(e));
-        return e;
+    e = _pluto_read(instance->client_handle, &tag, sizeof(tag));
+    if(e < 0) return e;
+    char buf[32];
+    if(sizeof(buf) < size) return -PLUTO_ERR_PACKET_SIZE_TOO_BIG;
+    e = _pluto_read(instance->client_handle, buf, size);
+    if(e < 0) return e;
+    if(tag == WM_PACKET_TAG_RESULT) {
+        if(size != 4) return -PLUTO_ERR_INVALID_PACKET_SIZE;
+        *response = *(int32_t*)buf;
+        return 0;
+    } else if (tag == WM_PACKET_TAG_EVENT) {
+        if(size < sizeof(WmEvent)) return -PLUTO_ERR_INVALID_PACKET_SIZE;
+        WmEvent* event = (WmEvent*)buf;
+        if(event->window >= instance->windows.len) return -PLUTO_ERR_INVALID_WINDOW_HANDLE;
+        PlutoWindow* window = instance->windows.items[event->window];
+        if((window->event_queue.head + 1) % window->event_queue.cap == window->event_queue.tail) 
+            return 1;
+            // TODO: think about weather to do this or just ignore like we there^
+            // return -PLUTO_ERR_EVENT_QUEUE_FULL;
+        window->event_queue.head = window->event_queue.head % window->event_queue.cap;
+        window->event_queue.buffer[window->event_queue.head++] = *event;
+        return 1;
     } 
-    packet->payload_size -= sizeof(packet->tag);
-    return 0;
+    return -PLUTO_ERR_INVALID_PACKET_TAG;
 }
-ssize_t read_response(int fd, int32_t* resp) {
-    for(;;) {
-        Packet packet;
-        WmEvent event;
-        ssize_t e = read_packet(fd, &packet);
-        if(e < 0) return e;
-        if(packet.tag == WM_PACKET_TAG_EVENT) {
-            assert(packet.payload_size == sizeof(WmEvent));
-            e = read(fd, &event, sizeof(event));
-            if(e < 0) return e;
-            fprintf(stderr, "Skipping event: %d\n", event.event);
-            continue;
-        }
-        assert(packet.tag == WM_PACKET_TAG_RESULT);
-        assert(packet.payload_size == sizeof(*resp));
-        e = read(fd, resp, sizeof(*resp));
-        if(e < 0) return e;
-        if(e != 4) return -PREMATURE_EOF;
-        break;
+int pluto_read_response(PlutoInstance* instance, int* response) {
+    int e;
+    while((e = pluto_read_next_packet(instance, response)) == 1);
+    if(e == 0 && *response < 0) {
+        fprintf(stderr, "TBD: handle translation from MinOS errors to PlutoError: %s\nIdeally this shit should've been done on the protocol level\n", status_str(*response));
+        abort();
     }
-    return 0;
+    return e;
 }
-int create_window(int wm, WmCreateWindowInfo* info) {
-    write_packet(wm, size_WmCreateWindowInfo(info), WM_PACKET_TAG_CREATE_WINDOW);
-    write_WmCreateWindowInfo((void*)(uintptr_t)wm, wmwrite, info);
-    int32_t resp;
-    assert(read_response(wm, &resp) == 0);
+int pluto_create_instance(PlutoInstance* result) {
+    memset(result, 0, sizeof(*result));
+    result->client_handle = minos_connectto(WM_PATH);
+    return result->client_handle < 0 ? -PLUTO_ERR_NETWORKING : 0;
+}
+
+int pluto_create_window(PlutoInstance* instance, WmCreateWindowInfo* info, size_t event_queue_cap) {
+    int e;
+    // Convenient default values
+    if(info->title_len == 0 && !info->title) info->title_len = strlen(info->title);
+    PlutoWindow* window = malloc(sizeof(*window));
+    if(!window) return -PLUTO_ERR_NOT_ENOUGH_MEMORY;
+    memset(window, 0, sizeof(*window));
+    window->event_queue.buffer = malloc(event_queue_cap * sizeof(*window->event_queue.buffer));
+    if(!window->event_queue.buffer) {
+        e = -PLUTO_ERR_NOT_ENOUGH_MEMORY;
+        goto err_event_queue_alloc;
+    }
+    window->event_queue.cap = event_queue_cap;
+    if(instance->windows.len + 1 > instance->windows.cap) {
+        size_t ncap = instance->windows.cap * 2 + 1;
+        void* new_windows = realloc(instance->windows.items, ncap * sizeof(*instance->windows.items));
+        if(!new_windows) {
+            e = -PLUTO_ERR_NOT_ENOUGH_MEMORY;
+            goto err_resizing_windows_alloc;
+        }
+        instance->windows.items = new_windows;
+        instance->windows.cap = ncap;
+    }
+
+    size_t size = size_WmCreateWindowInfo(info);
+    char* buf = malloc(WM_HEADER_SIZE + size);
+    if(!buf) {
+        e = -PLUTO_ERR_NOT_ENOUGH_MEMORY;
+        goto err_alloc_buf;
+    }
+    size_t n = WM_HEADER_SIZE + write_memory_WmCreateWindowInfo(buf + _pluto_write_wm_header(buf, size, WM_PACKET_TAG_CREATE_WINDOW), info);
+    e = _pluto_write(instance->client_handle, buf, n);
+    free(buf);
+    if(e < 0) goto err_write;
+    int response;
+    e = pluto_read_response(instance, &response);
+    if(e < 0) goto err_read;
+    if((size_t)response == instance->windows.len) instance->windows.len++;
+    else if((size_t)response > instance->windows.len) {
+        e = -PLUTO_ERR_INVALID_WINDOW_HANDLE;
+        goto err_invalid_window_handle;
+    }
+    // TODO: maybe check if window already existed?
+    instance->windows.items[(size_t)response] = window;
+    return response;
+err_invalid_window_handle:
+    // TODO: close window here.
+err_read:
+err_write:
+err_alloc_buf:
+err_resizing_windows_alloc:
+    free(window->event_queue.buffer);
+err_event_queue_alloc:
+    free(window);
+    return e;
+}
+int pluto_create_shm_region(PlutoInstance* instance, const WmCreateSHMRegion* info) {
+    char buf[128];
+    size_t size = size_WmCreateSHMRegion(info);
+    assert(WM_HEADER_SIZE + size < sizeof(buf));
+    int e = _pluto_write(instance->client_handle, buf, WM_HEADER_SIZE + write_memory_WmCreateSHMRegion(buf + _pluto_write_wm_header(buf, size, WM_PACKET_TAG_CREATE_SHM_REGION), info));
+    if(e < 0) return e;
+    int resp;
+    e = pluto_read_response(instance, &resp);
+    if(e < 0) return e;
     return resp;
 }
-int create_shm_region(int wm, WmCreateSHMRegion* info) {
-    write_packet(wm, size_WmCreateSHMRegion(info), WM_PACKET_TAG_CREATE_SHM_REGION);
-    write_WmCreateSHMRegion((void*)(uintptr_t)wm, wmwrite, info);
-    int32_t resp;
-    assert(read_response(wm, &resp) == 0);
-    return resp;
-}
-int draw_shm_region(int wm, WmDrawSHMRegion* info) {
-    write_packet(wm, size_WmDrawSHMRegion(info), WM_PACKET_TAG_DRAW_SHM_REGION);
-    write_WmDrawSHMRegion((void*)(uintptr_t)wm, wmwrite, info);
-    int32_t resp;
-    assert(read_response(wm, &resp) == 0);
+int pluto_draw_shm_region(PlutoInstance* instance, const WmDrawSHMRegion* info) {
+    char buf[128];
+    size_t size = size_WmDrawSHMRegion(info);
+    assert(WM_HEADER_SIZE + size < sizeof(buf));
+    int e = _pluto_write(instance->client_handle, buf, WM_HEADER_SIZE + write_memory_WmDrawSHMRegion(buf + _pluto_write_wm_header(buf, size, WM_PACKET_TAG_DRAW_SHM_REGION), info));
+    if(e < 0) return e;
+    int resp;
+    e = pluto_read_response(instance, &resp);
+    if(e < 0) return e;
     return resp;
 }
 int main(void) {
+    PlutoInstance instance;
+    pluto_create_instance(&instance);
+    size_t width = 500, height = 500;
+    int win = pluto_create_window(&instance, &(WmCreateWindowInfo) {
+        .width = width,
+        .height = height,
+        .title = "Hello bro"
+    }, 16);
+    int shm = pluto_create_shm_region(&instance, &(WmCreateSHMRegion) {
+        .size = 500*500*sizeof(uint32_t)
+    });
+    uint32_t* addr = NULL;
+    assert(_shmmap(shm, (void**)&addr) >= 0);
+    int dvd_x = 0, dvd_y = 0;
+    int dvd_dx = 1, dvd_dy = 1;
+    int dvd_w = 100;
+    int dvd_h = 30;
+    for(;;) {
+        dvd_x += dvd_dx;
+        dvd_y += dvd_dy;
+        if(dvd_x < 0) {
+            dvd_x = 0;
+            dvd_dx = -dvd_dx;
+        }
+        if(dvd_x + dvd_w > (int)width) {
+            dvd_x = width-dvd_w;
+            dvd_dx = -dvd_dx;
+        }
+        if(dvd_y < 0) {
+            dvd_y = 0;
+            dvd_dy = -dvd_dy;
+        }
+        if(dvd_y + dvd_h > (int)height) {
+            dvd_y = height-dvd_h;
+            dvd_dy = -dvd_dy;
+        }
+        for(size_t y = 0; y < height; ++y) {
+            for(size_t x = 0; x < width; ++x) {
+                addr[y * width + x] = 0xFF111111;
+            }
+        }
+        for(size_t y = dvd_y; y < (size_t)dvd_y + dvd_h; ++y) {
+            for(size_t x = dvd_x; x < (size_t)dvd_x + dvd_w; ++x) {
+                addr[y * width + x] = 0xFFFF0000;
+            }
+        }
+        pluto_draw_shm_region(&instance, &(WmDrawSHMRegion){
+            .window = win,
+            .shm_key = shm,
+            .width = width,
+            .height = height,
+            .pitch_bytes = width * sizeof(uint32_t),
+        });
+    }
+}
+#if 0
+int main2(void) {
     printf("Hello World!\n");
     printf("Connecting...\n");
     int wm = minos_connectto(WM_PATH);
@@ -189,9 +362,10 @@ int main(void) {
             .pitch_bytes = info.width * sizeof(uint32_t),
         };
         assert(draw_shm_region(wm, &draw_info) >= 0);
-        int n = epoll_wait(epoll, 0, 0, 0);
+        // int n = epoll_wait(epoll, 0, 0, 0);
         // sleep_milis(1000/60);
     }
     close(wm);
     return 0;
 }
+#endif
