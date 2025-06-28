@@ -794,10 +794,14 @@ uintptr_t run(size_t applet_number, const char** argv, size_t argc) {
     assert(argc);
     intptr_t e = fork();
     if(e == -YOU_ARE_CHILD) {
+#if 1
         close(STDOUT_FILENO);
         char pathbuf[120];
         sprintf(pathbuf, "/applet%zu.log", applet_number);
         assert(open(pathbuf, MODE_READ | MODE_WRITE, O_CREAT) >= 0);
+#else
+        (void)applet_number;
+#endif
         execvp(argv[0], argv, argc);
     } else if (e < 0) {
         fprintf(stderr, "ERROR: Failed to fork: %s\n", status_str(e));        
