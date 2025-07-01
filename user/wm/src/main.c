@@ -183,6 +183,17 @@ static void draw_image(const Framebuffer* fb, const Image* image, size_t x, size
         image_head = (uint32_t*)(((uint8_t*)image_head) + image->pitch_bytes); 
     }
 }
+static void draw_image_no_alpha(const Framebuffer* fb, const Image* image, size_t x, size_t y) {
+    uint32_t* image_head = image->pixels;
+    uint32_t* head = (uint32_t*)(((uint8_t*)fb->pixels) + fb->pitch_bytes*y);
+    for(size_t dy = 0; dy < image->height && y + dy < fb->height; ++dy) {
+        for(size_t dx = 0; dx < image->width && x + dx < fb->width; ++dx) {
+            head[x + dx] = image_head[dx];
+        }
+        head = (uint32_t*)(((uint8_t*)head) + fb->pitch_bytes);
+        image_head = (uint32_t*)(((uint8_t*)image_head) + image->pitch_bytes); 
+    }
+}
 #include <stb_image.h>
 // Utility
 static uint32_t abgr_to_argb(uint32_t a) {
@@ -374,7 +385,7 @@ static void window_redraw_region(const Framebuffer* fb, const Window* win, const
             .height = area.b - area.t,
             .pitch_bytes = (content_rect.r - content_rect.l) * sizeof(*win->content)
         };
-        draw_image(fb, &image, area.l, area.t);
+        draw_image_no_alpha(fb, &image, area.l, area.t);
     }
     Rectangle menu_rect = window_get_menu_rect(win);
     if(rect_collides(&menu_rect, rect)) {
