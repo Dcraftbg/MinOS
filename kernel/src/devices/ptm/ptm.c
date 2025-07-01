@@ -10,7 +10,7 @@ typedef struct Ptty Ptty;
 // MinOSData
 #include <sockets/minos.h>
 struct Ptty {
-    Tty tty;
+    Inode inode;
     TtySize size;
     Inode* slave;
     atomic_size_t shared;
@@ -58,7 +58,14 @@ static bool ptty_master_is_readable(Inode* file) {
     mutex_unlock(&ptty->slave_obuf_lock);
     return len > 0;
 }
-#if 0
+static bool master_is_hungup(Inode* inode) {
+    Ptty* ptty = (Ptty*)inode;
+    if(ptty->shared == 1) return true;
+    // FIXME: Potential race condition?
+    // I'm not too sure. Like if the shared gets decremented in the time between this check and the return.
+    // I guess it doesn't really matter but it might be UB if you're touching 
+    return ptty->slave->shared == 1; 
+}
 static intptr_t ptty_master_read(Inode* file, void* buf, size_t size, off_t) {
     Ptty* ptty = (Ptty*)file;
     mutex_lock(&ptty->slave_obuf_lock);
@@ -82,54 +89,17 @@ static intptr_t ptty_master_write(Inode* file, const void* buf, size_t size, off
     mutex_unlock(&ptty->slave_ibuf_lock);
     return size;
 }
-#endif
-static uint32_t master_getchar(Tty* tty) {
-    Ptty* ptty = (Ptty*)tty;
-    mutex_lock(&ptty->slave_obuf_lock);
-    if(ptty->slave_obuf.len == 0) {
-        mutex_unlock(&ptty->slave_obuf_lock);
-        return -1;
-    }
-    char c;
-    minos_data_consume(&ptty->slave_obuf, &c, 1);
-    mutex_unlock(&ptty->slave_obuf_lock);
-    return c;
-}
-static void master_putchar(Tty* tty, uint32_t code) {
-    Ptty* ptty = (Ptty*)tty;
-    mutex_lock(&ptty->slave_ibuf_lock);
-    intptr_t e;
-    if((e=minos_data_reserve_at_least(&ptty->slave_ibuf, ptty->slave_ibuf.len + 1)) < 0) {
-        mutex_unlock(&ptty->slave_ibuf_lock);
-        kerror("Failed to reserve extra data: %s", status_str(e));
-        return;
-    }
-    minos_data_provide(&ptty->slave_ibuf, &code, 1);
-    mutex_unlock(&ptty->slave_ibuf_lock);
-}
-static intptr_t master_getsize(Tty* tty, TtySize* size) {
-    Ptty* ptty = (Ptty*)tty;
-    *size = ptty->size;
+static intptr_t ptty_master_ioctl(Inode* file, Iop op, void* arg) {
+    Ptty* ptty = (Ptty*)file;
+    // FIXME: check arg
+    if(op == TTY_IOCTL_SET_SIZE) ptty->size = *(TtySize*)arg;
+    else return -UNSUPPORTED;
     return 0;
-}
-static intptr_t master_setsize(Tty* tty, const TtySize* size) {
-    Ptty* ptty = (Ptty*)tty;
-    ptty->size = *size;
-    return 0;
-}
-static bool master_is_hungup(Inode* inode) {
-    Ptty* ptty = (Ptty*)inode;
-    if(ptty->shared == 1) return true;
-    // FIXME: Potential race condition?
-    // I'm not too sure. Like if the shared gets decremented in the time between this check and the return.
-    // I guess it doesn't really matter but it might be UB if you're touching 
-    return ptty->slave->shared == 1; 
-}
-
+} 
 static InodeOps master_inodeOps = {
-    .write = tty_write,
-    .read = tty_read,
-    .ioctl = tty_ioctl,
+    .write = ptty_master_write,
+    .read = ptty_master_read,
+    .ioctl = ptty_master_ioctl,
     .is_readable = ptty_master_is_readable,
     .is_hungup = master_is_hungup,
 };
@@ -138,12 +108,7 @@ static Ptty* ptty_new(void) {
     if(!ptty) return NULL;
     memset(ptty, 0, sizeof(*ptty));
     ptty->shared = 1;
-    ptty->tty.getchar = master_getchar;
-    ptty->tty.putchar = master_putchar;
-    ptty->tty.setsize = master_setsize;
-    ptty->tty.getsize = master_getsize;
-    tty_init(&ptty->tty, ptty_cache);
-    ptty->tty.inode.ops = &master_inodeOps;
+    ptty->inode.ops = &master_inodeOps;
     return ptty;
 }
 static bool ptty_slave_is_readable(Inode* file)  {
@@ -153,31 +118,6 @@ static bool ptty_slave_is_readable(Inode* file)  {
     mutex_unlock(&ptty->slave_ibuf_lock);
     return len > 0;
 }
-#if 0
-static intptr_t ptty_slave_read(Inode* file, void* buf, size_t size, off_t) {
-    Ptty* ptty = file->priv;
-    mutex_lock(&ptty->slave_ibuf_lock);
-    if(ptty->slave_ibuf.len == 0) {
-        mutex_unlock(&ptty->slave_ibuf_lock);
-        return -WOULD_BLOCK;
-    }
-    size = minos_data_consume(&ptty->slave_ibuf, buf, size);
-    mutex_unlock(&ptty->slave_ibuf_lock);
-    return size;
-}
-static intptr_t ptty_slave_write(Inode* file, const void* buf, size_t size, off_t) {
-    Ptty* ptty = file->priv;
-    mutex_lock(&ptty->slave_obuf_lock);
-    intptr_t e;
-    if((e=minos_data_reserve_at_least(&ptty->slave_obuf, ptty->slave_obuf.len + size)) < 0) {
-        mutex_unlock(&ptty->slave_obuf_lock);
-        return e;
-    }
-    size = minos_data_provide(&ptty->slave_obuf, buf, size);
-    mutex_unlock(&ptty->slave_obuf_lock);
-    return size;
-}
-#endif
 static uint32_t ptty_slave_getchar(Tty* tty) {
     Ptty* ptty = tty->priv;
     for(;;) {
@@ -253,7 +193,7 @@ static intptr_t ptm_ioctl(Inode* me, Iop op, void*) {
         }
         Inode* slave = &ptty_slave_new(ptty)->inode;
         if(!slave) {
-            idrop(&pttys[ptty_index]->tty.inode);
+            idrop(&pttys[ptty_index]->inode);
             ptty_drop(ptty);
             pttys[ptty_index] = NULL;
             return -NOT_ENOUGH_MEM;
@@ -263,7 +203,7 @@ static intptr_t ptm_ioctl(Inode* me, Iop op, void*) {
         memcpy(name, "pts", 3);
         (name+3)[itoa(name+3, sizeof(name)-3-1, ptty_index)] = '\0';
         if((e=vfs_register_device(name, slave)) < 0) {
-            idrop(&pttys[ptty_index]->tty.inode);
+            idrop(&pttys[ptty_index]->inode);
             ptty_drop(ptty);
             pttys[ptty_index] = NULL;
             idrop(slave);
@@ -306,7 +246,7 @@ static intptr_t ptm_find(Inode*, const char* name, size_t namelen, Inode** resul
     }
     if(index >= MAX_PTTYS) return -NOT_FOUND;
     if(!pttys[index]) return -NOT_FOUND;
-    *result = iget(&pttys[index]->tty.inode);
+    *result = iget(&pttys[index]->inode);
     return 0;
 }
 static InodeOps inodeOps = {
