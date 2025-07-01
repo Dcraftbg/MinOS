@@ -811,8 +811,7 @@ uintptr_t run(size_t applet_number, const char** argv, size_t argc) {
 }
 void spawn_init_applets(void) {
     const char* applets[] = {
-        "/user/hello-window",
-        "/user/hello-window",
+        "/user/miniterm",
     };
     for(size_t i = 0; i < (sizeof(applets)/sizeof(*applets)); ++i) {
         const char* argv[] = {
