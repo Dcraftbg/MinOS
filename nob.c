@@ -84,7 +84,8 @@ static bool run(Build* build, Cmd* cmd) {
         "qemu-system-x86_64",
         "-smp", "2",
         "-m", "128",
-        "-cdrom", "./bin/OS.iso"
+        "-cdrom", "./bin/OS.iso",
+        "-no-reboot", "--no-shutdown" 
     );
     if(build->uefi) {
         const char* ovmf = getenv("OVMF");
