@@ -109,6 +109,7 @@ static Ptty* ptty_new(void) {
     memset(ptty, 0, sizeof(*ptty));
     ptty->shared = 1;
     ptty->inode.ops = &master_inodeOps;
+    ptty->inode.cache = ptty_cache;
     return ptty;
 }
 static bool ptty_slave_is_readable(Inode* file)  {
