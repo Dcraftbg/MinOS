@@ -3,44 +3,11 @@
 MinOS is a mini operating system written in C.
 (Minos is also the king of Crete in the greek mythology)
 
-## Special Thanks 
-- [@jakeSteinburger](https://github.com/jakeSteinburger) (u/JakeStBu) - testing and supporting the project!
-- [@Tsoding](https://github.com/tsoding) - for the amazing [nob.h library](https://github.com/tsoding/musializer)
-- [@lordmilko](https://github.com/lordmilko) - for the [precompiled binaries](https://github.com/lordmilko/i686-elf-tools) for gcc and binutils
-- [nothings stb libraries](https://github.com/nothings/stb)
-- [@AProgrammablePhoenix](https://github.com/AProgrammablePhoenix) - for helping me out and generally supporting the development of the OS <3.
-- [@Bananymous](https://github.com/Bananymous) - for helping me out and generally supporting the development of the OS <3 (Couldn't have done it without ya guys)
-
 ## Quickstart
-
-The project uses a similar structure as that of [Cost](https://github.com/Dcraftbg/Cost/tree/main).
-The basic idea for the build system is that it's "self-contained". No Makefiles, no special external tools.
-
-Just a single C compiler is all you need.
-
-To bootstrap the build system simply compile bootstrap.c and run it:
 ```sh
-gcc bootstrap.c -o bootstrap
-./bootstrap
+cc nob.c -o nob 
+./nob bruh
 ```
-
-**NOTE:** On Linux and Windows by default bootstrap will try and download a pre-compiled version of gcc for cross compiling.
-If you're on MacOS or Linux or just want to use a pre-existing cross compiler, pass the `-GCC=<path to gcc>` and `-LD=<path to ld>` flags (if it's in your PATH, just gcc and ld should work fine).
-If you've already generated the config.h file you'll also need to add `-fconfig` to force it to regenerate it or just edit the config.h directly.
-
-Bootstrap will then proceed to build the build system. 
-
-Now that our build system is bootstrapped we can just call it directly (any future updates to the build system would force it to rebuild itself):
-```sh
-./build
-```
-
-The build system has a plethora of different commands. To build and generate a bootable ISO, you can use the "build" command:
-```sh
-./build build
-```
-
-For quick iteration I also recommend using `bruh` which will both build the ISO and run it using qemu.
 
 ## Purpose
 
@@ -71,3 +38,10 @@ Please don't make contributions that:
 - Add a huge dependency without much reasoning
 - Implement or change an enormous part of the code and its structure (unless justified)
 
+## Special Thanks 
+- [@jakeSteinburger](https://github.com/jakeSteinburger) (u/JakeStBu) - testing and supporting the project!
+- [@Tsoding](https://github.com/tsoding) - for the amazing [nob.h library](https://github.com/tsoding/nob.h)
+- [@lordmilko](https://github.com/lordmilko) - for the [precompiled binaries](https://github.com/lordmilko/i686-elf-tools) for gcc and binutils
+- [nothings stb libraries](https://github.com/nothings/stb)
+- [@AProgrammablePhoenix](https://github.com/AProgrammablePhoenix) - for helping me out and generally supporting the development of the OS <3.
+- [@Bananymous](https://github.com/Bananymous) - for helping me out and generally supporting the development of the OS <3 (Couldn't have done it without ya guys)
