@@ -18,10 +18,6 @@ and simple. The project is also meant to be used as a teaching basis from which
 other people can learn from as I try to display different aspects of osdev in
 a more or less simple way (at least currently)
 
-MinOS uses a lot of concepts that are based on Unix systems, but strives to create something which aims to provide speed and efficiency while avoiding some issues that many Unix systems have.
-
-The OS is **not** Unix compatible (and doesn't have plans to be), even if it uses similar ideas.
-
 ## Progress & Plans
 
 Progress is tracked over on trello where you can also find any plans for the future:
