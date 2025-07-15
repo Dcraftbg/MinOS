@@ -91,7 +91,7 @@ bool download(const char* url, const char* opath) {
 #define GCC_VERSION "13.2.0"
 
 #if !defined(__MACH__) || defined(__APPLE__)
-#define GCC_DOWNLOAD_URL "https://github.com/lordmilko/i686-elf-tools/releases/download/" GCC_VERSION "/" GCC_ZIP, "./gcc/" GCC_ZIP
+#define GCC_DOWNLOAD_URL "https://github.com/lordmilko/i686-elf-tools/releases/download/" GCC_VERSION "/" GCC_ZIP 
 #endif
 bool get_gcc_zip() {
 #if defined(__MACH__) || defined(__APPLE__)
@@ -101,7 +101,7 @@ bool get_gcc_zip() {
     nob_log(NOB_INFO, "Sorry for the inconvenience");
     return false;
 #else
-    return download(GCC_DOWNLOAD_URL);
+    return download(GCC_DOWNLOAD_URL, "./gcc/" GCC_ZIP);
 #endif
 }
 // TODO: Consider using libzip or something similar
@@ -203,6 +203,10 @@ int main(int argc, char **argv) {
     assert(build.exe && "First argument should always be the path to exe");
     const char* gcc=NULL;
     const char* ld=NULL;
+#if !defined(__MACH__) && !defined(__APPLE__) && !defined(_WIN32)
+    gcc = "gcc";
+    ld = "ld";
+#endif
     bool forceConfig = false;
     while(arg = shift_args(&argc, &argv)) {
         if (gcc = strip_prefix(arg, "-GCC=")) {
