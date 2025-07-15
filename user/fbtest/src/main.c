@@ -65,11 +65,19 @@ uint32_t abgr_to_argb(uint32_t a) {
     uint8_t red = a & 0xFF;            
     return (alpha << 24) | (red << 16) | (green << 8) | blue;
 }
-int main() {
+const char* shift_args(int *argc, const char ***argv) {
+    if((*argc) <= 0) return NULL;
+    return ((*argc)--, *((*argv)++));
+}
+int main(int argc, const char** argv) {
     intptr_t e;
     uintptr_t fb;
     const char* fbpath = "/devices/fb0";
-    const char* imgpath = "/Lena_512.jpg";
+    const char* imgpath = "/VulkanMeme.jpg";
+
+    // eat the executable path
+    shift_args(&argc, &argv);
+    if(argc > 0) imgpath = shift_args(&argc, &argv);
     Buf img_buf;
     if((e=load(imgpath, &img_buf)) < 0) {
         fprintf(stderr, "ERROR: Failed to load `%s`\n", imgpath);
