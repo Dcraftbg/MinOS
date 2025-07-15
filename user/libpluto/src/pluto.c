@@ -100,7 +100,7 @@ int pluto_create_instance(PlutoInstance* result) {
 int pluto_create_window(PlutoInstance* instance, WmCreateWindowInfo* info, size_t event_queue_cap) {
     int e;
     // Convenient default values
-    if(info->title_len == 0 && !info->title) info->title_len = strlen(info->title);
+    if(info->title_len == 0 && info->title) info->title_len = strlen(info->title);
     PlutoWindow* window = malloc(sizeof(*window));
     if(!window) return -PLUTO_ERR_NOT_ENOUGH_MEMORY;
     memset(window, 0, sizeof(*window));
