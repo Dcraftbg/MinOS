@@ -152,7 +152,7 @@ static void help(const char* exe) {
     }
 }
 static bool bootstrap_submodules(Cmd* cmd) {
-    cmd_append(cmd, "git", "submodule", "update", "--init", "--depth", "1", "kernel/vendor/limine");
+    cmd_append(cmd, "git", "submodule", "update", "--init", "--depth", "1", "kernel/vendor/limine", "user/doomgeneric");
     return cmd_run_sync_and_reset(cmd);
 }
 const char* default_config = 
