@@ -2,7 +2,6 @@
 #define NOB_IMPLEMENTATION
 #include "nob.h"
 
-#include "config.h"
 #define TELNET_PORT 1235 
 
 typedef struct {
@@ -68,8 +67,8 @@ static bool build(Build*, Cmd* cmd) {
     if(!nob_mkdir_if_not_exists_silent("initrd")) return false;
     if(!nob_mkdir_if_not_exists_silent("initrd/user")) return false;
     setenv("BINDIR"   , nob_temp_realpath("bin"), 1);
-    setenv("CC"       , strcmp(GCC, "./gcc/bin/x86_64-elf-gcc") == 0 ? nob_temp_realpath(GCC) : GCC, 1);
-    setenv("LD"       , strcmp(LD, "./gcc/bin/x86_64-elf-ld") == 0 ? nob_temp_realpath(LD) : LD, 1);
+    if(!getenv("CC")) setenv("CC"       , "cc", 1);
+    if(!getenv("LD")) setenv("LD"       , "ld", 1);
     setenv("KROOT"    , nob_temp_realpath("kernel"), 1);
     setenv("ROOTDIR"  , nob_temp_realpath("initrd"), 1);
     setenv("MINOSROOT", nob_get_current_dir_temp(), 1);
@@ -152,8 +151,27 @@ static void help(const char* exe) {
         fprintf(stderr, "%*s - %s\n", align, subcmds[i].name, subcmds[i].desc);
     }
 }
+static bool bootstrap_submodules(Cmd* cmd) {
+    cmd_append(cmd, "git", "submodule", "update", "--init", "--depth", "1", "kernel/vendor/limine");
+    return cmd_run_sync_and_reset(cmd);
+}
+const char* default_config = 
+     "//// Other options\n"
+     "//// Enable/Disable serial colors for loggers\n"
+     "// #define NO_SERIAL_COLOR\n"
+     "//// Place GDT and IDT in global storage\n"
+     "//// Instead of allocating them in the bitmap heap\n"
+     "// #define GLOBAL_STORAGE_GDT_IDT\n"
+     "//// Enable the Welcome.txt message (will be created at runtime)\n"
+     "//// NOTE: This like embedfs has been superseeded by initrd\n"
+     "// #define ENABLE_WELCOME\n"
+     "//// Enable Jake colorscheme for framebuffers\n"
+     "// #define JAKE_COLORSCHEME\n";
 int main(int argc, char** argv) {
     NOB_GO_REBUILD_URSELF(argc, argv);
+    Cmd cmd = { 0 };
+    if(!bootstrap_submodules(&cmd)) nob_log(NOB_ERROR, "Failed to bootstrap submodule!");
+    if(!file_exists("config.h") && !write_entire_file("config.h", default_config, strlen(default_config))) return 1;
     Build build = { 0 };
     build.exe = shift_args(&argc, &argv),
     build.argc = argc;
@@ -182,7 +200,6 @@ int main(int argc, char** argv) {
             return 1;
         }
     }
-    Cmd cmd = { 0 };
     for(size_t i = 0; i < ARRAY_LEN(subcmds); ++i) {
         if(strcmp(subcmd, subcmds[i].name) == 0) {
             return subcmds[i].run(&build, &cmd) ? 0 : 1;
