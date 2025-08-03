@@ -30,15 +30,15 @@ FILE *fdopen(int fd, const char *mode);
 size_t fread(void* buffer, size_t size, size_t count, FILE* f);
 ssize_t ftell(FILE* f);
 #define ftello ftell 
-size_t fwrite(const void* restrict buffer, size_t size, size_t count, FILE* restrict f);
+size_t fwrite(const void* buffer, size_t size, size_t count, FILE* f);
 int fclose(FILE* f);
 int fgetc(FILE* f);
 #define getchar() fgetc(stdin)
 #define getc(f) fgetc(f)
-int fputs(const char* restrict str, FILE* restrict stream);
+int fputs(const char* str, FILE* stream);
 int fputc(int c, FILE* f);
 #define putc fputc
-int puts(const char* restrict str);
+int puts(const char* str);
 static int putchar(int ch) {
     return fwrite(&ch, 1, 1, stdout);
 }
@@ -50,8 +50,8 @@ int fflush(FILE* f);
 #define SEEK_END 2
 int fseek (FILE* f, long offset, int origin);
 #define fseeko fseek
-int sscanf(const char *restrict buffer, const char *restrict fmt, ...);
-int fscanf(FILE *stream, const char *restrict fmt, ...);
+int sscanf(const char *buffer, const char *fmt, ...);
+int fscanf(FILE *stream, const char *fmt, ...);
 #define EOF -1
 
 const char* strerror(int e);
