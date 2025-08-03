@@ -197,7 +197,7 @@ static void draw_image_no_alpha(const Framebuffer* fb, const Image* image, size_
 #include <stb_image.h>
 // Utility
 static uint32_t abgr_to_argb(uint32_t a) {
-uint8_t alpha = (a >> 24) & 0xFF; 
+    uint8_t alpha = (a >> 24) & 0xFF; 
     uint8_t blue = (a >> 16) & 0xFF;   
     uint8_t green = (a >> 8) & 0xFF; 
     uint8_t red = a & 0xFF;            
