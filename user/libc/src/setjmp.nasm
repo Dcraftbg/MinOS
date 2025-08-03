@@ -46,3 +46,5 @@ longjmp:
     mov [rdi+jmp_buf.rsp], rax
     mov rdi, [rdi+jmp_buf.rip]
     jmp rdi
+
+section .note.GNU-stack
