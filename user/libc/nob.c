@@ -126,7 +126,17 @@ int main(int argc, char** argv) {
     
     if(!walk_directory(&dirs, &c_sources, &nasm_sources, "crt")) return 1;
     assert(dirs.count == 0 && "Update crt building");
-    assert(nasm_sources.count == 0 && "Update crt building");
+    for(size_t i = 0; i < nasm_sources.count; ++i) {
+        const char* src = nasm_sources.items[i];
+        const char* out = nob_temp_sprintf("%s/crt/%.*s.o", bindir, (int)(strlen(src + 4) - 5), src + 4);
+        // TODO: smart rebuilding for nasm maybe
+        if(nob_needs_rebuild1(out, src) == 0) continue;
+        cmd_append(&cmd, "nasm");
+        cmd_append(&cmd, "-f", "elf64");
+        cmd_append(&cmd, src);
+        cmd_append(&cmd, "-o", out);
+        if(!nob_cmd_run_sync_and_reset(&cmd)) return 1;
+    }
     for(size_t i = 0; i < c_sources.count; ++i) {
         const char* src = c_sources.items[i];
         const char* out = nob_temp_sprintf("%s/crt/%.*s.o", bindir, (int)(strlen(src + 4)-2), src + 4);

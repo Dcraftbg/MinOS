@@ -91,7 +91,9 @@ defer:
     nob_sb_free(sb);
     return result;
 }
-
+bool copy_if_needed(const char* from, const char* to) {
+    return nob_needs_rebuild1(to, from) ? nob_copy_file(from, to) : true;
+}
 bool setup_sysroot(Nob_Cmd* cmd) {
     char* minos_root = getenv("MINOSROOT");
     if(!minos_root) {
@@ -106,7 +108,11 @@ bool setup_sysroot(Nob_Cmd* cmd) {
     if(!nob_mkdir_if_not_exists_silent(SYSROOT "/usr/lib")) return false;
     if(!nob_copy_need_update_directory_recursively(nob_temp_sprintf("%s/user/libc/include", minos_root), SYSROOT "/usr/include")) return false;
     if(!nob_copy_need_update_directory_recursively(nob_temp_sprintf("%s/shared/include", kroot), SYSROOT "/usr/include")) return false;
-    if(nob_needs_rebuild1(SYSROOT "/usr/lib/crt0.o", nob_temp_sprintf("%s/bin/crt/start.o", minos_root)) && !nob_copy_file(nob_temp_sprintf("%s/bin/crt/start.o", minos_root), SYSROOT "/usr/lib/crt0.o")) return false;
+    if(!copy_if_needed(nob_temp_sprintf("%s/bin/crt/start.o", minos_root), SYSROOT "/usr/lib/crt0.o")) return false;
+    if(!copy_if_needed(nob_temp_sprintf("%s/bin/crt/crtn.o", minos_root), SYSROOT "/usr/lib/crtn.o")) return false;
+    if(!copy_if_needed(nob_temp_sprintf("%s/bin/crt/crtbegin.o", minos_root), SYSROOT "/usr/lib/crtbegin.o")) return false;
+    if(!copy_if_needed(nob_temp_sprintf("%s/bin/crt/crti.o", minos_root), SYSROOT "/usr/lib/crti.o")) return false;
+    if(!copy_if_needed(nob_temp_sprintf("%s/bin/crt/crtend.o", minos_root), SYSROOT "/usr/lib/crtend.o")) return false;
     Nob_File_Paths paths = { 0 };
     if(!find_objs(nob_temp_sprintf("%s/bin/libc", minos_root), &paths) || !find_objs(nob_temp_sprintf("%s/bin/shared", minos_root), &paths)) {
         nob_da_free(paths);
