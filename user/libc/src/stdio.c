@@ -248,6 +248,7 @@ static ssize_t print_base(void* user, PrintWriteFunc func, const char* fmt, va_l
             if(!bytes) bytes = "nil";
             count = strlen(bytes);
             break;
+        case 'f':
         case 'g':
             count = dtostr(ibuf, va_arg(list, double));
             break;
