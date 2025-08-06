@@ -25,7 +25,7 @@ typedef struct {
 intptr_t load(const char* path, Buf* res) {
     intptr_t e;
     uintptr_t fd;
-    if((e=open(path, MODE_READ, 0)) < 0) {
+    if((e=open(path, O_RDONLY)) < 0) {
         fprintf(stderr, "Failed to open `%s`: %s\n", path, status_str(e));
         return e;
     }
@@ -90,7 +90,7 @@ int main(int argc, const char** argv) {
         free(img_buf.data);
         return 1;
     }
-    if((e=open(fbpath, MODE_READ | MODE_WRITE, 0)) < 0) {
+    if((e=open(fbpath, O_RDWR)) < 0) {
         fprintf(stderr, "ERROR: Failed to open %s: %s\n", fbpath, status_str(e));
         goto err_fb;
     }

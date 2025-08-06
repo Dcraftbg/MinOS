@@ -32,7 +32,7 @@ static intptr_t parse_path(Process* process, Path* res, const char* path) {
 #define strace(fmt, ...) ktrace("P%zu:T%zu "fmt, current_process()->id, current_task()->id, __VA_ARGS__)
 #define strace1(fmt)     ktrace("P%zu:T%zu "fmt, current_process()->id, current_task()->id)
 // TODO: Safety features like copy_to_userspace, copy_from_userspace
-intptr_t sys_open(const char* path, fmode_t mode, oflags_t flags) {
+intptr_t sys_open(const char* path, oflags_t flags) {
 #ifdef CONFIG_LOG_SYSCALLS
     strace("sys_open(\"%s\", %d, %d)", path, (int)mode, (int)flags);
 #endif

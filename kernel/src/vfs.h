@@ -20,7 +20,6 @@ typedef struct Inode {
     struct list list;
     Superblock* superblock;
     _Atomic size_t shared;
-    fmode_t mode;
     InodeOps* ops;
     inodekind_t kind;
     inodeid_t id;

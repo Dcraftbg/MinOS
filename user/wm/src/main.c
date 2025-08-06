@@ -442,7 +442,7 @@ static void load_icons(void) {
     load_image_required("./res/Hide_hover.png", &icon_hide_hover);
 }
 static intptr_t load_framebuffer(const char* path, Framebuffer* fb) {
-    intptr_t e = open(path, MODE_WRITE, 0);
+    intptr_t e = open(path, O_WRONLY);
     if(e < 0) return e;
     uintptr_t fb_handle = (uintptr_t)e;
     FbStats stats;
@@ -809,7 +809,7 @@ uintptr_t run(size_t applet_number, const char** argv, size_t argc) {
         close(STDOUT_FILENO);
         char pathbuf[120];
         sprintf(pathbuf, "/applet%zu.log", applet_number);
-        assert(open(pathbuf, MODE_READ | MODE_WRITE, O_CREAT) >= 0);
+        assert(open(pathbuf, O_RDWR | O_CREAT) >= 0);
 #else
         (void)applet_number;
 #endif
@@ -947,7 +947,7 @@ void handle_mouse_event(int what, int x, int y, int button) {
 }
 void mouse_thread(void*) {
     intptr_t e;
-    if((e=open("/devices/mouse", MODE_READ, 0)) < 0) {
+    if((e=open("/devices/mouse", O_RDONLY)) < 0) {
         error("Failed to open mouse: %s", status_str(e));
         return;
     }
@@ -1051,7 +1051,7 @@ static int key_unicode(Keyboard* keyboard, uint16_t code) {
 
 void keyboard_thread(void*) { 
     intptr_t e;
-    if((e=open("/devices/keyboard", MODE_READ, 0)) < 0) {
+    if((e=open("/devices/keyboard", O_RDONLY)) < 0) {
         error("Failed to open keyboard: %s", status_str(e));
         return;
     }

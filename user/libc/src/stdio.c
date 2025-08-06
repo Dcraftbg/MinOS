@@ -16,7 +16,7 @@ enum {
 };
 struct FILE {
     bool tmp;
-    uint8_t mode;
+    int oflags; 
     union {
         int fd;
         struct {
@@ -339,15 +339,15 @@ static ssize_t _fwrite_base_func(void* user, const char* data, size_t len) {
     return fwrite(data, 1, len, (FILE*)user);
 }
 
-static uint8_t parse_mode(const char* mode_str) {
-    uint8_t mode = 0;
+static int parse_mode_to_oflags(const char* mode_str) {
+    uint8_t oflags = 0;
     while(mode_str[0]) {
         switch(mode_str[0]) {
         case 'r':
-            mode |= FILE_MODE_READ;
+            oflags |= O_READ;
             break;
         case 'w':
-            mode |= FILE_MODE_WRITE;
+            oflags |= O_WRITE | O_CREAT;
             break;
         case 'b':
             break;
@@ -356,16 +356,11 @@ static uint8_t parse_mode(const char* mode_str) {
         }
         mode_str++;
     }
-    return mode;
+    if((!(oflags & O_READ)) && (oflags & O_WRITE)) oflags |= O_TRUNC;
+    return oflags;
 
 }
-fmode_t mode_to_minos(uint8_t mode) {
-    fmode_t fmode = 0;
-    fmode |= (mode & FILE_MODE_READ ) ? MODE_READ  : 0;
-    fmode |= (mode & FILE_MODE_WRITE) ? MODE_WRITE : 0;
-    return fmode;
-}
-static FILE* filefd_new(uint8_t mode, int fd) {
+static FILE* filefd_new(int oflags, int fd) {
     char* vbuf = malloc(BUFSIZ);
     if(!vbuf) {
         errno = ENOMEM;
@@ -377,13 +372,13 @@ static FILE* filefd_new(uint8_t mode, int fd) {
         free(vbuf);
         return NULL;
     }
-    f->mode = mode;
+    f->oflags = oflags;
     f->as.fd = fd;
     f->buf_real = true;
     f->buf = vbuf;
     return f;
 }
-static FILE* filetmp_new(uint8_t mode) {
+static FILE* filetmp_new(int oflags) {
     char* vbuf = malloc(BUFSIZ);
     if(!vbuf) {
         errno = ENOMEM;
@@ -395,35 +390,32 @@ static FILE* filetmp_new(uint8_t mode) {
         free(vbuf);
         return NULL;
     }
-    f->mode = mode;
+    f->oflags = oflags;
     f->tmp = true;
     f->buf_real = true;
     f->buf = vbuf;
     return f;
 }
 FILE* tmpfile(void) {
-    return filetmp_new(FILE_MODE_READ | FILE_MODE_WRITE);
+    return filetmp_new(O_RDWR);
 }
 FILE* fopen(const char* path, const char* mode_str) {
-    uint8_t mode = parse_mode(mode_str);
-    if(mode == 0) {
+    int oflags = parse_mode_to_oflags(mode_str);
+    if(oflags == 0) {
         errno = EINVAL;
         return NULL;
     }
-    fmode_t fmode = mode_to_minos(mode);
-    oflags_t oflags = fmode & MODE_WRITE ? O_CREAT : 0;
-    if(mode == MODE_WRITE) oflags |= O_TRUNC;
-    intptr_t e = open(path, fmode, oflags);
+    intptr_t e = open(path, oflags);
     if(e < 0) {
         errno = _status_to_errno(e);
         return NULL;
     }
-    FILE* f = filefd_new(mode, e);
+    FILE* f = filefd_new(oflags, e);
     if(!f) {
         close(e);
         return NULL;
     }
-    if((mode & (MODE_WRITE | MODE_READ)) == (MODE_WRITE | MODE_READ)) {
+    if((oflags & O_RDWR) == O_RDWR) {
         f->buf_mode = _IONBF;
     }
     return f;
@@ -448,7 +440,7 @@ int fclose(FILE* f) {
     return 0;
 }
 int fseek(FILE* f, long offset, int origin) {
-    if(f->mode & FILE_MODE_WRITE) {
+    if(f->oflags & O_WRITE) {
         int e = fflush(f);
         if(e < 0) return e;
     } else {
@@ -643,7 +635,7 @@ size_t fwrite(const void* restrict buffer, size_t size, size_t count, FILE* rest
     return e/size;
 }
 int fflush(FILE* f) {
-    if(!(f->mode & FILE_MODE_WRITE)) return 0;
+    if(!(f->oflags & O_WRITE)) return 0;
     if(f->buf_len == 0) return 0;
     ssize_t n = fwrite_uncached_exact(f, f->buf, f->buf_len);
     if(n < 0) return n;
@@ -688,13 +680,13 @@ int fscanf(FILE *stream, const char *restrict fmt, ...) {
     return -1;
 }
 FILE *fdopen(int fd, const char* mode_str) {
-    uint8_t mode = parse_mode(mode_str);
-    if(!mode) {
+    int oflags = parse_mode_to_oflags(mode_str);
+    if(!oflags) {
         errno = EINVAL;
         return NULL;
     }
     // FIXME: ignores mode entirely.
-    return filefd_new(mode, fd);
+    return filefd_new(oflags, fd);
 }
 
 // Generated with errno_extract.c

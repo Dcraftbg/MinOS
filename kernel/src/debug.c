@@ -147,7 +147,6 @@ void dump_inodes(Superblock* superblock) {
             Inode* inode = pair->value;
             kdebug(" inodeid = %zu",inode->id);
             kdebug(" shared = %zu",inode->shared);
-            kdebug(" mode = %d",inode->mode);
             pair = pair->next;
         }
     }

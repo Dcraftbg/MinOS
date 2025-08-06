@@ -14,7 +14,7 @@ typedef struct {
 } Ptty;
 intptr_t ptty_setup(Ptty* ptty) {
     intptr_t e;
-    if((e=open("/devices/ptm", 0, 0)) < 0) {
+    if((e=open("/devices/ptm", O_RDWR)) < 0) {
         fprintf(stderr, "ERROR: Failed to open ptm: %s\n", status_str(e));
         return e;
     }
@@ -30,7 +30,7 @@ intptr_t ptty_setup(Ptty* ptty) {
     // Now lets open them :)
     char name[120];
     snprintf(name, sizeof(name), "/devices/ptm/ptty%zu", ptty->index);
-    if((e=open(name, MODE_READ | MODE_WRITE, 0)) < 0) {
+    if((e=open(name, O_RDWR)) < 0) {
         fprintf(stderr, "ERROR: Failed to open ptty (%s): %s\n", name, status_str(e));
         close(ptm);
         return e;
@@ -44,7 +44,7 @@ intptr_t ptty_spawn_shell(Ptty* ptty) {
         char name[120];
         close(fileno(stderr));
         snprintf(name, sizeof(name), "/devices/pts%zu", ptty->index);
-        if((e=open(name, MODE_READ | MODE_WRITE, 0)) < 0) {
+        if((e=open(name, O_RDWR)) < 0) {
             fprintf(stderr, "ERROR: Failed to open pts (%s): %s\n", name, status_str(e));
             return 1;
         }

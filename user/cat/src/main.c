@@ -27,7 +27,7 @@ intptr_t read_exact(uintptr_t file, void* bytes, size_t amount) {
 intptr_t cat(const char* path) {
     intptr_t e;
     uintptr_t fd;
-    if((e=open(path, MODE_READ, 0)) < 0) {
+    if((e=open(path, O_RDONLY)) < 0) {
         fprintf(stderr, "Failed to open `%s`: %s\n", path, status_str(e));
         return e;
     }

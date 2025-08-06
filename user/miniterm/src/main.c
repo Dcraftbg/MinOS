@@ -22,7 +22,7 @@ typedef struct {
 } Ptty;
 intptr_t ptty_setup(Ptty* ptty) {
     intptr_t e;
-    if((e=open("/devices/ptm", 0, 0)) < 0) {
+    if((e=open("/devices/ptm", O_RDWR)) < 0) {
         fprintf(stderr, "ERROR: Failed to open ptm: %s\n", status_str(e));
         return e;
     }
@@ -38,7 +38,7 @@ intptr_t ptty_setup(Ptty* ptty) {
     // Now lets open them :)
     char name[120];
     snprintf(name, sizeof(name), "/devices/ptm/ptty%zu", ptty->index);
-    if((e=open(name, MODE_READ | MODE_WRITE, 0)) < 0) {
+    if((e=open(name, O_RDWR)) < 0) {
         fprintf(stderr, "ERROR: Failed to open ptty (%s): %s\n", name, status_str(e));
         close(ptm);
         return e;
@@ -53,7 +53,7 @@ intptr_t ptty_spawn_shell(Ptty* ptty) {
         char name[120];
         close(fileno(stderr));
         snprintf(name, sizeof(name), "/devices/pts%zu", ptty->index);
-        if((e=open(name, MODE_READ | MODE_WRITE, 0)) < 0) {
+        if((e=open(name, O_RDWR)) < 0) {
             fprintf(stderr, "ERROR: Failed to open pts (%s): %s\n", name, status_str(e));
             return 1;
         }
@@ -78,8 +78,6 @@ int epoll_add_fd(int epollfd, int fd, int events) {
     return epoll_ctl(epollfd, EPOLL_CTL_ADD, fd, &ev);
 }
 int main(void) {
-    int serial = open("/devices/serial0", MODE_WRITE | MODE_STREAM, 0);
-    stddbg = fdopen(serial, "w");
     PlutoInstance instance;
     pluto_create_instance(&instance);
     size_t width = 500, height = 500;
