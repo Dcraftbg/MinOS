@@ -72,6 +72,7 @@ intptr_t sys_write(uintptr_t handle, const void* buf, size_t size) {
     Process* current = current_process();
     Resource* res = resource_find_by_id(current->resources, handle);
     if(!res) return -INVALID_HANDLE;
+    if(!(res->flags & O_WRITE)) return -PERMISION_DENIED;
     intptr_t e;
     if((e=inode_write(res->inode, buf, size, res->offset)) < 0) return e;
     res->offset += e;
@@ -85,6 +86,7 @@ intptr_t sys_get_dir_entries(uintptr_t handle, void* buf, size_t size) {
     Process* current = current_process();
     Resource* res = resource_find_by_id(current->resources, handle);
     if(!res) return -INVALID_HANDLE;
+    if(!(res->flags & O_READ)) return -PERMISION_DENIED;
     intptr_t e;
     size_t read_bytes;
     if((e=inode_get_dir_entries(res->inode, buf, size, res->offset, &read_bytes)) < 0) return e;
@@ -98,6 +100,7 @@ intptr_t sys_read(uintptr_t handle, void* buf, size_t size) {
     Process* current = current_process();
     Resource* res = resource_find_by_id(current->resources, handle);
     if(!res) return -INVALID_HANDLE;
+    if(!(res->flags & O_READ)) return -PERMISION_DENIED;
     intptr_t e;
 
     if(!(res->flags & O_NOBLOCK) && !inode_is_readable(res->inode)) block_is_readable(current_task(), res->inode);
@@ -633,6 +636,7 @@ intptr_t sys_socket(uint32_t domain, uint32_t type, uint32_t prototype) {
         return -NOT_ENOUGH_MEM;
     }
     res->inode->kind = INODE_MINOS_SOCKET;
+    res->flags = O_RDWR;
     intptr_t e = family->init(res->inode);
     if(e < 0) {
         idrop(res->inode);
