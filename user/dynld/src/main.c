@@ -178,7 +178,7 @@ intptr_t handle_dynamics(Elf* elf, uintptr_t fd, size_t offset, size_t size) {
         char pathbuf[1024];
         strcpy(pathbuf, prefix);
         strcat(pathbuf, (const char*)(elf->dynamics[ELF_DYNAMIC_TAG_STRTAB]+dynamic.ptr));
-        intptr_t needed_fd = open(pathbuf, 0, 0);
+        intptr_t needed_fd = open(pathbuf, O_RDONLY);
         if(needed_fd < 0) {
             dbprintfln("Before prefix: %s", (const char*)(elf->dynamics[ELF_DYNAMIC_TAG_STRTAB]+dynamic.ptr));
             dbprintfln("Failed to load dependency: %s", pathbuf);
@@ -440,7 +440,7 @@ int main(int argc, const char** argv, int envc, const char** envv) {
         }
     } else ipath = argv[0];
     Elf* main = NULL;
-    intptr_t fd = open(ipath, 0, 0);
+    intptr_t fd = open(ipath, O_RDONLY);
     if(fd < 0) {
         eprintfln("(dynld) Failed to open: %s", ipath);
         return 1;
