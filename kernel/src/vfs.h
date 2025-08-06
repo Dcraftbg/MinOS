@@ -63,7 +63,7 @@ struct Superblock {
 typedef struct Device Device;
 struct InodeOps {
     // Ops for directories
-    intptr_t (*creat)(Inode* parent, const char* name, size_t namelen, oflags_t flags);
+    intptr_t (*creat)(Inode* parent, const char* name, size_t namelen, oflags_t oflag, Inode** result);
     intptr_t (*get_dir_entries)(Inode* dir, DirEntry* entries, size_t size, off_t offset, size_t* read_bytes);
     intptr_t (*find)(Inode* dir, const char* name, size_t namelen, Inode** inode);
     // Ops for files
@@ -86,7 +86,7 @@ struct InodeOps {
     // TODO: unlink which will free all memory of that inode. But only the inode itself, not its children (job of caller (vfs))
 };
 // Wrappers for directories
-intptr_t inode_creat(Inode* parent, const char* name, size_t namelen, oflags_t flags);
+intptr_t inode_creat(Inode* parent, const char* name, size_t namelen, oflags_t oflags, Inode** result);
 intptr_t inode_get_dir_entries(Inode* dir, DirEntry* entries, size_t size, off_t offset, size_t* read_bytes);
 intptr_t inode_find(Inode* dir, const char* name, size_t namelen, Inode** inode);
 // Wrappers for files
@@ -169,12 +169,12 @@ static intptr_t vfs_find_abs(const char* path, Inode** inode) {
     return vfs_find(&abs, inode);
 }
 
-intptr_t vfs_creat(Path* path, oflags_t flags);
-static intptr_t vfs_creat_abs(const char* path, oflags_t flags) {
+intptr_t vfs_creat(Path* path, oflags_t oflags, Inode** result);
+static intptr_t vfs_creat_abs(const char* path, oflags_t oflags, Inode** result) {
     Path abs;
     intptr_t e;
     if((e=parse_abs(path, &abs)) < 0) return e;
-    return vfs_creat(&abs, flags);
+    return vfs_creat(&abs, oflags, result);
 }
 
 typedef struct Socket Socket;

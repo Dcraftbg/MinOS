@@ -9,9 +9,7 @@ intptr_t file_write_str(Logger* logger, const char* str, size_t len) {
     if((e = vfs_find_abs(path, &file)) < 0) {
         if(e != -NOT_FOUND) 
             goto open_err;
-        if((e=vfs_creat_abs(path, 0)) < 0)
-            goto open_err;
-        if((e = vfs_find_abs(path, &file)) < 0)
+        if((e=vfs_creat_abs(path, 0, &file)) < 0)
             goto open_err;
     }
     intptr_t size = inode_size(file);

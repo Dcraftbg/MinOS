@@ -82,7 +82,7 @@ intptr_t tmpfs_socket_creat(Inode* parent, Inode* sock, const char* name, size_t
     return 0;
 }
 // TODO: Check whether entry already exists or not
-static intptr_t tmpfs_creat(Inode* parent, const char* name, size_t namelen, oflags_t flags) {
+static intptr_t tmpfs_creat(Inode* parent, const char* name, size_t namelen, oflags_t flags, Inode** result) {
     if(parent->kind != INODE_DIR) return -IS_NOT_DIRECTORY;
     TmpfsInode* inode;
     if(flags & O_DIRECTORY) inode=directory_new(parent->superblock, name, namelen);
@@ -93,6 +93,7 @@ static intptr_t tmpfs_creat(Inode* parent, const char* name, size_t namelen, ofl
         tmpfs_inode_destroy(inode);
         return e;
     }
+    *result = iget(&inode->inode);
     return 0;
 }
 static intptr_t tmpfs_get_dir_entries(Inode* dir, DirEntry* entries, size_t size, off_t offset, size_t* read_bytes) { 

@@ -83,9 +83,9 @@ void init_vfs() {
     if((e=rootfs->mount(rootfs, &kernel.rootBlock, NULL)) < 0)
         kpanic("Failed to mount rootfs: %s", status_str(e));
 }
-intptr_t inode_creat(Inode* parent, const char* name, size_t namelen, oflags_t flags) {
+intptr_t inode_creat(Inode* parent, const char* name, size_t namelen, oflags_t oflags, Inode** result) {
     if(!parent->ops->creat) return -UNSUPPORTED;
-    return parent->ops->creat(parent, name, namelen, flags);
+    return parent->ops->creat(parent, name, namelen, oflags, result);
 }
 intptr_t inode_get_dir_entries(Inode* dir, DirEntry* entries, size_t size, off_t offset, size_t* read_bytes) {
     if(!dir->ops->get_dir_entries) return -UNSUPPORTED;
@@ -195,7 +195,7 @@ intptr_t vfs_find(Path* path, Inode** inode) {
     idrop(parent);
     return 0;
 }
-intptr_t vfs_creat(Path* path, oflags_t flags) {
+intptr_t vfs_creat(Path* path, oflags_t flags, Inode** result) {
     Inode* parent;
     intptr_t e;
     const char* pathend;
@@ -204,7 +204,7 @@ intptr_t vfs_creat(Path* path, oflags_t flags) {
         idrop(parent);
         return -ALREADY_EXISTS;
     }
-    if((e=inode_creat(parent, pathend, strlen(pathend), flags)) < 0) {
+    if((e=inode_creat(parent, pathend, strlen(pathend), flags, result)) < 0) {
         idrop(parent);
         return e;
     }

@@ -47,9 +47,7 @@ intptr_t sys_open(const char* path, oflags_t flags) {
     Inode* inode;
     if((e=vfs_find(&p, &inode)) < 0) {
         if(e == -NOT_FOUND && flags & O_CREAT) {
-            // TODO: Consider maybe adding Inode** to creat
-            if((e=vfs_creat(&p, flags & O_DIRECTORY)) < 0) return e;
-            if((e=vfs_find(&p, &inode)) < 0) return e;
+            if((e=vfs_creat(&p, flags & O_DIRECTORY, &inode)) < 0) return e;
             goto found;
         }
         resource_remove(current->resources, id);
