@@ -12,17 +12,13 @@ void unknown_handler() {
 }
 static void unwind_stack(IDTEFrame* frame) {
     int depth = 10;
-    //printf("+=== Stack Trace ===+\n");
-    //printf("|%p   |\n",(void*)frame->rip);
-    printf(" %p\n",(void*)frame->rip);
+    ktrace(" %p",(void*)frame->rip);
     StackFrame* stack = (StackFrame*)frame->rbp; 
     while(stack && --depth) {
-       printf(" %p\n",(void*)stack->rip);
-       //printf("|%p   |\n",(void*)stack->rip);
+       ktrace(" %p",(void*)stack->rip);
        stack = stack->rbp;
     }
-    if(depth == 0) printf(" [...]\n");
-    //printf("+======= End =======+\n");
+    if(depth == 0) ktrace(" [...]\n");
 }
 const char* gpf_table[] = {
     "GDT",
