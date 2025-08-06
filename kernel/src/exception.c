@@ -30,7 +30,10 @@ const char* gpf_table[] = {
     "LDT",
     "IDT"
 };
+#include "task.h"
+static Mutex err = { 0 };
 void exception_handler(IDTEFrame* frame) {
+    mutex_lock(&err);
     if(frame->type == EXCEPTION_PAGE_FAULT) {
         kerror("Page fault at virtual address %p",(void*)frame->cr2);
     }
@@ -47,13 +50,33 @@ void exception_handler(IDTEFrame* frame) {
     kinfo ("r8 =%p    rbp =%p    rdi=%p    rsi=%p    rdx  =%p    rcx=%p    rbx=%p", (void*)frame->r8 , (void*)frame->rbp , (void*)frame->rdi, (void*)frame->rsi, (void*)frame->rdx  , (void*)frame->rcx, (void*)frame->rbx);
     kinfo ("rax=%p\n"                                                               , (void*)frame->rax);
     kerror("Gotten exception (%zu) with code %zu at rip: %p at virtual: %p",frame->type, (size_t)frame->code,(void*)frame->rip,(void*)frame->cr2);
-    /*
+    Task* task  = current_task();
+
+    // if(task) kinfo("the task at hand: %s", task->image.argv[0]);
+#if 0
+    if(task && frame->type == EXCEPTION_PAGE_FAULT) {
+#endif
+        for(struct list* head = task->image.memlist.next; head != &task->image.memlist; head = head->next) {
+            MemoryList* list = (MemoryList*)head;
+            MemoryRegion* region = list->region;
+            uintptr_t end = region->address + region->pages * PAGE_SIZE;
+            kinfo(" %p -> %p (%zu pages)", region->address, end, region->pages);
+            if(frame->cr2 >= region->address && frame->cr2 < end) {
+                kwarn("Inside this region!");
+            }
+        }
+#if 0
+    }
+#endif
+    kerror("Fin...");
+    mutex_unlock(&err);
+#if 1
     if(!kernel.unwinding) {
         kernel.unwinding = true;
         unwind_stack(frame);
         kernel.unwinding = false;
     }
-    */
+#endif
     kabort();
 }
 
