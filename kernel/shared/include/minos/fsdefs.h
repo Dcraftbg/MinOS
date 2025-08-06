@@ -16,6 +16,7 @@ enum {
 #define O_RDWR (O_RDONLY | O_WRONLY)
 #define O_NONBLOCK O_NOBLOCK
 #define O_NDELAY O_NOBLOCK
+#define O_BINARY 0
 typedef uint32_t oflags_t;
 enum {
     SEEK_START,
