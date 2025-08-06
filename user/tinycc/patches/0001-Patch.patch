@@ -73,31 +73,6 @@ index b163e865..d33f7d99 100644
      char *buf = load_data(fd, 0, len + 1);
      if (buf)
          buf[len] = 0;
-@@ -721,7 +728,11 @@ static int _tcc_open(TCCState *s1, const char *filename)
-     if (strcmp(filename, "-") == 0)
-         fd = 0, filename = "<stdin>";
-     else
-+#ifdef _MINOS
-+        fd = open(filename, MODE_READ, 0); 
-+#else
-         fd = open(filename, O_RDONLY | O_BINARY);
-+#endif
-     if ((s1->verbose == 2 && fd >= 0) || s1->verbose == 3)
-         printf("%s %*s%s\n", fd < 0 ? "nf":"->",
-                (int)(s1->include_stack_ptr - s1->include_stack), "", filename);
-@@ -1829,8 +1843,11 @@ static int args_parser_listfile(TCCState *s,
-     char *p;
-     int argc = 0;
-     char **argv = NULL;
--
-+#ifdef _MINOS
-+    fd = open(filename, MODE_READ, 0);
-+#else
-     fd = open(filename, O_RDONLY | O_BINARY);
-+#endif
-     if (fd < 0)
-         return tcc_error_noabort("listfile '%s' not found", filename);
- 
 diff --git a/tcc.c b/tcc.c
 index c6217499..317d4f35 100644
 --- a/tcc.c
@@ -196,7 +171,7 @@ index ee3e6360..96134d68 100644
 +#ifdef _MINOS
 +    (void)mode;
 +    (void)file_type;
-+    fd = open(filename, MODE_READ | MODE_WRITE, O_CREAT | O_TRUNC);
++    fd = open(filename, O_RDWR | O_CREAT | O_TRUNC);
 +#else
      if (file_type == TCC_OUTPUT_OBJ)
          mode = 0666;
