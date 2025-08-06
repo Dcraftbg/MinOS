@@ -48,11 +48,11 @@ void exception_handler(IDTEFrame* frame) {
     kerror("Gotten exception (%zu) with code %zu at rip: %p at virtual: %p",frame->type, (size_t)frame->code,(void*)frame->rip,(void*)frame->cr2);
     Task* task  = current_task();
 
-    // if(task) kinfo("the task at hand: %s", task->image.argv[0]);
+    // if(task) kinfo("the task at hand: %s", task->argv[0]);
 #if 0
     if(task && frame->type == EXCEPTION_PAGE_FAULT) {
 #endif
-        for(struct list* head = task->image.memlist.next; head != &task->image.memlist; head = head->next) {
+        for(struct list* head = task->memlist.next; head != &task->memlist; head = head->next) {
             MemoryList* list = (MemoryList*)head;
             MemoryRegion* region = list->region;
             uintptr_t end = region->address + region->pages * PAGE_SIZE;

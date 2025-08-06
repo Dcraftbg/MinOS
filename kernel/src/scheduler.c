@@ -22,15 +22,15 @@ Task* task_select(Scheduler* scheduler) {
         list_remove(&task->list);
         // Move it to the back
         list_insert(&task->list, &scheduler->queue);
-        if(task->image.flags & TASK_FLAG_BLOCKING) {
-            debug_assert(task->image.blocker.try_resolve);
-            if(task->image.blocker.try_resolve(&task->image.blocker, task)) {
-                task->image.flags &= ~TASK_FLAG_BLOCKING;
+        if(task->flags & TASK_FLAG_BLOCKING) {
+            debug_assert(task->blocker.try_resolve);
+            if(task->blocker.try_resolve(&task->blocker, task)) {
+                task->flags &= ~TASK_FLAG_BLOCKING;
                 break;
             }
             continue;
         }
-        if((task->image.flags & TASK_FLAG_PRESENT) && (task->image.flags & TASK_FLAG_RUNNING) == 0) break;
+        if((task->flags & TASK_FLAG_PRESENT) && (task->flags & TASK_FLAG_RUNNING) == 0) break;
     }
     mutex_unlock(&scheduler->queue_mutex);
     return task;

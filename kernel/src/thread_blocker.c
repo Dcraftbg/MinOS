@@ -33,37 +33,37 @@ bool try_resolve_is_writeable(ThreadBlocker* blocker, Task* task) {
 }
 static void task_block(Task* task) {
     // TODO: thread yield
-    while(task->image.flags & TASK_FLAG_BLOCKING) asm volatile("hlt");
+    while(task->flags & TASK_FLAG_BLOCKING) asm volatile("hlt");
 }
 void block_sleepuntil(Task* task, size_t until) {
-    task->image.blocker.as.sleep.until = until;
-    task->image.blocker.try_resolve = try_resolve_sleep_until;
-    task->image.flags |= TASK_FLAG_BLOCKING;
+    task->blocker.as.sleep.until = until;
+    task->blocker.try_resolve = try_resolve_sleep_until;
+    task->flags |= TASK_FLAG_BLOCKING;
     task_block(task);
 }
 int block_waitpid(Task* task, size_t child_index) {
-    task->image.blocker.as.waitpid.child_index = child_index;
-    task->image.blocker.try_resolve = try_resolve_waitpid;
-    task->image.flags |= TASK_FLAG_BLOCKING;
+    task->blocker.as.waitpid.child_index = child_index;
+    task->blocker.try_resolve = try_resolve_waitpid;
+    task->flags |= TASK_FLAG_BLOCKING;
     task_block(task);
-    return task->image.blocker.as.waitpid.exit_code;
+    return task->blocker.as.waitpid.exit_code;
 }
 void block_epoll(Task* task, Epoll* epoll, size_t until) {
-    task->image.blocker.as.epoll.epoll = epoll;
-    task->image.blocker.as.epoll.until = until;
-    task->image.blocker.try_resolve = try_resolve_epoll;
-    task->image.flags |= TASK_FLAG_BLOCKING;
+    task->blocker.as.epoll.epoll = epoll;
+    task->blocker.as.epoll.until = until;
+    task->blocker.try_resolve = try_resolve_epoll;
+    task->flags |= TASK_FLAG_BLOCKING;
     task_block(task);
 }
 void block_is_readable(Task* task, Inode* inode) {
-    task->image.blocker.as.inode = inode;
-    task->image.blocker.try_resolve = try_resolve_is_readable;
-    task->image.flags |= TASK_FLAG_BLOCKING;
+    task->blocker.as.inode = inode;
+    task->blocker.try_resolve = try_resolve_is_readable;
+    task->flags |= TASK_FLAG_BLOCKING;
     task_block(task);
 }
 void block_is_writeable(Task* task, Inode* inode) {
-    task->image.blocker.as.inode = inode;
-    task->image.blocker.try_resolve = try_resolve_is_writeable;
-    task->image.flags |= TASK_FLAG_BLOCKING;
+    task->blocker.as.inode = inode;
+    task->blocker.try_resolve = try_resolve_is_writeable;
+    task->flags |= TASK_FLAG_BLOCKING;
     task_block(task);
 }

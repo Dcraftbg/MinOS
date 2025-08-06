@@ -14,7 +14,12 @@
 #define TASK_FLAG_BLOCKING  0b100000
 #define INVALID_TASK_ID -1
 #include "thread_blocker.h"
-typedef struct {
+
+typedef struct Task Task;
+struct Task {
+    struct list list;
+    size_t id;
+    Process* process;
     uint64_t flags;
     page_t cr3;
     size_t argc;
@@ -29,20 +34,6 @@ typedef struct {
     void* ts_rsp;
     uintptr_t rip;
     ThreadBlocker blocker;
-} TaskImage;
-static inline void taskimage_move(TaskImage* to, TaskImage* from) {
-    memcpy(to, from, sizeof(*to));
-    list_move(&to->memlist, &from->memlist);
-    memset(from, 0, sizeof(*from));
-    list_init(&from->memlist);
-}
-
-typedef struct Task Task;
-struct Task {
-    struct list list;
-    size_t id;
-    Process* process;
-    TaskImage image;
 };
 void init_tasks();
 void init_kernel_task();

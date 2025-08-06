@@ -65,23 +65,23 @@ intptr_t process_heap_extend(Process* process, Heap* heap, size_t extra) {
     // Invalidly resized.
     // Checking overflow:
     if(heap->address + (heap->pages+extra)*PAGE_SIZE <= heap->address) return -NOT_ENOUGH_MEM;
-    MemoryList* reglist = memlist_find(&task->image.memlist, (void*)heap->address);
+    MemoryList* reglist = memlist_find(&task->memlist, (void*)heap->address);
     if(!reglist)
         return -INVALID_PARAM;
     
     MemoryRegion* region = reglist->region;
-    if(reglist->list.next != &task->image.memlist) {
+    if(reglist->list.next != &task->memlist) {
         MemoryRegion* next = ((MemoryList*)reglist->list.next)->region;
         if(next->address < heap->address + (heap->pages+extra)*PAGE_SIZE) return -NOT_ENOUGH_MEM;
     }
     uintptr_t end = heap->address + (heap->pages)*PAGE_SIZE;
-    if(!page_alloc(task->image.cr3, end, extra, KERNEL_PFLAG_WRITE | KERNEL_PFLAG_USER | KERNEL_PFLAG_PRESENT))
+    if(!page_alloc(task->cr3, end, extra, KERNEL_PFLAG_WRITE | KERNEL_PFLAG_USER | KERNEL_PFLAG_PRESENT))
         return -NOT_ENOUGH_MEM;
     if((e=heap_extend(heap, extra)) < 0)
         goto err;
     region->pages += extra;
     return 0;
 err:
-    page_unalloc(task->image.cr3, end, extra);
+    page_unalloc(task->cr3, end, extra);
     return e;
 }
