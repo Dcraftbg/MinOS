@@ -5,6 +5,7 @@
 #include <libwm/tags.h>
 #include <string.h>
 #include <stdio.h>
+#include <minos2errno.h>
 #include <minos/sysstd.h>
 #include <minos/status.h>
 
@@ -34,7 +35,7 @@ static size_t _pluto_write_wm_header(char* buf, uint32_t size, uint16_t tag) {
 static int _pluto_write(int handle, const void* buf, size_t n) {
     intptr_t e = write(handle, buf, n);
     if(e != (intptr_t)n) {
-        errno = e < 0 ? _status_to_errno(e) : EMSGSIZE;
+        errno = e < 0 ? _minos2errno(e) : EMSGSIZE;
         return -PLUTO_ERR_NETWORKING;
     }
     return 0;
@@ -42,7 +43,7 @@ static int _pluto_write(int handle, const void* buf, size_t n) {
 static int _pluto_read(int handle, void* buf, size_t n) {
     intptr_t e = read(handle, buf, n);
     if(e != (intptr_t)n) {
-        errno = e < 0 ? _status_to_errno(e) : EBADMSG;
+        errno = e < 0 ? _minos2errno(e) : EBADMSG;
         return -PLUTO_ERR_NETWORKING;
     }
     return 0;
