@@ -112,13 +112,14 @@ int main(int argc, char** argv) {
     for(size_t i = 0; i < nasm_sources.count; ++i) {
         const char* src = nasm_sources.items[i];
         const char* out = nob_temp_sprintf("%s/kernel/%.*s.o", bindir, cstr_rem_suffix(src + src_dir, ".nasm"));
+        const char* md = nob_temp_sprintf("%s/kernel/%.*s.d", bindir, cstr_rem_suffix(src + src_dir, ".nasm"));
         da_append(&objs, out);
-        // TODO: smart rebuilding for nasm maybe
-        if(nob_needs_rebuild1(out, src) == 0) continue;
+        if(nob_c_needs_rebuild1(&stb, &pathb, out, src) == 0) continue;
         const char* include = nob_temp_sprintf("%.*s", (int)(nob_path_name(src)-src), src);
         cmd_append(&cmd, "nasm");
         cmd_append(&cmd, "-I", include); 
         cmd_append(&cmd, "-f", "elf64");
+        cmd_append(&cmd, "-MD", md);
         cmd_append(&cmd, src);
         cmd_append(&cmd, "-o", out);
         if(!nob_cmd_run_sync_and_reset(&cmd)) return 1;
