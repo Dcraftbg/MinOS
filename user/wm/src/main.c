@@ -12,6 +12,7 @@
 #include <minos/status.h>
 #include <minos/fb/fb.h>
 #include <minos/mouse.h>
+#include <collections/list.h>
 #include <stdexec.h>
 #include "darray.h"
 
@@ -466,10 +467,11 @@ static intptr_t load_framebuffer(const char* path, Framebuffer* fb) {
         return -NOT_ENOUGH_MEM;
     }
     memset(fb->pixels, 0, sizeof(*fb->pixels));
-    if((e=mmap(fb_handle, (void*)&fb->hw_pixels, 0)) < 0) {
+    fb->hw_pixels = mmap(NULL, 0, PROT_WRITE, MAP_PRIVATE, fb_handle, 0);
+    if(fb->hw_pixels == MAP_FAILED) {
         free(fb->pixels);
         close(fb_handle);
-        return e;
+        return -1;
     }
     close(fb_handle);
     // For debug testing purposes.
