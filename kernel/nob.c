@@ -15,10 +15,10 @@ static bool walk_directory(
     errno = 0;
     struct dirent *ent;
     while((ent = readdir(dir))) {
-        if(strcmp(ent->d_name, "..") == 0 || strcmp(ent->d_name, ".") == 0) continue;
-        const char* fext = nob_get_ext(ent->d_name);
+        if(*ent->d_name == '.') continue;
         size_t temp = nob_temp_save();
         const char* p = nob_temp_sprintf("%s/%s", path, ent->d_name); 
+        String_View sv = sv_from_cstr(p);
         Nob_File_Type type = nob_get_file_type(p);
         if(type == NOB_FILE_DIRECTORY) {
             da_append(dirs, p);
@@ -28,14 +28,13 @@ static bool walk_directory(
             }
             continue;
         }
-        if(strcmp(fext, "c") == 0 || strcmp(fext, "nasm") == 0) {
-            if(strcmp(fext, "c") == 0) 
-                nob_da_append(c_sources, p);
-            else if(strcmp(fext, "nasm") == 0)
-                nob_da_append(nasm_sources, p);
-            continue;
+        if(sv_end_with(sv, ".c")) {
+            nob_da_append(c_sources, p);
+        } else if(sv_end_with(sv, ".nasm")) {
+            nob_da_append(nasm_sources, p);
+        } else {
+            nob_temp_rewind(temp);
         }
-        nob_temp_rewind(temp);
     }
     closedir(dir);
     return true;
