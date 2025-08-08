@@ -1,8 +1,9 @@
 #include "exception.h"
 #include "kernel.h"
-#include "debug.h"
 #include "log.h"
 #include "fblogger.h"
+#include <mem/memregion.h>
+
 typedef struct StackFrame {
     struct StackFrame* rbp;
     uintptr_t rip;

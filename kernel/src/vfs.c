@@ -6,7 +6,6 @@ struct Cache* hashpair_cache = NULL;
 #include "./fs/tmpfs/tmpfs.h"
 #include "mem/slab.h"
 #include "string.h"
-#include "debug.h"
 
 void inode_init(Inode* inode, Cache* cache) {
     memset(inode, 0, sizeof(*inode));

@@ -1,12 +1,11 @@
 #include "tty.h"
-#include "../../log.h"
-#include "../../debug.h"
-#include "../../kernel.h"
-#include "../../cmdline.h"
-#include "../../fbwriter.h"
+#include <log.h>
+#include <kernel.h>
+#include <cmdline.h>
+#include <fbwriter.h>
 
-#include "../../term/fb/fb.h"
-#include "../../term/chr/chr.h"
+#include <term/fb/fb.h>
+#include <term/chr/chr.h>
 bool ttyscratch_reserve(TtyScratch* scratch, size_t extra) {
     if(scratch->len + extra > scratch->cap) {
         size_t ncap = scratch->cap*2 + extra;

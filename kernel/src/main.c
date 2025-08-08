@@ -12,7 +12,6 @@
 #include "memory.h"
 #include "mem/bitmap.h"
 #include "kernel.h"
-#include "debug.h"
 #include "page.h"
 #include "arch/x86_64/gdt.h"
 #include "arch/x86_64/enable_arch_extra.h"

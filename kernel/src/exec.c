@@ -6,7 +6,6 @@
 #include "string.h"
 #include "fileutils.h"
 #include "kernel.h"
-#include "debug.h"
 #include "log.h"
 // Picking a processor to run on
 #include "load_balance.h"
