@@ -1,6 +1,7 @@
 #include <stdint.h>
 #include <stdbool.h>
 #ifdef _MINOS
+# include <minos/mmap.h>
 # include <minos/sysstd.h>
 # define SEEK_SET SEEK_START
 # define SEEK_CUR SEEK_CURSOR
@@ -229,11 +230,9 @@ intptr_t load_elf(Elf** result, const char* path, uintptr_t fd) {
             uintptr_t segment_pages  = (PAGE_ALIGN_UP(pheader.virt_addr + pheader.memsize) - PAGE_ALIGN_DOWN(pheader.virt_addr)) / PAGE_SIZE;
             uintptr_t virt = PAGE_ALIGN_DOWN(pheader.virt_addr);
             uintptr_t virt_off = pheader.virt_addr - virt;
-            // FIXME: assumes memory is executable.
-            // obviously should not be the case but whatever
-            if((e=heap_create(HEAP_EXACT, (void*)virt, segment_pages*PAGE_SIZE)) < 0) {
-                eprintfln("ERROR: Failed to allocate heap at %p (%zu bytes) = %ld", (void*)virt, segment_pages*PAGE_SIZE, e);
-                *((char*)0) = 0;
+            e = _mmap((void**)&virt, segment_pages * PAGE_SIZE, PROT_READ | PROT_WRITE | PROT_EXEC, MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED_NOREPLACE, 0, 0);
+            if(e < 0) {
+                eprintfln("ERROR: Failed to mmap at %p (%zu bytes) = %ld", (void*)virt, segment_pages*PAGE_SIZE, e);
                 e=-ELF_ERROR_IO;
                 goto defer;
             }
