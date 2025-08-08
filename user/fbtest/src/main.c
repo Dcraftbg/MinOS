@@ -1,6 +1,7 @@
 #include <minos/sysstd.h>
 #include <minos/fb/fb.h>
 #include <minos/status.h>
+#include <sys/mman.h>
 #include <stdio.h>
 #define STBI_NO_FAILURE_STRINGS
 #define STBI_NO_THREAD_LOCALS
@@ -103,8 +104,10 @@ int main(int argc, const char** argv) {
     }
     printf("Framebuffer is %zux%zu pixels (%zu bits per pixel)\n", (size_t)stats.width, (size_t)stats.height, (size_t)stats.bpp);
     uint32_t* pixels;
-    if((e=mmap(fb, (void**)&pixels, 0)) < 0) {
-        fprintf(stderr, "ERROR: Failed to mmap on fb: %s\n", status_str(e));
+    // FIXME: size of the Framebuffer in bytes
+    pixels = mmap(NULL, 0, PROT_WRITE, MAP_PRIVATE, fb, 0);
+    if(pixels == MAP_FAILED) {
+        fprintf(stderr, "ERROR: Failed to mmap on fb: %s\n", strerror(errno));
         close(fb);
         return 1;
     }
