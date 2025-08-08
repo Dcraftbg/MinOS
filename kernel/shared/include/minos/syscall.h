@@ -75,3 +75,16 @@
     ); \
     __sys_result; \
 })
+#define syscall6(num, arg1, arg2, arg3, arg4, arg5, arg6) \
+({ \
+    intptr_t __sys_result; \
+    register long r8 __asm__("r8") = arg5;\
+    register long r9 __asm__("r9") = arg6;\
+    __asm__ volatile ( \
+        SYSCALL_ASM \
+        : "=a" (__sys_result) \
+        : "a" (num), "D" (arg1), "S" (arg2), "d" (arg3), "c" (arg4), "r" (r8), "r" (r9) \
+        : "memory" \
+    ); \
+    __sys_result; \
+})

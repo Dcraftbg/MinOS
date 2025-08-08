@@ -31,7 +31,6 @@
 #include <minos/keycodes.h>
 #include <minos/key.h>
 #include <sync.h>
-#include "heap.h"
 #include "cmdline.h"
 #include "charqueue.h"
 #include "filelog.h"
@@ -109,7 +108,6 @@ void _start() {
     init_memregion();
     init_processes();
     init_tasks();
-    init_heap();
     init_kernel_task();
     init_schedulers();
     init_task_switch();

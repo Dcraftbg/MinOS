@@ -31,7 +31,6 @@ Process* kernel_process_add() {
     process->parent = NULL;
     process->main_thread = NULL;
     process->id = id;
-    list_init(&process->heap_list);
     list_init(&process->list);
     kernel.processes.items[id] = process;
     mutex_unlock(&kernel.processes_mutex);
@@ -41,47 +40,24 @@ void process_drop(Process* process) {
     if(process->resources) resourceblock_dealloc(process->resources);
     if(process->curdir) kernel_dealloc(process->curdir, PATH_MAX);
     if(process->curdir_inode) idrop(process->curdir_inode);
-    Heap* heap = (Heap*)process->heap_list.next;
-    while(&heap->list != &process->heap_list) {
-        Heap* next_heap = (Heap*)heap->list.next;
-        heap_destroy(heap);
-        heap = next_heap;
-    }
     cache_dealloc(kernel.process_cache, process);
 }
 
-Heap* get_heap_by_id(Process* process, size_t heapid) {
-    for(struct list* head = process->heap_list.next; head != &process->heap_list; head = head->next) {
-        Heap* heap = (Heap*)head;
-        if(heap->id == heapid) return heap;
-    }
-    return NULL;
-}
-
 // FIXME: Possible issues with multiple threads
-intptr_t process_heap_extend(Process* process, Heap* heap, size_t extra) {
-    intptr_t e=0;
+intptr_t process_memreg_extend(Process* process, MemoryList* reglist, size_t extra) {
     Task* task = process->main_thread; 
+    MemoryRegion* region = reglist->region;
+    // TODO: bring this back
     // Invalidly resized.
     // Checking overflow:
-    if(heap->address + (heap->pages+extra)*PAGE_SIZE <= heap->address) return -NOT_ENOUGH_MEM;
-    MemoryList* reglist = memlist_find(&task->memlist, (void*)heap->address);
-    if(!reglist)
-        return -INVALID_PARAM;
-    
-    MemoryRegion* region = reglist->region;
+    // if(heap->address + (heap->pages+extra)*PAGE_SIZE <= heap->address) return -NOT_ENOUGH_MEM;
     if(reglist->list.next != &task->memlist) {
         MemoryRegion* next = ((MemoryList*)reglist->list.next)->region;
-        if(next->address < heap->address + (heap->pages+extra)*PAGE_SIZE) return -NOT_ENOUGH_MEM;
+        if(next->address < region->address + (region->pages+extra)*PAGE_SIZE) return -NOT_ENOUGH_MEM;
     }
-    uintptr_t end = heap->address + (heap->pages)*PAGE_SIZE;
+    uintptr_t end = region->address + (region->pages)*PAGE_SIZE;
     if(!page_alloc(task->cr3, end, extra, KERNEL_PFLAG_WRITE | KERNEL_PFLAG_USER | KERNEL_PFLAG_PRESENT))
         return -NOT_ENOUGH_MEM;
-    if((e=heap_extend(heap, extra)) < 0)
-        goto err;
     region->pages += extra;
     return 0;
-err:
-    page_unalloc(task->cr3, end, extra);
-    return e;
 }

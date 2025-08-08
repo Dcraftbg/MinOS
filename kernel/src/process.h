@@ -4,7 +4,6 @@
 #include "page.h"
 #include "resource.h"
 #include <stddef.h>
-#include "heap.h"
 
 typedef struct {
     size_t bytelen; // Calculated using argv[0..argc].sum(arg.len());
@@ -45,8 +44,6 @@ struct Process {
     Task* main_thread;
     uint64_t flags;
     ResourceBlock* resources;
-    size_t heapid; // Current heapid count
-    struct list heap_list;
     Inode* curdir_inode;
     char* curdir /*[PATH_MAX]*/;
     ChildProcess children[MAX_CHILD_PROCESSES];
@@ -57,8 +54,8 @@ struct Process {
 void init_processes();
 Process* kernel_process_add(); 
 void process_drop(Process* process);
-Heap* get_heap_by_id(Process* process, size_t heapid);
-intptr_t process_heap_extend(Process* process, Heap* heap, size_t extra);
+typedef struct MemoryList MemoryList;
+intptr_t process_memreg_extend(Process* process, MemoryList* reglist, size_t extra);
 
 static Process* current_process() {
     return current_task()->process;

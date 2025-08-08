@@ -15,7 +15,7 @@ typedef struct {
     size_t pages;
     atomic_size_t shared;
 } MemoryRegion;
-typedef struct {
+typedef struct MemoryList {
     struct list list;
     MemoryRegion* region;
 } MemoryList;
