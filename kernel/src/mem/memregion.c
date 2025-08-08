@@ -1,4 +1,6 @@
 #include "memregion.h"
+#include "kernel.h"
+
 
 void init_memregion() {
     assert(kernel.memregion_cache=create_new_cache(sizeof(MemoryRegion), "MemoryRegion")); 
@@ -6,7 +8,7 @@ void init_memregion() {
 }
 MemoryRegion* memregion_clone(MemoryRegion* region, page_t src, page_t dst) {
     // Read-Write
-    if(region->flags & MEMREG_WRITE) {
+    if(region->pageflags & KERNEL_PFLAG_WRITE) {
         uintptr_t at = region->address;
         for(size_t i = 0; i < region->pages; ++i) {
             if(!page_alloc(dst, at, 1, region->pageflags)) return NULL;
@@ -80,4 +82,35 @@ MemoryList* memlist_find(struct list *list, void* address) {
         head = (MemoryList*)head->list.next;
     }
     return NULL;
+}
+MemoryRegion* memregion_new(pageflags_t pageflags, uintptr_t address, size_t pages) {
+    MemoryRegion* region;
+    if(!(region=cache_alloc(kernel.memregion_cache))) return NULL;
+    region->pageflags = pageflags;
+    region->address = address;
+    region->pages = pages;
+    region->shared = 1;
+    return region;
+}
+void memlist_dealloc(MemoryList* list, page_t pml4) {
+    list_remove(&list->list);
+    memregion_drop(list->region, pml4);
+    cache_dealloc(kernel.memlist_cache, list);
+}
+MemoryList* memlist_new(MemoryRegion* region) {
+    if(!region) return NULL;
+    MemoryList* list = (MemoryList*)cache_alloc(kernel.memlist_cache);
+    if(!list) return NULL;
+    list->region = region;
+    list_init(&list->list);
+    return list;
+}
+
+void memregion_drop(MemoryRegion* region, page_t pml4) {
+    if(region->shared == 1) {
+        // if(pml4) page_dealloc(pml4, region->address, region->pages);
+        cache_dealloc(kernel.memregion_cache, region);
+        return;
+    }
+    region->shared--;
 }

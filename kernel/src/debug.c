@@ -179,7 +179,7 @@ void dump_memregions(struct list* list) {
         char pflags[10] = {0};
         page_flags_serialise(region->pageflags, pflags, sizeof(pflags)-1);
         const char* strp_type = page_type_str(region->pageflags);
-        rflags[0] = region->flags & MEMREG_WRITE ? 'w' : '-';
+        rflags[0] = region->pageflags & KERNEL_PFLAG_WRITE ? 'w' : '-';
         printf("Region:\n");
         printf("   rflags = %s\n",rflags);
         printf("   pflags = %s (%s)\n",pflags, strp_type);

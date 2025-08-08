@@ -127,14 +127,12 @@ intptr_t sys_mmap(void** addr_ptr, size_t length, uint32_t prot, uint32_t flags,
     void* addr = *addr_ptr;
     intptr_t e = 0;
     if(flags & MAP_ANONYMOUS) {
-        uint16_t mreg_flags = 0;
         pageflags_t pageflags = KERNEL_PFLAG_USER | KERNEL_PTYPE_USER |
                                 KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_EXEC_DISABLE;
         if(prot & PROT_WRITE) {
             pageflags |= KERNEL_PFLAG_WRITE;
-            mreg_flags |= MEMREG_WRITE;
         }
-        MemoryRegion* region = memregion_new(mreg_flags, pageflags, 0, 0);
+        MemoryRegion* region = memregion_new(pageflags, 0, 0);
         if(!region) return -NOT_ENOUGH_MEM;
         MemoryList* list = memlist_new(region);
         if(!list) {
@@ -783,7 +781,6 @@ intptr_t sys_shmmap(size_t key, void** addr) {
     }
     SharedMemory* shm = kernel.shared_memory.items[key];
     MemoryRegion* region = memregion_new(
-            MEMREG_WRITE,
             KERNEL_PFLAG_USER | KERNEL_PTYPE_USER | KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_EXEC_DISABLE,
             0,
             0

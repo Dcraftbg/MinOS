@@ -211,13 +211,11 @@ static intptr_t load_elf(Task* task, Inode* file, uintptr_t offset, Elf64Header*
 #endif        
         if (pheader->p_type != ELF_PHEADER_LOAD || pheader->memsize == 0) continue;
         pageflags_t flags = KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_USER | KERNEL_PTYPE_USER;
-        uint64_t regionflags = 0;
         if (!(pheader->flags & ELF_PROG_EXEC)) {
             flags |= KERNEL_PFLAG_EXEC_DISABLE;
         }
         if (pheader->flags & ELF_PROG_WRITE) {
             flags |= KERNEL_PFLAG_WRITE;
-            regionflags |= MEMREG_WRITE;
         }
         if(pheader->filesize > pheader->memsize) {
             return -SIZE_MISMATCH;
@@ -238,7 +236,7 @@ static intptr_t load_elf(Task* task, Inode* file, uintptr_t offset, Elf64Header*
            return e;
         }
         MemoryList* region;
-        if(!(region=memlist_new(memregion_new(regionflags, flags, virt, segment_pages)))) {
+        if(!(region=memlist_new(memregion_new(flags, virt, segment_pages)))) {
            kernel_dealloc(memory, segment_pages * PAGE_SIZE);
            return -NOT_ENOUGH_MEM;
         }
@@ -288,7 +286,7 @@ intptr_t exec(Task* task, Path* path, Args* args, Args* envs) {
     
     size_t stack_pages = USER_STACK_PAGES + 1 + (PAGE_ALIGN_UP(args->bytelen+envs->bytelen) / PAGE_SIZE);
 
-    if(!(ustack_region=memlist_new(memregion_new(MEMREG_WRITE, KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_USER | KERNEL_PFLAG_EXEC_DISABLE | KERNEL_PTYPE_USER, USER_STACK_ADDR, stack_pages)))) 
+    if(!(ustack_region=memlist_new(memregion_new(KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_USER | KERNEL_PFLAG_EXEC_DISABLE | KERNEL_PTYPE_USER, USER_STACK_ADDR, stack_pages)))) 
         return_defer_err(-NOT_ENOUGH_MEM);
     
 
@@ -296,7 +294,7 @@ intptr_t exec(Task* task, Path* path, Args* args, Args* envs) {
         return_defer_err(-NOT_ENOUGH_MEM);
     memlist_add(&task->memlist, ustack_region);
     
-    if(!(kstack_region=memlist_new(memregion_new(MEMREG_WRITE, KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_EXEC_DISABLE | KERNEL_PTYPE_USER, KERNEL_STACK_ADDR, KERNEL_STACK_PAGES))))
+    if(!(kstack_region=memlist_new(memregion_new(KERNEL_PFLAG_WRITE | KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_EXEC_DISABLE | KERNEL_PTYPE_USER, KERNEL_STACK_ADDR, KERNEL_STACK_PAGES))))
         return_defer_err(-NOT_ENOUGH_MEM);
     
     memlist_add(&task->memlist, kstack_region);
