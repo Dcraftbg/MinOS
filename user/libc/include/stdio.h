@@ -3,7 +3,7 @@
 #include <stddef.h>
 #include <stdint.h>
 #include <stdarg.h>
-typedef intptr_t ssize_t;
+#include <sys/types.h>
 typedef struct FILE FILE;
 #define STDOUT_FILENO 0
 #define STDIN_FILENO  0
@@ -73,5 +73,3 @@ void rewind(FILE* f);
 #define FILENAME_MAX 1024
 
 void perror(const char *s);
-// Things defined by MinOS
-ssize_t _status_to_errno(intptr_t status);

@@ -3,3 +3,4 @@
 #include <stdint.h>
 typedef int pid_t;
 typedef intptr_t off_t;
+typedef intptr_t ssize_t;

@@ -28,9 +28,9 @@ void abort() {
 
 #include <minos/heap.h>
 typedef struct {
-    size_t id;
     struct list alloc_list;
-    MinOSHeap heap;
+    void* addr;
+    size_t size;
 } _LibcInternalHeap;
 #define _LIBC_INTERNAL_HEAPS_MAX 5
 #define _LIBC_INTERNAL_INVALID_HEAPID ((size_t)-1)
@@ -45,19 +45,19 @@ struct _HeapNode {
 };
 
 #include <assert.h>
+#include <sys/mman.h>
 #define MIN_HEAP_BLOCK_SIZE (sizeof(_HeapNode)+16)
 #define alignup_to(n, size)   ((((n)+((size)-1))/(size))*(size))
 #define aligndown_to(n, size) (((n)/(size))*(size))
 bool libc_heap_extend(_LibcInternalHeap* heap, size_t extra) {
     // TODO: Maybe ask for page size instead
     size_t page_extend = alignup_to(alignup_to(extra + sizeof(_HeapNode), sizeof(_HeapNode)), 4096);
-    intptr_t e;
-    if((e=heap_extend(heap->id, page_extend)) < 0) return false;
-    _HeapNode* end = (_HeapNode*)(heap->heap.address+heap->heap.size);
-    size_t n = heap->heap.size;
-    assert((e=heap_get(heap->id, &heap->heap)) >= 0);
+    void* addr = mmap((char*)heap->addr + heap->size, page_extend, PROT_WRITE | PROT_READ, MAP_ANONYMOUS | MAP_PRIVATE | MAP_FIXED_NOREPLACE, 0, 0);
+    if(addr == MAP_FAILED) return false;
+    _HeapNode* end = (_HeapNode*)((char*)heap->addr + heap->size);
+    heap->size += page_extend; 
     list_init(&end->list);
-    end->size = heap->heap.size-n-sizeof(_HeapNode);
+    end->size = page_extend - sizeof(_HeapNode);
     end->free = true;
     list_append(&end->list, heap->alloc_list.prev);
     return true;
@@ -92,7 +92,7 @@ bool libc_heap_find_alloc(_LibcInternalHeap* heap, void* addr, size_t *size) {
     return false;
 }
 void* libc_heap_allocate(_LibcInternalHeap* heap, size_t size) {
-    if(heap->heap.size < sizeof(_HeapNode)) return NULL;
+    if(heap->size < sizeof(_HeapNode)) return NULL;
     void* addr=libc_heap_allocate_within(heap, size);
     if(addr) return addr;
     if(!libc_heap_extend(heap, size)) return NULL;
@@ -100,7 +100,7 @@ void* libc_heap_allocate(_LibcInternalHeap* heap, size_t size) {
 }
 
 void* libc_heap_reallocate(_LibcInternalHeap* heap, void* oldaddr, size_t newsize) {
-    if(heap->heap.size < sizeof(_HeapNode)) return NULL;
+    if(heap->size < sizeof(_HeapNode)) return NULL;
     void* newaddr = libc_heap_allocate(heap, newsize);
     if(!newaddr) return NULL;
     size_t oldsize;
@@ -112,7 +112,7 @@ void* libc_heap_reallocate(_LibcInternalHeap* heap, void* oldaddr, size_t newsiz
 }
 // TODO: faster Deallocation infering address is a valid heap address
 void libc_heap_deallocate(_LibcInternalHeap* heap, void* address) {
-    if(heap->heap.size < sizeof(_HeapNode)) return;
+    if(heap->size < sizeof(_HeapNode)) return;
     for(_HeapNode* node=(_HeapNode*)heap->alloc_list.next; &node->list != &heap->alloc_list; node = (_HeapNode*)node->list.next) {
         if(node->data == address) {
             assert((!node->free) && "Double free");
@@ -142,27 +142,29 @@ void libc_heap_deallocate(_LibcInternalHeap* heap, void* address) {
 
 void init_libc_heap(_LibcInternalHeap* heap) {
     // Some sort of error
-    if(heap->heap.size < sizeof(_HeapNode)) return;
+    if(heap->size < sizeof(_HeapNode)) return;
     list_init(&heap->alloc_list);
-    _HeapNode* node = (_HeapNode*)heap->heap.address;
+    _HeapNode* node = (_HeapNode*)heap->addr;
     list_init(&node->list);
     node->free = true;
-    node->size = aligndown_to(heap->heap.size-sizeof(_HeapNode), 16);
+    node->size = aligndown_to(heap->size-sizeof(_HeapNode), 16);
     list_append(&node->list, &heap->alloc_list);
 }
 #define LIBC_MIN_SIZE (4096*16)
 void* malloc(size_t size) {
     size = alignup_to(size, 16);
     for(size_t i = 0; i < _LIBC_INTERNAL_HEAPS_MAX; ++i) {
-        if(_libc_internal_heaps[i].id == _LIBC_INTERNAL_INVALID_HEAPID) {
-            intptr_t e = heap_create(HEAP_RESIZABLE, NULL, size > LIBC_MIN_SIZE ? size : LIBC_MIN_SIZE);
-            if(e < 0) return NULL; // Failed to create heap. Most likely out of memory
-            _libc_internal_heaps[i].id = e;
-            e=heap_get(e, &_libc_internal_heaps[i].heap);
-            if(e < 0) return NULL; // Really bad error. heap_create returned invalid id
-            init_libc_heap(&_libc_internal_heaps[i]);
+        if(!_libc_internal_heaps[i].addr) {
+            size_t heap_size = size < LIBC_MIN_SIZE ? LIBC_MIN_SIZE : size;
+            heap_size = alignup_to(heap_size, 4096);
+            void* addr = mmap(NULL, heap_size, PROT_WRITE | PROT_READ, MAP_ANONYMOUS | MAP_PRIVATE, 0, 0);
+            // We just straightup return NULL if we couldn't create a new heap
+            if(addr == MAP_FAILED) return NULL;
+            _libc_internal_heaps[i].addr = addr;
+            _libc_internal_heaps[i].size = heap_size;
+            list_init(&_libc_internal_heaps[i].alloc_list);
         }
-        void* addr=libc_heap_allocate(&_libc_internal_heaps[i], size);
+        void* addr = libc_heap_allocate(&_libc_internal_heaps[i], size);
         if(addr) return addr;
     }
     // Reached limit
@@ -180,9 +182,9 @@ void* calloc(size_t elm, size_t size) {
 void* realloc(void* addr, size_t newsize) {
     if(!addr) return malloc(newsize);
     for(size_t i = 0; i < _LIBC_INTERNAL_HEAPS_MAX; ++i) {
-        if(_libc_internal_heaps[i].id == _LIBC_INTERNAL_INVALID_HEAPID) continue;
+        if(!_libc_internal_heaps[i].addr) continue;
         _LibcInternalHeap* heap = &_libc_internal_heaps[i];
-        if(heap->heap.address <= addr && addr < heap->heap.address+heap->heap.size) {
+        if(heap->addr <= addr && (char*)addr < (char*)heap->addr + heap->size) {
             return libc_heap_reallocate(heap, addr, newsize);
         }
     }
@@ -193,9 +195,9 @@ void* realloc(void* addr, size_t newsize) {
 void free(void* addr) {
     if(!addr) return;
     for(size_t i = 0; i < _LIBC_INTERNAL_HEAPS_MAX; ++i) {
-        if(_libc_internal_heaps[i].id == _LIBC_INTERNAL_INVALID_HEAPID) continue;
+        if(!_libc_internal_heaps[i].addr) continue;
         _LibcInternalHeap* heap = &_libc_internal_heaps[i];
-        if(heap->heap.address <= addr && addr < heap->heap.address+heap->heap.size) {
+        if(heap->addr <= addr && (char*)addr < (char*)heap->addr+heap->size) {
             libc_heap_deallocate(heap, addr);
             return;
         }
@@ -203,12 +205,6 @@ void free(void* addr) {
     // Reached limit
     assert(false && "Invalid address to free");
 }
-void _libc_internal_init_heap() {
-    for(size_t i = 0; i < _LIBC_INTERNAL_HEAPS_MAX; ++i) {
-        _libc_internal_heaps[i].id = _LIBC_INTERNAL_INVALID_HEAPID;
-    }
-}
-
 #include <string.h>
 int atoi(const char *str) {
     char* end;

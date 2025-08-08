@@ -5,6 +5,7 @@
 #include <minos/fsdefs.h>
 #include <minos/sysstd.h>
 #include <minos/status.h>
+#include <minos2errno.h>
 #include <errno.h>
 
 FILE* stdout = NULL; 
@@ -38,43 +39,6 @@ typedef struct {
     char* end;
 } SWriter;
 #define ARRAY_LEN(a) (sizeof((a))/sizeof((a)[0]))
-static ssize_t status_map[] = {
-    [NOT_ENOUGH_MEM]     = ENOMEM,
-    [BAD_INODE]          = EINVAL,
-    [INVALID_PARAM]      = EINVAL, 
-    [FILE_CORRUPTION]    = EIO,
-    [LIMITS]             = E2BIG,
-    [NOT_FOUND]          = ENOENT,
-    [UNSUPPORTED]        = ENOSYS,
-    [ALREADY_EXISTS]     = EEXIST,
-    [INODE_IS_DIRECTORY] = EISDIR,
-    [INVALID_OFFSET]     = EINVAL,
-    [BAD_DEVICE]         = EIO,
-    [PERMISION_DENIED]   = EPERM,
-    [PREMATURE_EOF]      = EIO,
-    [INVALID_MAGIC]      = ENOEXEC,
-    [NO_ENTRYPOINT]      = EINVAL,
-    [INVALID_TYPE]       = EINVAL,
-    [INVALID_HANDLE]     = EINVAL,
-    [SIZE_MISMATCH]      = EMSGSIZE,
-    [WOULD_SEGFAULT]     = EFAULT,
-    [RESOURCE_BUSY]      = EBUSY,
-    [YOU_ARE_CHILD]      = ECHILD,
-    [INVALID_PATH]       = EINVAL,
-    [IS_NOT_DIRECTORY]   = ENOTDIR,
-    [BUFFER_TOO_SMALL]   = ENOBUFS,
-    [TIMEOUT_REACHED]    = ETIME,
-    [ADDR_SOCKET_FAMILY_MISMATCH] = EINVAL,
-    [UNSUPPORTED_DOMAIN] = EDOM,
-    [UNSUPPORTED_SOCKET_TYPE] = EINVAL,
-    [WOULD_BLOCK]        = EWOULDBLOCK,
-};
-ssize_t _status_to_errno(intptr_t status) {
-    if(status >= 0) return 0;
-    status = -status;
-    if(status >= ARRAY_LEN(status_map)) return EUNKNOWN;
-    return status_map[status];
-}
 FILE* stddbg = NULL;
 static ssize_t _fwrite_base_func(void* user, const char* data, size_t len);
 
@@ -161,7 +125,7 @@ static ssize_t print_base(void* user, PrintWriteFunc func, const char* fmt, va_l
     do {\
         size_t __len = len;\
         ssize_t _res = func(user, data, __len);\
-        if(_res < 0) return -_status_to_errno(_res);\
+        if(_res < 0) return -_minos2errno(_res);\
         n += _res;\
         if(_res != __len) {\
             return n;\
@@ -407,7 +371,7 @@ FILE* fopen(const char* path, const char* mode_str) {
     }
     intptr_t e = open(path, oflags);
     if(e < 0) {
-        errno = _status_to_errno(e);
+        errno = _minos2errno(e);
         return NULL;
     }
     FILE* f = filefd_new(oflags, e);
@@ -463,12 +427,12 @@ int fseek(FILE* f, long offset, int origin) {
         }
         return 0;
     }
-    return _status_to_errno(seek(f->as.fd, offset, origin));
+    return _minos2errno(seek(f->as.fd, offset, origin));
 }
 ssize_t ftell(FILE* f) {
     if(f->tmp) return f->as.tmp.cursor;
     intptr_t e = tell(f->as.fd);
-    if(e < 0) return -(errno=_status_to_errno(e));
+    if(e < 0) return -(errno=_minos2errno(e));
     return e;
 }
 int rename(const char* old_filename, const char* new_filename) {
@@ -495,7 +459,7 @@ static ssize_t fread_uncached(FILE* f, void* buf, size_t len) {
     }
     ssize_t res = read(f->as.fd, buf, len);
     if(res < 0) {
-        f->error = errno = _status_to_errno(res);
+        f->error = errno = _minos2errno(res);
         return -errno;
     } 
     if(res == 0) {
@@ -574,7 +538,7 @@ static ssize_t fwrite_uncached(FILE* f, const void* buf, size_t len) {
     }
     ssize_t res = write(f->as.fd, buf, len);
     if(res < 0) {
-        f->error = errno = _status_to_errno(res);
+        f->error = errno = _minos2errno(res);
         return -errno;
     } 
     return res;
