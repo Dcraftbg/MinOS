@@ -614,6 +614,7 @@ void client_thread(void* client_void) {
             // window->clear_color = 0xFF00FF00;
             Rectangle content = window_get_content_rect(window);
             window->content = realloc(window->content, (content.r-content.l) * (content.b-content.t) * sizeof(uint32_t));
+            assert(window->content && "Ran out of memory");
             memset(window->content, 0, (content.r-content.l) * (content.b-content.t) * sizeof(uint32_t));
             size_t width = (content.r-content.l);
             size_t height = (content.b-content.t);
