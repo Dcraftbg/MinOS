@@ -111,8 +111,8 @@ int main(int argc, char** argv) {
 
     for(size_t i = 0; i < nasm_sources.count; ++i) {
         const char* src = nasm_sources.items[i];
-        const char* out = nob_temp_sprintf("%s/kernel/%.*s.o", bindir, cstr_rem_suffix(src + src_dir, ".nasm"));
-        const char* md = nob_temp_sprintf("%s/kernel/%.*s.d", bindir, cstr_rem_suffix(src + src_dir, ".nasm"));
+        const char* out = nob_temp_sprintf("%s/kernel/%s.o", bindir, src + src_dir);
+        const char* md = nob_temp_sprintf("%s/kernel/%s.d", bindir, src + src_dir);
         da_append(&objs, out);
         if(nob_c_needs_rebuild1(&stb, &pathb, out, src) == 0) continue;
         const char* include = nob_temp_sprintf("%.*s", (int)(nob_path_name(src)-src), src);
@@ -126,7 +126,7 @@ int main(int argc, char** argv) {
     }
     for(size_t i = 0; i < c_sources.count; ++i) {
         const char* src = c_sources.items[i];
-        const char* out = nob_temp_sprintf("%s/kernel/%.*s.o", bindir, cstr_rem_suffix(src + src_dir, ".c"));
+        const char* out = nob_temp_sprintf("%s/kernel/%s.o", bindir, src + src_dir);
         da_append(&objs, out);
         if(!nob_c_needs_rebuild1(&stb, &pathb, out, src)) continue;
         cmd_append(&cmd, cc);
