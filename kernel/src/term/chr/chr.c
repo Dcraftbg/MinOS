@@ -32,8 +32,8 @@ static intptr_t chrtty_deinit(Tty* device) {
     return 0;
 }
 static intptr_t chrtty_getsize(Tty*, TtySize* size) {
-    size->width = 80;
-    size->height = 24;
+    size->width = 200; // 80;
+    size->height = 44; // 24;
     return 0;
 }
 static InodeOps inodeOps = {
