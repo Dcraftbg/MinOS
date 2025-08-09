@@ -95,7 +95,7 @@ int print_base(void* user, PrintWriteFunc func, const char* fmt, va_list list) {
         case 'p': {
             fmt++;
             bytes = ibuf;
-            count = uptrtoha_full(ibuf, sizeof(ibuf), (uintptr_t)va_arg(list, void*), hex_upper_digits);
+            count = uptrtoha_full(ibuf, sizeof(ibuf), (uintptr_t)va_arg(list, void*), hex_lower_digits);
         } break;
         case 's': {
             fmt++;
