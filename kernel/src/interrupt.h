@@ -14,10 +14,13 @@ typedef int irq_flags_t;
 enum {
     IRQ_FLAG_FAST = 0b1
 };
+typedef struct TaskRegs TaskRegs;
+typedef void (*IrqHandler)(TaskRegs*);
 // Return value:
 //   < 0 Error
 //  >= 0 Interrupt Vector
-intptr_t irq_register(size_t irq, void (*handler)(void), irq_flags_t flags);
+// NOTE: Implemented in arch/* for every architecture
+intptr_t irq_register(size_t irq, IrqHandler handler, irq_flags_t flags);
 // Wrappers around interrupt_controller functions
 intptr_t irq_reserve(size_t irq);
 void     irq_clear(size_t irq);

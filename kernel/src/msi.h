@@ -18,5 +18,3 @@ typedef struct {
 intptr_t msi_register(MSIManager* m, PciDevice* dev);
 // TODO: Consider moving into Kernel
 extern MSIManager msi_manager;
-typedef void (*msi_handler_t)(void);
-extern msi_handler_t msi_handlers[];

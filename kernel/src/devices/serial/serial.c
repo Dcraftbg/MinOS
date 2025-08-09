@@ -4,7 +4,6 @@
 #include <kernel.h>
 #include <log.h>
 static Inode* serial0_inode=NULL;
-extern void idt_serial_handler();
 #define COM_PORT   0x3f8
 #define COM_5      (COM_PORT+5)
 #define COM_STATUS COM_5
@@ -27,7 +26,8 @@ static uint8_t charmap[256] = {
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 
     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00
 };
-void serial_handler() {
+void serial_handler(TaskRegs* regs) {
+    (void)regs;
     if(!serial0_inode) return;
     size_t retries = 10;
     while(retries && ((inb(COM_STATUS) & 0x01) == 0)) retries--;
@@ -70,7 +70,7 @@ static InodeOps inodeOps = {
     .is_readable = serial_dev_is_readable
 };
 static void serial_init_irqs(void) {
-    irq_register(4, idt_serial_handler, 0);
+    irq_register(4, serial_handler, 0);
     outb(COM_INT_ENABLE_PORT, 0x01); // Enable received data available interrupt
     irq_clear(4);
 }

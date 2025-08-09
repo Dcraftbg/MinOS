@@ -5,6 +5,8 @@
 #include <interrupt.h>
 #include <port.h>
 #include <log.h>
+#include "framebuffer.h"
+#include "bootutils.h"
 #define EVENT_QUEUE_CAP 128 
 static MouseEvent event_queue_buf[EVENT_QUEUE_CAP] = { 0 };
 static MouseEventQueue event_queue = { 0 };
@@ -18,9 +20,8 @@ static enum {
 } state = PS2_MOUSE_STATE_WAIT_FLAGS;
 static uint8_t packet_flags, packet_x, packet_y;
 static uint8_t button_flags;
-#include "framebuffer.h"
-#include "bootutils.h"
-void ps2_mouse_handler() {
+void ps2_mouse_handler(TaskRegs* regs) {
+    (void)regs;
     size_t i = 0;
     for(;i<PS2_MAX_RETRIES; ++i) {
        uint8_t stat = inb(PS2_STAT_PORT);
@@ -127,7 +128,7 @@ intptr_t init_ps2_mouse(void) {
         config = e;
         kinfo("Config %02X", config);
     #endif
-        assert(irq_register(12, idt_ps2_mouse_handler, 0) >= 0);
+        assert(irq_register(12, ps2_mouse_handler, 0) >= 0);
         irq_clear(12);
         if((e=ps2_cmd_controller(PS2_CMD_ENABLE_PORT2)) < 0) return e;
         ps2_cmd_queue_issue(&ps2_cmd_queue, (PS2Cmd){PS2_CMD_FLAG_MOUSE, 0, PS2_MOUSE_ENABLE_PACKET_STREAM, 0});

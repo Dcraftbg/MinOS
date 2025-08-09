@@ -15,7 +15,7 @@
 #include "page.h"
 #include "arch/x86_64/gdt.h"
 #include "arch/x86_64/enable_arch_extra.h"
-#include "exception.h"
+#include "arch/x86_64/exception.h"
 #include "vfs.h"
 #include "rootfs.h"
 #include "mem/slab.h"

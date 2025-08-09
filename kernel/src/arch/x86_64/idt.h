@@ -3,6 +3,7 @@
 #include "gdt.h"
 #include "memory.h"
 #include "utils.h"
+#include "interrupt.h"
 #include <stdint.h>
 typedef struct {
     uint16_t base_low;
@@ -28,6 +29,7 @@ typedef void (*IDTHandler_t);
 void idt_pack_entry(IDTEntry* entry, IDTHandler_t handler, uint8_t typ);
 void reload_idt(void);
 void init_idt();
+void irq_set_handler(size_t id, IrqHandler handler);
 
 #ifdef GLOBAL_STORAGE_GDT_IDT
 #define idt_register(what, handler, typ) idt_pack_entry(&kernel.idt.inner[what], handler, typ);

@@ -7,6 +7,8 @@
 #include "exec.h"
 #include "log.h"
 #include "interrupt.h"
+#include "apic.h"
+#include "arch/x86_64/idt.h"
 
 void task_switch_handler();
 void init_tasks() {
@@ -24,9 +26,8 @@ void init_kernel_task() {
     kt->ts_rsp = 0;
     kt->rip = 0;
 }
-#include "apic.h"
 void init_task_switch() {
-    irq_register(kernel.task_switch_irq, task_switch_handler, IRQ_FLAG_FAST);
+    idt_register(kernel.task_switch_irq, task_switch_handler, IDT_INTERRUPT_TYPE);
 }
 Task* kernel_task_add() {
     mutex_lock(&kernel.tasks_mutex);

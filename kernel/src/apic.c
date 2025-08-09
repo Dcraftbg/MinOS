@@ -128,8 +128,8 @@ static void vec_reserve(size_t vec) {
 #define LVT_MASK           (1 << LVT_MASK_SHIFT) 
 #define LVT_TIMER_PERIODIC (0x20000)
 static size_t tmp_pit_ticks = 0;
-__attribute__((interrupt)) 
-void _tmp_pit_handler(void *) {
+void _tmp_pit_handler(TaskRegs* regs) {
+    (void)regs;
     tmp_pit_ticks++;
     irq_eoi(0);
 }
@@ -195,7 +195,7 @@ void init_apic() {
         kinfo(" - length: %zu", entry->length);
     }
     pit_set_hz(1000);
-    irq_register(0, (void (*)(void)) _tmp_pit_handler, IRQ_FLAG_FAST);
+    irq_register(0, _tmp_pit_handler, IRQ_FLAG_FAST);
     // APIC divider of 16
     lapic_write(lapic_addr, LAPIC_DIV_OFFSET    , 3);
     lapic_write(lapic_addr, LAPIC_INITCNT_OFFSET, 0xFFFFFFFF);

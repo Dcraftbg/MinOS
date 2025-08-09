@@ -1,6 +1,10 @@
 #include "idt.h"
 #include "string.h"
 #include "kernel.h"
+#include "log.h"
+#include "task_regs.h"
+#include "interrupt.h"
+
 void reload_idt() {
 #ifdef GLOBAL_STORAGE_GDT_IDT
     IDT* idt = &kernel.idt;
@@ -16,6 +20,25 @@ void reload_idt() {
         : "r" (&idt_descriptor)
     );
 }
+// NOTE: generated Automatically in assembly (vectors.nasm)
+extern IDTHandler_t _irq_vectors[];
+static IrqHandler irq_handlers[256];
+void irq_handle(TaskRegs* regs) {
+    kinfo("Hello %p from irq_handle %zu. rax = %zu. rip = %p", regs, regs->irq, regs->rax, regs->rip);
+    irq_handlers[regs->irq](regs);
+    // for(;;) asm volatile ("hlt");
+}
+void irq_set_handler(size_t id, IrqHandler handler) {
+    irq_handlers[id] = handler;
+}
+intptr_t irq_register(size_t irq, IrqHandler handler, irq_flags_t flags) {
+    intptr_t e;
+    if((e=irq_reserve(irq)) < 0)
+        return e;
+    irq_set_handler(e, handler);
+    idt_register(e, _irq_vectors[e], flags & IRQ_FLAG_FAST ? IDT_INTERRUPT_TYPE : IDT_TRAP_TYPE);
+    return e;
+}
 void init_idt() {
 #ifdef GLOBAL_STORAGE_GDT_IDT
     IDT* idt = &kernel.idt;
@@ -27,8 +50,11 @@ void init_idt() {
         kabort();
     } 
 #endif
-    memset(idt, 0, PAGE_SIZE);
+    memset(idt, 0, 4096);
     reload_idt();
+    for(size_t i = 0; i < 256; ++i) {
+        idt_register(i, _irq_vectors[i], i == 0x80 ? IDT_SOFTWARE_TYPE : IDT_INTERRUPT_TYPE);
+    }
 }
 void idt_pack_entry(IDTEntry* result, IDTHandler_t handler, uint8_t typ) {
     uint64_t offset = (uint64_t)handler;

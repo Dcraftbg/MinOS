@@ -129,7 +129,8 @@ static const char* keycode_display(uint16_t key, char* buf, size_t size) {
 
 static bool extended;
 static KeyQueue keyqueue;
-void ps2_keyboard_handler() {
+void ps2_keyboard_handler(TaskRegs* regs) {
+    (void)regs;
     size_t i = 0;
     for(;i<PS2_MAX_RETRIES; ++i) {
        uint8_t stat = inb(0x64);
@@ -197,6 +198,6 @@ void init_ps2_keyboard() {
         ps2_keyboard_device->ops = &inodeOps;
         ps2_keyboard_device->priv = &keyqueue;
     }
-    assert(irq_register(1, idt_ps2_keyboard_handler, 0) >= 0);
+    assert(irq_register(1, ps2_keyboard_handler, 0) >= 0);
     irq_clear(1);
 }
