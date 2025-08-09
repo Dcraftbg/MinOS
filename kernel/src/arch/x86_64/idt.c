@@ -24,9 +24,7 @@ void reload_idt() {
 extern IDTHandler_t _irq_vectors[];
 static IrqHandler irq_handlers[256];
 void irq_handle(TaskRegs* regs) {
-    kinfo("Hello %p from irq_handle %zu. rax = %zu. rip = %p", regs, regs->irq, regs->rax, regs->rip);
     irq_handlers[regs->irq](regs);
-    // for(;;) asm volatile ("hlt");
 }
 void irq_set_handler(size_t id, IrqHandler handler) {
     irq_handlers[id] = handler;
