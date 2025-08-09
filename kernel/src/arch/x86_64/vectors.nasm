@@ -609,10 +609,7 @@ global _irq_127
 _irq_127:
     push 127
     jmp irq_base
-global _irq_128
-_irq_128:
-    push 128
-    jmp irq_base
+extern _irq_128
 global _irq_129
 _irq_129:
     push 129

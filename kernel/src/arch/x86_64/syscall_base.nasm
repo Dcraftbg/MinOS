@@ -72,7 +72,8 @@ syscall_table:
    dq sys_shmrem
 syscall_table_end:
 section .text
-syscall_base:
+global _irq_128
+_irq_128:
    cmp rax, (syscall_table_end-syscall_table)/PTR_SIZE
    jge .unsupported
    push rbx

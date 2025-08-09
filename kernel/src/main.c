@@ -24,7 +24,6 @@
 #include "task.h"
 #include "exec.h" 
 #include "pic.h"
-#include "syscall.h"
 #include "devices.h"
 #include "./devices/tty/tty.h"
 #include <minos/keycodes.h>
@@ -110,7 +109,6 @@ void _start() {
     init_kernel_task();
     init_schedulers();
     init_task_switch();
-    init_syscalls();
     init_resources();
     init_shm_cache();
     // VFS

@@ -109,11 +109,15 @@ int main(void) {
     }
     printf("; General purpose irq %zu -> %zu\n", start_irq, end_irq - 1);
     for(size_t i = start_irq; i < end_irq; ++i) {
-        printf("global _irq_%zu\n", i);
-        printf("_irq_%zu:\n"
-               "    push %zu\n"
-               "    jmp irq_base\n"
-            , i, i);
+        if(i == 0x80) {
+            printf("extern _irq_%zu\n", i);
+        } else {
+            printf("global _irq_%zu\n", i);
+            printf("_irq_%zu:\n"
+                   "    push %zu\n"
+                   "    jmp irq_base\n"
+                , i, i);
+        }
     }
     // Spurious is completely ignored
     printf("; Spurious interrupt irq %zu\n"

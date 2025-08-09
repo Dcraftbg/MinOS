@@ -7,15 +7,13 @@
 #include "log.h"
 #include "benchmark.h"
 #include "kernel.h"
-#include "arch/x86_64/idt.h"
+#include "idt.h"
 #include <minos/heap.h>
 #include <minos/time.h>
 #include <minos/mmap.h>
 #include "mem/shared_mem.h"
+#include "task_regs.h"
 
-void init_syscalls() {
-    idt_register(0x80, syscall_base, IDT_SOFTWARE_TYPE);
-}
 static intptr_t parse_path(Process* process, Path* res, const char* path) {
     switch(path[0]) {
     case '/':
@@ -754,3 +752,4 @@ intptr_t sys_shmrem(size_t key) {
     mutex_unlock(&kernel.shared_memory_mutex);
     return 0;
 }
+
