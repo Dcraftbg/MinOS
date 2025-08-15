@@ -88,13 +88,15 @@ int main(int argc, char** argv) {
     for(size_t i = 0; i < gen_sources.count; ++i) {
         const char* src = gen_sources.items[i];
         const char* out = temp_sprintf("%s/kernel/%.*s", bindir, cstr_rem_suffix(src + src_dir, ".c"));
+        const char* gen_file = temp_sprintf("%.*s", cstr_rem_suffix(src, ".gen.c"));
+        bool needs_rebuild = nob_needs_rebuild1(gen_file, src);
         if(nob_c_needs_rebuild1(&stb, &pathb, out, src)) {
             cmd_append(&cmd, NOB_REBUILD_URSELF(out, src), "-O1", "-MMD");
             append_inc_dirs(&cmd);
             if(!cmd_run_sync_and_reset(&cmd)) return 1;
+            needs_rebuild = true;
         }
-        const char* gen_file = temp_sprintf("%.*s", cstr_rem_suffix(src, ".gen.c"));
-        if(!nob_needs_rebuild1(gen_file, src)) continue;
+        if(!needs_rebuild) continue;
         nob_log(NOB_INFO, "Regenerating %s", gen_file);
         Fd fd = fd_open_for_write(gen_file);
         if(fd == -NOB_INVALID_FD) {
