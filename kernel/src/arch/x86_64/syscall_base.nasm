@@ -1,5 +1,5 @@
 [BITS 64]
-%include "asmstd.inc"
+PTR_SIZE equ 8
 extern sys_open
 extern sys_write
 extern sys_read

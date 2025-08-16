@@ -1,4 +1,3 @@
-%include "asmstd.inc"
 section .text
 ; Accepts:
 ;   rdi = task
