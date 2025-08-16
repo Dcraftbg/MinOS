@@ -5,7 +5,6 @@
 #include "task.h"
 #include "exec.h"
 #include "log.h"
-#include "benchmark.h"
 #include "kernel.h"
 #include "idt.h"
 #include <minos/heap.h>
