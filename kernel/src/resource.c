@@ -1,6 +1,13 @@
 #include "resource.h"
 #include "mem/slab.h"
 #include "log.h"
+#include "vfs.h"
+#include "kernel.h"
+#include "assert.h"
+#include "string.h"
+#include "mem/slab.h"
+#include "epoll.h"
+#include "socket.h"
 
 static Resource* new_resource() {
     Resource* res = (Resource*)cache_alloc(kernel.resource_cache);
@@ -102,4 +109,12 @@ ResourceBlock* resourceblock_clone(ResourceBlock* block) {
         nblock = nblock->next;
     }
     return first;
+}
+ResourceBlock* new_resource_block(void) {
+    ResourceBlock* block = (ResourceBlock*)kernel_malloc(sizeof(*block));
+    if(block) memset(block, 0, sizeof(*block));
+    return block;
+}
+void init_resources(void) {
+    assert(kernel.resource_cache = create_new_cache(sizeof(Resource), "Resources"));
 }

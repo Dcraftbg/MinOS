@@ -1,14 +1,8 @@
 #pragma once
-#include "vfs.h"
-#include "kernel.h"
 #include <stdint.h>
-#include "assert.h"
-#include "string.h"
-#include "mem/slab.h"
-#include <stdatomic.h>
-#include "epoll.h"
-#include "socket.h"
+#include <stddef.h>
 #include <minos/fsdefs.h>
+typedef struct Inode Inode;
 typedef struct {
     oflags_t flags;
     off_t offset;
@@ -20,16 +14,10 @@ typedef struct ResourceBlock {
     size_t occupied;
     Resource* data[RESOURCES_PER_BLOCK];
 } ResourceBlock;
-static ResourceBlock* new_resource_block() {
-    ResourceBlock* block = (ResourceBlock*)kernel_malloc(sizeof(*block));
-    if(block) memset(block, 0, sizeof(*block));
-    return block;
-}
+ResourceBlock* new_resource_block(void);
 void resourceblock_dealloc(ResourceBlock* block);
 Resource* resource_add(ResourceBlock* block, size_t* id);
 Resource* resource_find_by_id(ResourceBlock* first, size_t id);
 void resource_remove(ResourceBlock* first, size_t id);
 ResourceBlock* resourceblock_clone(ResourceBlock* block);
-static void init_resources() {
-    assert(kernel.resource_cache = create_new_cache(sizeof(Resource), "Resources"));
-}
+void init_resources(void);

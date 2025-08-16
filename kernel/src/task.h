@@ -9,9 +9,8 @@
 #define INVALID_TASK_ID -1
 #include "thread_blocker.h"
 
-typedef struct Task Task;
-
-struct Task {
+typedef struct Process Process;
+typedef struct Task {
     struct list list;
     size_t id;
     Process* process;
@@ -26,7 +25,7 @@ struct Task {
     void* rsp;
     ThreadBlocker blocker;
     char name[4096];
-};
+} Task;
 void init_tasks();
 void init_kernel_task();
 Task* kernel_task_add();

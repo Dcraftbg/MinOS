@@ -1,8 +1,7 @@
 #pragma once
-#include "process.h"
-#include "task.h"
-#include "page.h"
-#include "string.h"
+#include <stdint.h>
+#include <stddef.h>
+typedef struct Task Task;
 // TODO: Return error if page type does not equal user
 // TODO: Make this more general and accept page_t pml4, and make this just a wrapper macro that calls it with task->cr3
 // @return:

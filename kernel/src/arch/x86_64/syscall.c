@@ -12,6 +12,8 @@
 #include <minos/mmap.h>
 #include "mem/shared_mem.h"
 #include "task_regs.h"
+#include "epoll.h"
+#include "socket.h"
 
 static intptr_t parse_path(Process* process, Path* res, const char* path) {
     switch(path[0]) {

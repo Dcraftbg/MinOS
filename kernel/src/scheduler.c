@@ -1,5 +1,6 @@
 #include "scheduler.h"
 #include "task.h"
+#include "kernel.h"
 
 static void scheduler_init(Scheduler* scheduler) {
     list_init(&scheduler->queue);

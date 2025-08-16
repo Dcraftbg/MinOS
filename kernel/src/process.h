@@ -3,6 +3,8 @@
 #include "task.h"
 #include "page.h"
 #include "resource.h"
+#include "ptr_darray.h"
+#include <sync/mutex.h>
 #include <stddef.h>
 
 typedef struct {
@@ -10,14 +12,7 @@ typedef struct {
     size_t argc;
     const char** argv;
 } Args;
-static Args create_args(size_t argc, const char** argv) {
-    size_t sum = 0;
-    for(size_t i = 0; i < argc; ++i) {
-        sum += strlen(argv[i])+1;
-    }
-    return (Args) { sum, argc, argv };
-}
-
+Args create_args(size_t argc, const char** argv);
 #define PROC_FLAG_DYING 0b1
 #define INVALID_PROCESS_ID -1
 #define MAX_CHILD_PROCESSES 16

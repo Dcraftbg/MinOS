@@ -1,4 +1,9 @@
 #include "user.h"
+#include "process.h"
+#include "task.h"
+#include "page.h"
+#include "string.h"
+#include <minos/status.h>
 
 intptr_t user_memcpy(Task* task, void* dst, const void* buf, size_t size) {
     page_t pml4 = task->cr3;
