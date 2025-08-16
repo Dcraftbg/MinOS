@@ -23,7 +23,7 @@ struct Task {
     // Task switch rsp
     // The rsp of the task switch at which the swap initialially happened
     // By default it starts 0xFFFFFFFFFFFFF000 as defined in the TSS
-    void* ts_rsp;
+    void* rsp;
     ThreadBlocker blocker;
     char name[4096];
 };
