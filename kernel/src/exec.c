@@ -201,10 +201,6 @@ static intptr_t load_elf(Task* task, Inode* file, uintptr_t offset, Elf64Header*
     task->eoe = eoe + offset;
     for(size_t i = 0; i < header->phnum; ++i) {
         Elf64ProgHeader* pheader = &pheaders[i];
-#if 0
-        printf("Elf64ProgHeader { p_type: 0x%08X, flags: 0x%08X, offset: %12zu, virt_addr: %p, phys_addr: %p, filesize: %6zu, memsize: %4zu, align: %4zu }\n",
-                             pheader->p_type, pheader->flags,pheader->offset, (void*)pheader->virt_addr, (void*)pheader->phys_addr, pheader->filesize, pheader->memsize, pheader->align);
-#endif        
         if (pheader->p_type != ELF_PHEADER_LOAD || pheader->memsize == 0) continue;
         pageflags_t flags = KERNEL_PFLAG_PRESENT | KERNEL_PFLAG_USER | KERNEL_PTYPE_USER;
         if (!(pheader->flags & ELF_PROG_EXEC)) {

@@ -5,5 +5,3 @@
 
 #define STB_SPRINTF_NOFLOAT 
 #include <stb_sprintf.h>
-
-int printf(const char* fmt, ...) PRINTFLIKE(1, 2);

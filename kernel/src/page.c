@@ -60,7 +60,6 @@ uintptr_t page_find_available(page_t pml4_addr, uintptr_t from, size_t pages, si
 }
 // TODO: Fix XD. XD may not be supported always so checks to remove it are necessary
 bool page_mmap(page_t pml4_addr, uintptr_t phys, uintptr_t virt, size_t pages_count, pageflags_t flags) {
-    // printf("Called page_mmap(/*pml4*/ 0x%p, /*phys*/ 0x%p, /*virt*/ 0x%p, /*pages*/ %zu, /*flags*/, %02X)\n",pml4_addr, phys,virt,pages_count,flags);
     virt &= ~PAGE_MASK;          // Clean up the top bits (reasons I won't get into)
     phys &= ~KERNEL_MEMORY_MASK; // Bring to a physical address just in case
     uint16_t pml1 = (virt >> (12   )) & 0x1ff;
@@ -104,10 +103,6 @@ bool page_mmap(page_t pml4_addr, uintptr_t phys, uintptr_t virt, size_t pages_co
                 }
 
                 for(; pml1 < KERNEL_PAGE_ENTRIES; pml1++) {
-                    // if(pml1_addr[pml1] != 0) {
-                    //     // printf("Memory already mapped!");
-                    //     return false; // Memory already allocated 
-                    // }
                     pml1_addr[pml1] = phys | flags;
                     pages_count--;
                     phys += PAGE_SIZE;
@@ -166,12 +161,6 @@ bool page_alloc(page_t pml4_addr, uintptr_t virt, size_t pages_count, pageflags_
                 }
 
                 for(; pml1 < KERNEL_PAGE_ENTRIES; pml1++) {
-#if 0
-                    if(pml1_addr[pml1] != 0) {
-                        printf("Memory already allocated!\n");
-                        return false; // Memory already allocated 
-                    }
-#endif
                     if(pml1_addr[pml1] == 0) {
                         pml1_addr[pml1] = (uintptr_t)kernel_page_alloc();
                         if(pml1_addr[pml1] == 0) return false;

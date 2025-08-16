@@ -43,10 +43,7 @@ void init_idt() {
 #else
     IDT* idt = (IDT*)kernel_malloc(PAGE_SIZE);
     kernel.idt = idt;
-    if(!kernel.idt) {
-        printf("ERROR: Ran out of memory for IDT");
-        kabort();
-    } 
+    if(!kernel.idt) kpanic("Ran out of memory for IDT");
 #endif
     memset(idt, 0, 4096);
     reload_idt();

@@ -1,6 +1,8 @@
 #include "gdt.h"
 #include "string.h"
 #include "kernel.h"
+#include "kpanic.h"
+
 void reload_gdt(void) {
 #ifdef GLOBAL_STORAGE_GDT_IDT
     GDT* gdt = &kernel.gdt;
@@ -23,8 +25,7 @@ void init_gdt() {
     GDT* gdt = (GDT*)kernel_malloc(PAGE_SIZE);
     kernel.gdt = gdt;
     if(!kernel.gdt) {
-        printf("ERROR: Ran out of memory for GDT");
-        kabort();
+        kpanic("ERROR: Ran out of memory for GDT");
     }
 #endif
     memset(gdt, 0, PAGE_SIZE);

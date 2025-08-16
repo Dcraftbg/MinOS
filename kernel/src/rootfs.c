@@ -11,10 +11,8 @@ void init_rootfs(void) {
     const char* path = NULL;
     path = "/devices";
     Inode* devices;
-    if((e = vfs_creat_abs(path, O_DIRECTORY, &devices)) < 0) {
-        printf("ERROR: init_rootfs: Could not create %s : %s\n", path, status_str(e));
-        kabort();
-    }
+    if((e = vfs_creat_abs(path, O_DIRECTORY, &devices)) < 0) 
+        kpanic("init_rootfs: Could not create %s : %s", path, status_str(e));
     idrop(devices);
 
     const char* initrd = "/initrd";
@@ -28,8 +26,7 @@ void init_rootfs(void) {
 #ifdef ENABLE_WELCOME
     path = "/Welcome.txt";
     if((e = vfs_creat_abs(path, 0)) < 0) {
-        printf("ERROR: init_rootfs: Could not create %s : %s\n", path, status_str(e));
-        kabort();
+        kpanic("init_rootfs: Could not create %s : %s", path, status_str(e));
     }
     {
         const char* msg = "Hello and welcome to MinOS!\nThis is a mini operating system made in C.\nDate of compilation " __DATE__ ".";

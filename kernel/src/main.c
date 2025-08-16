@@ -56,10 +56,7 @@ void spawn_init(void) {
     args = create_args(ARRAY_LEN(argv), argv);
     const char* envv[] = {"FOO=BAR", "BAZ=A"};
     env  = create_args(ARRAY_LEN(envv), envv);
-    if((e = exec_new(epath, &args, &env)) < 0) {
-        printf("Failed to exec %s : %s\n",epath,status_str(e));
-        kabort();
-    }
+    if((e = exec_new(epath, &args, &env)) < 0) kpanic("Failed to exec %s : %s\n",epath,status_str(e));
     kinfo("Spawning `%s` id=%zu tid=%zu", epath, (size_t)e, ((Process*)(kernel.processes.items[(size_t)e]))->main_thread->id);
 }
 void _start() {

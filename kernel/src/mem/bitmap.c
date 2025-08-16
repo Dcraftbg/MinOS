@@ -55,18 +55,6 @@ void* bitmap_alloc(Bitmap* map, size_t pages_count) {
 void bitmap_dealloc(Bitmap* map, void* at, size_t pages_count) {
     bitmap_free_range(map,at,pages_count);
 }
-#ifndef KERNEL_NO_MMAP_PRINT
-static const char* limine_memmap_str[] = {
-    "Usable",
-    "Reserved",
-    "Acpi Reclaimable",
-    "Acpi NVS",
-    "Bad Memory",
-    "Bootloader Reclaimable",
-    "Kernel and Modules",
-    "Framebuffer"
-};
-#endif
 // TODO: Refactor this. Uses a lot of limine specific things
 void init_bitmap() {
     assert(limine_memmap_request.response && "No memmap response???");
@@ -77,15 +65,6 @@ void init_bitmap() {
     size_t biggest_avail= (size_t)-1;
     for(size_t i = 0; i < limine_memmap_request.response->entry_count; ++i) {
         struct limine_memmap_entry* entry = limine_memmap_request.response->entries[i];
-#ifndef KERNEL_NO_MMAP_PRINT
-        printf("%2zu> %p ",i,(void*)entry->base);
-        if(entry->type < ARRAY_LEN(limine_memmap_str)) {
-            printf("%-22s",limine_memmap_str[entry->type]);
-        } else {
-            printf("Unknown(%lu)",(uint64_t)entry->type);
-        }
-        printf(" %zu pages\n", (size_t)(entry->length / PAGE_SIZE));
-#endif
         if(entry->type == LIMINE_MEMMAP_USABLE && entry->base < PHYS_RAM_MIRROR_SIZE) {
              size_t pages = entry->length/PAGE_SIZE;
              if(entry->base+(pages*PAGE_SIZE) > PHYS_RAM_MIRROR_SIZE)  {
