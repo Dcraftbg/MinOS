@@ -17,5 +17,5 @@ void task_switch(TaskRegs* regs) {
     irq_eoi(kernel.task_switch_irq);
 }
 void init_task_switch(void) {
-    irq_register(kernel.task_switch_irq, task_switch, IRQ_FLAG_FAST);
+    irq_register(kernel.task_switch_irq, task_switch, 0);
 }

@@ -195,7 +195,7 @@ void init_apic() {
         kinfo(" - length: %zu", entry->length);
     }
     pit_set_hz(1000);
-    irq_register(0, _tmp_pit_handler, IRQ_FLAG_FAST);
+    irq_register(0, _tmp_pit_handler, 0);
     // APIC divider of 16
     lapic_write(lapic_addr, LAPIC_DIV_OFFSET    , 3);
     lapic_write(lapic_addr, LAPIC_INITCNT_OFFSET, 0xFFFFFFFF);

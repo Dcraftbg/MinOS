@@ -12,7 +12,7 @@ struct IntController {
 };
 typedef int irq_flags_t;
 enum {
-    IRQ_FLAG_FAST = 0b1
+    IRQ_FLAG_TRAP = 0b1
 };
 typedef struct TaskRegs TaskRegs;
 typedef void (*IrqHandler)(TaskRegs*);

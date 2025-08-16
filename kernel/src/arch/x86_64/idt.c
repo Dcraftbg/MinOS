@@ -33,14 +33,17 @@ intptr_t irq_register(size_t irq, IrqHandler handler, irq_flags_t flags) {
     if((e=irq_reserve(irq)) < 0)
         return e;
     irq_set_handler(e, handler);
-    idt_register(e, _irq_vectors[e], flags & IRQ_FLAG_FAST ? IDT_INTERRUPT_TYPE : IDT_TRAP_TYPE);
+    idt_register(e, _irq_vectors[e], flags & IRQ_FLAG_TRAP ? IDT_TRAP_TYPE : IDT_INTERRUPT_TYPE);
     return e;
 }
 void init_idt() {
     memset(&kernel.idt, 0, 4096);
     reload_idt();
     for(size_t i = 0; i < 256; ++i) {
-        idt_register(i, _irq_vectors[i], i == 0x80 ? IDT_SOFTWARE_TYPE : IDT_INTERRUPT_TYPE);
+        uint8_t type = IDT_INTERRUPT_TYPE;
+        if(i < 32) type = IDT_TRAP_TYPE;
+        else if(i == 0x80) type = IDT_SOFTWARE_TYPE;
+        idt_register(i, _irq_vectors[i], type);
     }
 }
 void idt_pack_entry(IDTEntry* result, IDTHandler_t handler, uint8_t typ) {
