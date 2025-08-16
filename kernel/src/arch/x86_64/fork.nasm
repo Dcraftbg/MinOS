@@ -29,4 +29,5 @@ fork_trampoline:
     pop r12
     pop rbx
     pop rbp
+    add rsp, 8
     ret
