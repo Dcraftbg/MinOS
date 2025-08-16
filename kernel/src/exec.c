@@ -47,10 +47,7 @@ intptr_t fork(Task* task, Task* result, void* frame) {
     }
     page_join(kernel.pml4, result->cr3);
     memcpy(result->name, task->name, strlen(task->name) + 1);
-    result->argc  = task->argc;
-    result->argv  = task->argv;
     result->ts_rsp = frame;
-    result->rip    = task->rip;
     result->flags  = task->flags & (~(TASK_FLAG_RUNNING));
     size_t processor_id = pick_processor_for_task();
     Processor* processor = &kernel.processors[processor_id];
@@ -283,7 +280,6 @@ intptr_t exec(Task* task, Path* path, Args* args, Args* envs) {
     memset(task->cr3, 0, PAGE_SIZE);
 
     task->ts_rsp = 0;
-    task->rip = 0;
     task->flags = TASK_FLAG_FIRST_RUN;
 
     if((e=vfs_find(path, &file)) < 0) return_defer_err(e);

@@ -24,17 +24,12 @@ struct Task {
     uint64_t flags;
     page_t cr3;
     paddr_t cr3_phys;
-    size_t argc;
-    const char** argv;
-    size_t envc;
-    const char** envv;
     uintptr_t eoe;
     struct list memlist;
     // Task switch rsp
     // The rsp of the task switch at which the swap initialially happened
     // By default it starts 0xFFFFFFFFFFFFF000 as defined in the TSS
     void* ts_rsp;
-    uintptr_t rip;
     ThreadBlocker blocker;
     char name[4096];
 };

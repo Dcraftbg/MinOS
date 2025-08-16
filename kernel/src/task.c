@@ -23,8 +23,6 @@ void init_kernel_task() {
     for(size_t i = 0; i <= kernel.max_processor_id; ++i) {
         kernel.processors[i].current_task = kt;
     }
-    kt->ts_rsp = 0;
-    kt->rip = 0;
 }
 Task* kernel_task_add() {
     mutex_lock(&kernel.tasks_mutex);
