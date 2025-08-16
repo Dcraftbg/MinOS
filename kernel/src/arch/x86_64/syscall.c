@@ -305,10 +305,7 @@ intptr_t sys_exec(const char* path, const char** argv, size_t argc, const char**
         drop_task(task);
         return e;
     }
-    cur_task->flags &= ~(TASK_FLAG_PRESENT);
-    cur_task->flags |= TASK_FLAG_DYING;
     cur_proc->main_thread = task;
-    task->flags |= TASK_FLAG_PRESENT;
     // TODO: thread yield
     for(;;) asm volatile("hlt");
     return 0;
@@ -361,9 +358,6 @@ end:
         }
         kernel_dealloc(cur_proc->shared_memory.items, cur_proc->shared_memory.cap * PAGE_SIZE);
     }
-    cur_task->flags &= ~(TASK_FLAG_PRESENT);
-    cur_task->flags |= TASK_FLAG_DYING;
-    cur_proc->flags |= PROC_FLAG_DYING;
     enable_interrupts();
     // TODO: thread yield
     for(;;) asm volatile("hlt");

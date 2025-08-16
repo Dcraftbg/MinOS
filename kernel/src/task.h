@@ -4,14 +4,8 @@
 #include "resource.h"
 #include <stddef.h>
 
-#define TASK_FLAG_PRESENT   0b1
-#define TASK_FLAG_RUNNING   0b10
-#define TASK_FLAG_FIRST_RUN 0b100
-#define TASK_FLAG_USER      0b1000
-// TODO: Remove this flag entirely.
-// Replace with "dead" list
-#define TASK_FLAG_DYING     0b10000
-#define TASK_FLAG_BLOCKING  0b100000
+#define TASK_FLAG_BLOCKING  0b1
+
 #define INVALID_TASK_ID -1
 #include "thread_blocker.h"
 

@@ -19,7 +19,6 @@
 
 
 intptr_t fork(Task* task, Task* result, void* frame) {
-    assert(task->flags & TASK_FLAG_PRESENT);
     intptr_t e=0;
     struct list* list = &task->memlist;
     struct list* first = list;
@@ -48,7 +47,7 @@ intptr_t fork(Task* task, Task* result, void* frame) {
     page_join(kernel.pml4, result->cr3);
     memcpy(result->name, task->name, strlen(task->name) + 1);
     result->ts_rsp = frame;
-    result->flags  = task->flags & (~(TASK_FLAG_RUNNING));
+    result->flags  = task->flags;
     size_t processor_id = pick_processor_for_task();
     Processor* processor = &kernel.processors[processor_id];
     if(processor_id == get_lapic_id()) {
@@ -91,7 +90,6 @@ intptr_t exec_new(const char* path, Args* args, Args* env) {
         return_defer_err(e);
     if((e=exec(task, &p, args, env)) < 0)
         return_defer_err(e);
-    task->flags |= TASK_FLAG_PRESENT;
     return process->id;
 DEFER_ERR:
     if(task) drop_task(task);
@@ -278,10 +276,6 @@ intptr_t exec(Task* task, Path* path, Args* args, Args* envs) {
     task->cr3_phys = cr3_phys;
     task->cr3 = (page_t)(cr3_phys | KERNEL_MEMORY_MASK);
     memset(task->cr3, 0, PAGE_SIZE);
-
-    task->ts_rsp = 0;
-    task->flags = TASK_FLAG_FIRST_RUN;
-
     if((e=vfs_find(path, &file)) < 0) return_defer_err(e);
     if((e=load_elf(task, file, 0, &header, &pheaders, false)) < 0) return_defer_err(e);
     

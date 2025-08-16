@@ -30,7 +30,7 @@ Task* task_select(Scheduler* scheduler) {
             }
             continue;
         }
-        if((task->flags & TASK_FLAG_PRESENT) && (task->flags & TASK_FLAG_RUNNING) == 0) break;
+        break;
     }
     mutex_unlock(&scheduler->queue_mutex);
     return task;
