@@ -7,6 +7,7 @@
 #include "fileutils.h"
 #include "kernel.h"
 #include "log.h"
+#include "first_exec.h"
 // Picking a processor to run on
 #include "load_balance.h"
 #include "apic.h"
@@ -26,6 +27,7 @@ intptr_t fork(Task* task, Task* result, void* frame) {
     paddr_t cr3_phys;
     if(!(cr3_phys = kernel_page_alloc()))
         return_defer_err(-NOT_ENOUGH_MEM);
+    result->cr3_phys = cr3_phys;
     result->cr3 = (page_t)(cr3_phys | KERNEL_MEMORY_MASK);
     memset(result->cr3, 0, PAGE_SIZE);
     result->flags = 0;
@@ -44,7 +46,7 @@ intptr_t fork(Task* task, Task* result, void* frame) {
         list = list->next;
     }
     page_join(kernel.pml4, result->cr3);
-
+    memcpy(result->name, task->name, strlen(task->name) + 1);
     result->argc  = task->argc;
     result->argv  = task->argv;
     result->ts_rsp = frame;
@@ -265,7 +267,10 @@ intptr_t exec(Task* task, Path* path, Args* args, Args* envs) {
     MemoryList* ustack_region = NULL;
 
     if(!path) return -INVALID_PARAM;
-
+    size_t path_len = strlen(path->path);
+    if(path_len >= sizeof(task->name)) return -LIMITS;
+    memcpy(task->name, path->path, path_len);
+    task->name[path_len] = '\0';
     // TODO: Maybe remove this?
     // I don't really see a purpose in calling page_destruct anymore now that we have the 
     // memory regions
@@ -273,6 +278,7 @@ intptr_t exec(Task* task, Path* path, Args* args, Args* envs) {
     if(!(cr3_phys = kernel_page_alloc())) {
         return_defer_err(-NOT_ENOUGH_MEM);
     }
+    task->cr3_phys = cr3_phys;
     task->cr3 = (page_t)(cr3_phys | KERNEL_MEMORY_MASK);
     memset(task->cr3, 0, PAGE_SIZE);
 
@@ -310,18 +316,9 @@ intptr_t exec(Task* task, Path* path, Args* args, Args* envs) {
     if((e=args_push(task, args, &stack_head, &argv)) < 0) 
         return_defer_err(e);
     stack_head = (char*)(((((uintptr_t)stack_head))/16)*16);
-    task->envc = envs->argc;
-    task->envv = (const char**)envp;
-    task->argc = args->argc;
-    task->argv = (const char**)argv;
-    IRQFrame* frame = (IRQFrame*)((virt_to_phys(task->cr3, KERNEL_STACK_PTR) | KERNEL_MEMORY_MASK) + sizeof(IRQFrame));
-    frame->rip    = header.entry;
-    frame->cs     = GDT_USERCODE | 0x3; 
-    frame->rflags = 0x202;
-    frame->ss     = GDT_USERDATA | 0x3;
-    frame->rsp    = (uint64_t)stack_head;
-    task->ts_rsp = (void*)(KERNEL_STACK_PTR+sizeof(IRQFrame));
-    task->rip    = header.entry;
+
+    void* frame = (void*)(virt_to_phys(task->cr3, KERNEL_STACK_PTR) | KERNEL_MEMORY_MASK);
+    task->ts_rsp = (void*)(KERNEL_STACK_PTR - (frame - setup_user_first_exec(frame, header.entry, (uintptr_t)stack_head, args->argc, (uintptr_t)argv, envs->argc, (uintptr_t)envp)));
     disable_interrupts();
     page_join(kernel.pml4, task->cr3);
     enable_interrupts();

@@ -22,6 +22,7 @@
 #include "string.h"
 #include "process.h"
 #include "task.h"
+#include "task_switch.h"
 #include "exec.h" 
 #include "pic.h"
 #include "devices.h"

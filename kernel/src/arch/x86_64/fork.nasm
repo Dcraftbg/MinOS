@@ -10,26 +10,23 @@ extern fork
 ;   rdi = task
 ;   rsi = task
 global fork_trampoline
+on_fork:
+    xor rax, rax
+    ret
 fork_trampoline:
-    mov rax, [rsp]
-    lea rdx, [rsp+8]
-    ; Push ss
-    mov rcx, KERNEL_SS ; ss
-    push rcx
-    ; Push rsp
-    push rdx
-    ; Push rflags
-    pushfq
-    ; Push cs
-    mov rcx, KERNEL_CS ; cs
-    push rcx
-    ; Push rip
-    push rax
-    xor rax, rax 
-    irq_push_regs
+    push on_fork
+    push rbp
+    push rbx
+    push r12
+    push r13
+    push r14
+    push r15
     mov rdx, rsp
     call fork
-    add rsp, 5*PTR_SIZE + IRQ_REGS_SIZE
+    pop r15
+    pop r14
+    pop r13
+    pop r12
+    pop rbx
+    pop rbp
     ret
-
-

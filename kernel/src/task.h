@@ -16,12 +16,14 @@
 #include "thread_blocker.h"
 
 typedef struct Task Task;
+
 struct Task {
     struct list list;
     size_t id;
     Process* process;
     uint64_t flags;
     page_t cr3;
+    paddr_t cr3_phys;
     size_t argc;
     const char** argv;
     size_t envc;
@@ -34,10 +36,10 @@ struct Task {
     void* ts_rsp;
     uintptr_t rip;
     ThreadBlocker blocker;
+    char name[4096];
 };
 void init_tasks();
 void init_kernel_task();
-void init_task_switch();
 Task* kernel_task_add();
 Task* current_task();
 void drop_task(Task* task);
