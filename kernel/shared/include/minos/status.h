@@ -1,6 +1,8 @@
 #pragma once
 #include <stdint.h>
 #include <stddef.h> // NULL
+
+#define YOU_ARE_CHILD 0
 enum {
    NOT_ENOUGH_MEM=1,
    BAD_INODE,
@@ -22,7 +24,6 @@ enum {
    SIZE_MISMATCH,
    WOULD_SEGFAULT,
    RESOURCE_BUSY,
-   YOU_ARE_CHILD,
    INVALID_PATH,
    IS_NOT_DIRECTORY,
    BUFFER_TOO_SMALL,

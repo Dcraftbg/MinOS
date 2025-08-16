@@ -63,7 +63,7 @@ intptr_t fork(Task* task, Task* result, void* frame) {
         list_insert(&result->list, &processor->scheduler.queue);
         mutex_unlock(&processor->scheduler.queue_mutex);
     }
-    return result->id;
+    return result->process->id;
 DEFER_ERR:
     // TODO: Remove this:
     // Destruct cr3, which we should NOT do

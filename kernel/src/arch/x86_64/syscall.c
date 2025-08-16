@@ -279,7 +279,7 @@ intptr_t sys_fork() {
         drop_task(task);
         return e;
     }
-    return e == 0 ? -YOU_ARE_CHILD : process->id;
+    return e;
 }
 intptr_t sys_exec(const char* path, const char** argv, size_t argc, const char** envv, size_t envc) {
 #ifdef CONFIG_LOG_SYSCALLS
