@@ -18,13 +18,9 @@ typedef struct {
     Mutex map_lock;
     page_t pml4;
 
-#ifdef GLOBAL_STORAGE_GDT_IDT
     GDT gdt __attribute__((aligned(4096)));
     IDT idt __attribute__((aligned(4096)));
-#else
-    GDT* gdt; // Allocated in the bitmap
-    IDT* idt;
-#endif
+
     TSS tss;
     Superblock rootBlock;
     PtrDarray processes;

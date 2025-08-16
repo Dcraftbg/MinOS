@@ -1,12 +1,7 @@
 #include "tss.h"
 #include "kernel.h"
 void reload_tss(void) {
-#ifdef GLOBAL_STORAGE_GDT_IDT
-    GDT* gdt = &kernel.gdt;
-#else
-    GDT* gdt = kernel.gdt;
-#endif
-    TSSSegment* tss = (TSSSegment*)&gdt->tss;
+    TSSSegment* tss = (TSSSegment*)&kernel.gdt.tss;
     tss->limit_low = sizeof(TSS)-1;
     uint64_t tss_ptr = (uint64_t)&kernel.tss;
     tss->base_low    = tss_ptr;

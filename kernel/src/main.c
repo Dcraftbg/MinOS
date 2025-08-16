@@ -66,23 +66,14 @@ void _start() {
     kernel.logger = &serial_logger;
     init_cmdline();
     init_loggers();
-#ifdef GLOBAL_STORAGE_GDT_IDT
     init_gdt();
     disable_interrupts();
     init_idt();
     init_exceptions();
     reload_tss();
-#endif
     init_bitmap();
     init_paging();
     KERNEL_SWITCH_VTABLE();
-#ifndef GLOBAL_STORAGE_GDT_IDT
-    init_gdt();
-    disable_interrupts();
-    init_idt();
-    init_exceptions();
-    reload_tss();
-#endif
     enable_cpu_features();
     // Interrupt controller Initialisation
     init_pic();

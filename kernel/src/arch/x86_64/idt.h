@@ -31,12 +31,5 @@ void reload_idt(void);
 void init_idt();
 void irq_set_handler(size_t id, IrqHandler handler);
 
-#ifdef GLOBAL_STORAGE_GDT_IDT
-#define idt_register(what, handler, typ) idt_pack_entry(&kernel.idt.inner[what], handler, typ);
-#else
-#define idt_register(what, handler, typ) idt_pack_entry(&kernel.idt->inner[what], handler, typ);
-#endif
-
-
 #define disable_interrupts() __asm__ volatile("cli")
 #define enable_interrupts() __asm__ volatile("sti")

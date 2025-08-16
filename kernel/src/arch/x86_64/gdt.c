@@ -4,37 +4,23 @@
 #include "kpanic.h"
 
 void reload_gdt(void) {
-#ifdef GLOBAL_STORAGE_GDT_IDT
-    GDT* gdt = &kernel.gdt;
-#else
-    GDT* gdt = kernel.gdt;
-#endif
     volatile GDTDescriptor descriptor;
     descriptor.size = (PAGE_SIZE-1);
-    descriptor.addr = gdt;
+    descriptor.addr = &kernel.gdt;
     __asm__ volatile (
         "lgdt (%0)"
         :
         : "r" (&descriptor)
     );
 }
-void init_gdt() {
-#ifdef GLOBAL_STORAGE_GDT_IDT
-    GDT* gdt = &kernel.gdt;
-#else
-    GDT* gdt = (GDT*)kernel_malloc(PAGE_SIZE);
-    kernel.gdt = gdt;
-    if(!kernel.gdt) {
-        kpanic("ERROR: Ran out of memory for GDT");
-    }
-#endif
-    memset(gdt, 0, PAGE_SIZE);
-    gdt->null = 0;
-    gdt->kernelCode = 0x0020980000000000; // Magic value for us. I'm too lazy to use macros. Read the docs instead
-    gdt->kernelData = 0x0020920000000000; 
-    gdt->userCode   = 0x0020F80000000000;
-    gdt->userData   = 0x0020F20000000000; 
-    memset(gdt->tss, 0, sizeof(gdt->tss)); // NOTE: Initialised later
+void init_gdt(void) {
+    memset(&kernel.gdt, 0, PAGE_SIZE);
+    kernel.gdt.null = 0;
+    kernel.gdt.kernelCode = 0x0020980000000000; // Magic value for us. I'm too lazy to use macros. Read the docs instead
+    kernel.gdt.kernelData = 0x0020920000000000; 
+    kernel.gdt.userCode   = 0x0020F80000000000;
+    kernel.gdt.userData   = 0x0020F20000000000; 
+    memset(kernel.gdt.tss, 0, sizeof(kernel.gdt.tss)); // NOTE: Initialised later
     reload_gdt();
     kernel_reload_gdt_registers();
     kernel.tss.rsp0 = KERNEL_STACK_PTR;
