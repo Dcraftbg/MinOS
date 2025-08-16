@@ -1,6 +1,8 @@
 #include "serial.h"
 #include "../../config.h"
 #include "logger.h"
+#include <stdbool.h>
+#include "port.h"
 #define COM_PORT 0x3f8
 #define COM_5 (COM_PORT+5)
 #define COM_STATUS COM_5

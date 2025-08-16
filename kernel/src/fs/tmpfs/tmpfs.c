@@ -1,6 +1,8 @@
 #include "tmpfs.h"
-#include "../../mem/slab.h" 
-#include "../../log.h"
+#include <vfs.h>
+#include <utils.h>
+#include <mem/slab.h> 
+#include <log.h>
 typedef struct {
     Inode inode;
     char name[TMPFS_NAME_LIMIT];

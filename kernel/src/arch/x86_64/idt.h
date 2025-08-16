@@ -1,8 +1,5 @@
 #pragma once
 #include "../../../../config.h"
-#include "gdt.h"
-#include "memory.h"
-#include "utils.h"
 #include "interrupt.h"
 #include <stdint.h>
 typedef struct {

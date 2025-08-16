@@ -4,6 +4,9 @@
 #include "log.h"
 #include "task_regs.h"
 #include "interrupt.h"
+#include "gdt.h"
+#include "memory.h"
+#include "utils.h"
 
 #define idt_register(what, handler, typ) idt_pack_entry(&kernel.idt.inner[what], handler, typ);
 void reload_idt() {

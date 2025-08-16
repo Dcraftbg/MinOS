@@ -3,6 +3,8 @@
 #include "framebuffer.h"
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
+
 typedef struct {
     uintptr_t virt;
     uintptr_t phys;
