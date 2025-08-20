@@ -172,6 +172,10 @@ intptr_t tty_read(Inode* file, void* buf, size_t size, off_t offset) {
         uint32_t code = tty->getchar(tty);
         if(code && (tty->flags & TTY_INSTANT)) {
             if(!ttyscratch_push(&tty->scratch, code)) return -NOT_ENOUGH_MEM;
+            while(inode_is_readable(file)){
+                code = tty->getchar(tty);
+                if(!ttyscratch_push(&tty->scratch, code)) return -NOT_ENOUGH_MEM;
+            }
             goto end;
         }
         switch(code) {

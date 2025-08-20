@@ -126,7 +126,7 @@ static void fbtty_fill_blink(FbTty* fb, uint32_t color);
 #define TTY_MILISECOND_BLINK 500
 static bool fbtty_is_readable(Inode* device) {
     FbTty* fbtty = (FbTty*)device;
-    if(fbtty->scratch.len > 0 || fbtty->tty.scratch.len > 0 || inode_is_readable(fbtty->keyboard)) return true;
+    if(fbtty->scratch.len > 0 || inode_is_readable(fbtty->keyboard)) return true;
     return false;
 }
 static InodeOps inodeOps = {
