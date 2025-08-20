@@ -96,8 +96,6 @@ typedef struct {
     struct {
         char c;
     }* map;
-    bool blink;
-    size_t blink_time;
     enum {
         STATE_NORMAL,
         STATE_ANSI_ESCAPE,
@@ -128,26 +126,7 @@ static void fbtty_fill_blink(FbTty* fb, uint32_t color);
 #define TTY_MILISECOND_BLINK 500
 static bool fbtty_is_readable(Inode* device) {
     FbTty* fbtty = (FbTty*)device;
-    if(inode_is_readable(fbtty->keyboard)) {
-        intptr_t e = 0;
-        Key key;
-        while((e=inode_read(fbtty->keyboard, &key, sizeof(key), 0)) > 0) {
-            key_set(&fbtty->keystate, key.code, key.attribs);
-            // FIXME: Ignores memory alloc failure. Shouldn't happen really
-            // Cuz the scratch buffer is never going to actually allocate any memory but yk
-            // Still leaving this comment just in case this becomes an issue in the future
-            if(!(key.attribs & KEY_ATTRIB_RELEASE)) 
-                key_extend(&fbtty->keystate, &fbtty->scratch, key.code);
-        }
-    }
-
-    size_t now = system_timer_milis();
-    if(now-fbtty->blink_time >= TTY_MILISECOND_BLINK) {
-        fbtty->blink = !fbtty->blink;
-        fbtty->blink_time = now;
-        fbtty_fill_blink(fbtty, fbtty->blink ? fbtty->fg : fbtty->bg);
-    }
-    if(fbtty->scratch.len > 0 || fbtty->tty.scratch.len > 0) return true;
+    if(fbtty->scratch.len > 0 || fbtty->tty.scratch.len > 0 || inode_is_readable(fbtty->keyboard)) return true;
     return false;
 }
 static InodeOps inodeOps = {
@@ -202,7 +181,16 @@ static uint32_t fbtty_getchar(Tty* device) {
     // IF YOU GO ABOUT THIS, CHECK ALLOCATION FAILURE
 
     while(fbtty->scratch.len == 0) {
-        while(!fbtty_is_readable(&fbtty->tty.inode));
+        intptr_t e = 0;
+        Key key;
+        while((e=inode_read(fbtty->keyboard, &key, sizeof(key), 0)) > 0) {
+            key_set(&fbtty->keystate, key.code, key.attribs);
+            // FIXME: Ignores memory alloc failure. Shouldn't happen really
+            // Cuz the scratch buffer is never going to actually allocate any memory but yk
+            // Still leaving this comment just in case this becomes an issue in the future
+            if(!(key.attribs & KEY_ATTRIB_RELEASE)) 
+                key_extend(&fbtty->keystate, &fbtty->scratch, key.code);
+        }
     }
     char res = ttyscratch_popfront(&fbtty->scratch);
     ttyscratch_shrink(&fbtty->scratch);
@@ -242,12 +230,8 @@ static uint32_t bit4_bold_colors[8] = {
 };
 static void handle_csi_final(FbTty* fbtty, uint32_t code) {
     switch(code) {
-    case 'm':
-        if(fbtty->csi.nums_count < 1) {
-            kerror("(fbtty) Missing arguments for SGR");
-            return;
-        }
-        int n = fbtty->csi.nums[0];
+    case 'm': {
+        int n = fbtty->csi.nums_count > 0 ? fbtty->csi.nums[0] : 0;
         switch(n) {
         case 0:
             fbtty->fg = VGA_FG;
@@ -297,10 +281,9 @@ static void handle_csi_final(FbTty* fbtty, uint32_t code) {
             kerror("(fbtty) Unsupported SGR param: %d", n);
             break;
         }
-        break;
+    } break;
     case 'H': {
-        if(fbtty->blink) fbtty_fill_blink(fbtty, fbtty->bg);
-        fbtty->blink = false;
+        fbtty_fill_blink(fbtty, fbtty->bg);
         int y=1, x=1;
         if(fbtty->csi.nums_count > 0) y = fbtty->csi.nums[0];
         if(fbtty->csi.nums_count > 1) x = fbtty->csi.nums[1];
@@ -310,10 +293,10 @@ static void handle_csi_final(FbTty* fbtty, uint32_t code) {
         fbtty->y = (y-1);
         if(fbtty->x > fbtty->w) fbtty->x = fbtty->w-1;
         if(fbtty->y > fbtty->h) fbtty->y = fbtty->h-1;
+        fbtty_fill_blink(fbtty, fbtty->fg);
     } break;
     case 'J': {
-        int mode=0;
-        if(fbtty->csi.nums_count > 0) mode=fbtty->csi.nums[0];
+        int mode = fbtty->csi.nums_count > 0 ? fbtty->csi.nums[0] : 0;
         switch(mode) {
         case 2: {
             size_t chars = fbtty->h * fbtty->w;
@@ -327,13 +310,31 @@ static void handle_csi_final(FbTty* fbtty, uint32_t code) {
             break;
         }
     } break;
+    case 'A':
+    case 'B': {
+        int dy = fbtty->csi.nums_count > 0 ? fbtty->csi.nums[0] : 0;
+        if(dy == 0) break;
+        fbtty_fill_blink(fbtty, fbtty->bg);
+        fbtty->y = (int)fbtty->y + ((code - 'B') * 2 + 1) * dy;
+        if(fbtty->y >= fbtty->h) fbtty->y = fbtty->h - 1;
+        fbtty_fill_blink(fbtty, fbtty->fg);
+    } break;
+    case 'C':
+    case 'D': {
+        int dx = fbtty->csi.nums_count > 0 ? fbtty->csi.nums[0] : 0; 
+        if(dx == 0) break;
+        fbtty_fill_blink(fbtty, fbtty->bg);
+        fbtty->x = (int)fbtty->x + (-((code - 'D') * 2 + 1)) * dx;
+        if(fbtty->x >= fbtty->w) fbtty->x = fbtty->w - 1;
+        fbtty_fill_blink(fbtty, fbtty->fg);
+    } break;
     default:
         kerror("(fbtty) Unsupported csi final code: %c (%02X)", code, code);
         break;
     }
 }
 static void fbtty_draw_char(FbTty* fbtty, uint32_t code) {
-    if(fbtty->blink) fbtty_fill_blink(fbtty, fbtty->bg);
+    fbtty_fill_blink(fbtty, fbtty->bg);
     size_t i = fbtty->y * fbtty->w + fbtty->x;
     switch(code) {
     case '\b': {
@@ -377,7 +378,7 @@ static void fbtty_draw_char(FbTty* fbtty, uint32_t code) {
         }
         fbtty->y--;
     }
-    fbtty_fill_blink(fbtty, fbtty->blink ? fbtty->fg : fbtty->bg);
+    fbtty_fill_blink(fbtty, fbtty->fg);
 }
 static void fbtty_putchar(Tty* device, uint32_t code) {
     mutex_lock(&device->mutex);
@@ -394,7 +395,7 @@ static void fbtty_putchar(Tty* device, uint32_t code) {
         switch(code) {
         case '[':
             fbtty->state = STATE_CSI;
-            memset(fbtty->csi.nums, 0, MAX_CSI_NUMS*sizeof(fbtty->csi.nums[0]));
+            memset(fbtty->csi.nums, 0, sizeof(fbtty->csi.nums));
             fbtty->csi.nums_count = 1;
             break;
         default:
