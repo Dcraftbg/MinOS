@@ -155,7 +155,14 @@ static void tty_putchar(Tty* tty, uint32_t code) {
     if(tty->putchar) tty->putchar(tty, code);
 }
 static void tty_echo(Tty* tty, uint32_t code) {
-    if(tty->flags & TTY_ECHO) tty_putchar(tty, code);
+    if(tty->flags & TTY_ECHO) {
+        if(code == 0x1b) {
+            tty_putchar(tty, '^');
+            tty_putchar(tty, '[');
+        } else {
+            tty_putchar(tty, code);
+        }
+    }
 }
 intptr_t tty_read(Inode* file, void* buf, size_t size, off_t offset) {
     Tty* tty = (Tty*)file;
