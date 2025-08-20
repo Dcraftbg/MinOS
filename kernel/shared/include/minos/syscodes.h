@@ -32,4 +32,5 @@ enum {
     SYS_SHMCREATE,
     SYS_SHMMAP,
     SYS_SHMREM,
+    SYS_SYSCTL,
 };

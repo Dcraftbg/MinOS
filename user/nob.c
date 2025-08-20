@@ -13,6 +13,7 @@ const char* projects[] = {
     "fbtest",
     "gtnet",
     "hello",
+    "minofetch",
     "hello_window",
     "init",
     "ls",

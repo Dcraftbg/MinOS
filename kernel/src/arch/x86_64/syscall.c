@@ -10,6 +10,7 @@
 #include <minos/heap.h>
 #include <minos/time.h>
 #include <minos/mmap.h>
+#include <minos/sysctl.h>
 #include "mem/shared_mem.h"
 #include "task_regs.h"
 #include "epoll.h"
@@ -743,4 +744,18 @@ intptr_t sys_shmrem(size_t key) {
     mutex_unlock(&kernel.shared_memory_mutex);
     return 0;
 }
-
+intptr_t sys_sysctl(uint32_t op, void* arg) {
+    switch(op) {
+    case SYSCTL_KERNEL_NAME:
+        memcpy(arg, "MinOS", 5);
+        break;
+    case SYSCTL_MEMINFO: {
+        SysctlMeminfo* mem_info = arg;
+        mem_info->total = kernel.map.page_count * PAGE_SIZE;
+        mem_info->free = kernel.map.page_available * PAGE_SIZE;
+    } break;
+    default:
+        return -UNSUPPORTED;
+    }
+    return 0;
+}

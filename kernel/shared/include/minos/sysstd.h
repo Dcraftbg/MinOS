@@ -104,3 +104,6 @@ static intptr_t _shmmap(size_t key, void** addr) {
 static intptr_t _shmrem(size_t key) {
     return syscall1(SYS_SHMREM, key);
 }
+static intptr_t _sysctl(uint32_t op, void* arg) {
+    return syscall2(SYS_SYSCTL, op, arg);
+}
