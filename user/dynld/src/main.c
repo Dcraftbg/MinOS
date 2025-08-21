@@ -131,7 +131,7 @@ intptr_t read_exact(uintptr_t fd, void* buf, size_t n) {
     return 0;
 }
 intptr_t seek_to(uintptr_t fd, size_t n) {
-    if(seek(fd, n, SEEK_SET) == (off_t)-1) {
+    if(lseek(fd, n, SEEK_SET) == (off_t)-1) {
         eprintfln("ERROR: seek error");
         return -ELF_ERROR_IO;
     }

@@ -427,11 +427,11 @@ int fseek(FILE* f, long offset, int origin) {
         }
         return 0;
     }
-    return _minos2errno(seek(f->as.fd, offset, origin));
+    return _minos2errno(lseek(f->as.fd, offset, origin));
 }
 ssize_t ftell(FILE* f) {
     if(f->tmp) return f->as.tmp.cursor;
-    intptr_t e = tell(f->as.fd);
+    intptr_t e = lseek(f->as.fd, 0, SEEK_CUR);
     if(e < 0) return -(errno=_minos2errno(e));
     return e;
 }

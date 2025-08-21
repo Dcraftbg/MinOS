@@ -23,11 +23,8 @@ static intptr_t ioctl(uintptr_t handle, uint32_t op, void* arg) {
 static intptr_t _mmap(void** addr, size_t length, uint32_t prot, uint32_t flags, uintptr_t fd, off_t offset) {
     return syscall6(SYS_MMAP, addr, length, prot, flags, fd, offset);
 }
-static intptr_t seek(uintptr_t handle, off_t offset, seekfrom_t from) {
-    return syscall3(SYS_SEEK, handle, offset, from);
-}
-static intptr_t tell(uintptr_t handle) {
-    return syscall1(SYS_TELL, handle);
+static intptr_t lseek(uintptr_t handle, off_t offset, seekfrom_t from) {
+    return syscall3(SYS_LSEEK, handle, offset, from);
 }
 static intptr_t close(uintptr_t handle) {
     return syscall1(SYS_CLOSE, handle);

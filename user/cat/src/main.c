@@ -32,12 +32,12 @@ intptr_t cat(const char* path) {
         return e;
     }
     fd=e;
-    if((e=seek(fd, 0, SEEK_EOF)) < 0) {
+    if((e=lseek(fd, 0, SEEK_END)) < 0) {
         fprintf(stderr, "Failed to seek: %s\n", status_str(e));
         goto err_seek;
     }
     size_t size = e;
-    if((e=seek(fd, 0, SEEK_START)) < 0) {
+    if((e=lseek(fd, 0, SEEK_SET)) < 0) {
         fprintf(stderr, "Failed to seek back: %s\n", status_str(e));
         goto err_seek;
     }

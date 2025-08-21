@@ -206,18 +206,6 @@ intptr_t sys_seek(uintptr_t handle, off_t offset, seekfrom_t from) {
         return -INVALID_PARAM;
     }
 }
-intptr_t sys_tell(uintptr_t handle) {
-#ifdef CONFIG_LOG_SYSCALLS
-    strace("sys_tell(%lu)", handle);
-#endif
-    Process* current = current_process();
-    Resource* res = resource_find_by_id(current->resources, handle);
-    if(!res) return -INVALID_HANDLE;
-    // TODO: Remove this check.
-    // awweqweqw
-    if(res->inode->kind != INODE_FILE) return -INODE_IS_DIRECTORY;
-    return res->offset;
-}
 // TODO: Smarter resource sharing logic. No longer sharing Resource itself but the Inode+offset.
 // The res->shared check is entirely useless
 intptr_t sys_close(uintptr_t handle) {

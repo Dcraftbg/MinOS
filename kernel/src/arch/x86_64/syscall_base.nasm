@@ -6,7 +6,6 @@ extern sys_read
 extern sys_ioctl
 extern sys_mmap
 extern sys_seek
-extern sys_tell
 extern sys_close
 extern sys_fork
 extern sys_exec
@@ -45,7 +44,6 @@ syscall_table:
    dq sys_ioctl
    dq sys_mmap
    dq sys_seek
-   dq sys_tell
    dq sys_close
    dq sys_fork
    dq sys_exec

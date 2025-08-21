@@ -106,8 +106,8 @@ index 45e7b5b7..821b8d87 100644
  
 +#ifdef _MINOS
 +# include <minos/sysstd.h>
-+# define lseek seek
 +#endif
++
  #ifndef _WIN32
  # include <unistd.h>
  # include <sys/time.h>
