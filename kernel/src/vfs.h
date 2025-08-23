@@ -21,8 +21,10 @@ typedef struct Inode {
     Superblock* superblock;
     _Atomic size_t shared;
     InodeOps* ops;
-    inodekind_t kind;
-    inodeid_t id;
+    // General stat fields
+    uint8_t type;
+    size_t size;
+    ino_t id;
     void* priv;
     struct Cache* cache; // <- The Cache the object is in
 } Inode;
@@ -41,7 +43,7 @@ typedef uint32_t Iop;
 #define INODEMAP_DEALLOC kernel_dealloc
 #define INODEMAP_PAIR_ALLOC(_) cache_alloc(hashpair_cache) 
 #define INODEMAP_PAIR_DEALLOC(ptr, size) cache_dealloc(hashpair_cache, ptr)
-MAKE_HASHMAP_EX2(InodeMap, inodemap, Inode*, inodeid_t, INODEMAP_HASH, INODEMAP_EQ, INODEMAP_ALLOC, INODEMAP_DEALLOC, INODEMAP_PAIR_ALLOC, INODEMAP_PAIR_DEALLOC)
+MAKE_HASHMAP_EX2(InodeMap, inodemap, Inode*, ino_t, INODEMAP_HASH, INODEMAP_EQ, INODEMAP_ALLOC, INODEMAP_DEALLOC, INODEMAP_PAIR_ALLOC, INODEMAP_PAIR_DEALLOC)
 
 #ifdef INODEMAP_DEFINE
 #undef HASHMAP_DEFINE
@@ -50,17 +52,18 @@ MAKE_HASHMAP_EX2(InodeMap, inodemap, Inode*, inodeid_t, INODEMAP_HASH, INODEMAP_
 
 #include <sync/rwlock.h>
 struct SuperblockOps {
-    intptr_t (*get_inode)(Superblock* sb, inodeid_t id, Inode** result);
+    intptr_t (*get_inode)(Superblock* sb, ino_t id, Inode** result);
     intptr_t (*unmount)(Superblock* sb);
 };
 struct Superblock {
     Fs* fs;
-    inodeid_t root;
+    ino_t root;
     InodeMap inodemap;
     Mutex inodemap_lock;
     SuperblockOps* ops;
 };
 typedef struct Device Device;
+struct statx;
 struct InodeOps {
     // Ops for directories
     intptr_t (*creat)(Inode* parent, const char* name, size_t namelen, oflags_t oflag, Inode** result);
@@ -82,7 +85,6 @@ struct InodeOps {
     bool (*is_readable)(Inode* file);
     bool (*is_hungup)(Inode* file);
     bool (*is_writeable)(Inode* file);
-    intptr_t (*stat)(Inode* inode, Stats* stats);
     // TODO: unlink which will free all memory of that inode. But only the inode itself, not its children (job of caller (vfs))
 };
 // Wrappers for directories
@@ -101,19 +103,12 @@ intptr_t inode_bind(Inode* sock, struct sockaddr* addr, size_t addrlen);
 intptr_t inode_listen(Inode* sock, size_t n);
 intptr_t inode_connect(Inode* sock, const struct sockaddr* addr, size_t addrlen);
 // Wrappers for generic API
-intptr_t inode_stat(Inode* inode, Stats* stats);
 // By default returns true
 bool inode_is_readable(Inode* file); 
 // By default returns false 
 bool inode_is_hungup(Inode* file);
 // By default returns true
 bool inode_is_writeable(Inode* file); 
-static intptr_t inode_size(Inode* inode) {
-    Stats stats;
-    intptr_t e;
-    if((e=inode_stat(inode, &stats)) < 0) return e;
-    return stats.size;
-}
 void     inode_cleanup(Inode* inode);
 
 
@@ -186,4 +181,4 @@ static intptr_t vfs_socket_create_abs(const char* path, Inode* sock) {
     return vfs_socket_create(&abs, sock);
 
 }
-intptr_t fetch_inode(Superblock* sb, inodeid_t id, Inode** result);
+intptr_t fetch_inode(Superblock* sb, ino_t id, Inode** result);

@@ -6,6 +6,7 @@ struct Cache* hashpair_cache = NULL;
 #include "./fs/tmpfs/tmpfs.h"
 #include "mem/slab.h"
 #include "string.h"
+#include <minos/stat.h>
 
 void inode_init(Inode* inode, Cache* cache) {
     memset(inode, 0, sizeof(*inode));
@@ -39,11 +40,11 @@ void idrop(Inode* inode) {
     }
     inode->shared--;
 }
-static intptr_t sb_get_inode(Superblock* sb, inodeid_t id, Inode** inode) {
+static intptr_t sb_get_inode(Superblock* sb, ino_t id, Inode** inode) {
     assert(sb->ops->get_inode && "Superblock MUST implement get_inode");
     return sb->ops->get_inode(sb, id, inode);
 }
-intptr_t fetch_inode(Superblock* sb, inodeid_t id, Inode** result) {
+intptr_t fetch_inode(Superblock* sb, ino_t id, Inode** result) {
     debug_assert(sb);
     intptr_t e;
     Inode** ref = NULL;
@@ -113,10 +114,6 @@ intptr_t inode_mmap(Inode* file, MmapContext* context, void** addr, size_t size_
 intptr_t inode_truncate(Inode* file, size_t size) {
     if(!file->ops->truncate) return -UNSUPPORTED;
     return file->ops->truncate(file, size);
-}
-intptr_t inode_stat(Inode* inode, Stats* stats) {
-    if(!inode->ops->stat) return -UNSUPPORTED;
-    return inode->ops->stat(inode, stats);
 }
 // Socket Wrappers
 intptr_t inode_accept(Inode* sock, Inode* result, struct sockaddr* addr, size_t *addrlen) {

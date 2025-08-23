@@ -6,6 +6,7 @@
 #include "time.h"
 #include "epoll.h"
 #include "socket.h"
+#include "stat.h"
 
 static intptr_t open(const char* path, oflags_t flags) {
     return syscall2(SYS_OPEN, path, flags);
@@ -47,8 +48,8 @@ static intptr_t chdir(const char* path) {
 static intptr_t getcwd(char* buf, size_t cap) {
     return syscall2(SYS_GETCWD, buf, cap);
 }
-static intptr_t stat(const char* path, Stats* stats) {
-    return syscall2(SYS_STAT, path, stats);
+static intptr_t _fstatx(int fd, unsigned int mask, struct statx* stats) {
+    return syscall3(SYS_FSTATX, fd, mask, stats);
 }
 static intptr_t get_dir_entries(uintptr_t dirfd, DirEntry* entries, size_t size) {
     return syscall3(SYS_GET_DIR_ENTRIES, dirfd, entries, size);

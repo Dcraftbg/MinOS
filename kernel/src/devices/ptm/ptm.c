@@ -28,9 +28,11 @@ static void ptty_drop(Ptty* ptty) {
         cache_dealloc(ptty_cache, ptty);
     }
 }
-static intptr_t ptty_stat(Inode*, Stats* stats) {
-    memset(stats, 0, sizeof(*stats));
-    stats->kind = INODE_DEVICE;
+static intptr_t ptty_statx(Inode*, uint32_t mask, struct statx* stats) {
+    if(mask & STATX_TYPE) {
+        stats->stx_type = STX_TYPE_DEVICE;
+        stats->stx_mask |= STATX_TYPE;
+    }
     return 0;
 }
 static void ptty_cleanup(Inode* inode) {
@@ -227,7 +229,7 @@ static intptr_t ptm_get_dir_entries(Inode*, DirEntry* entries, size_t size, off_
         if(!pttys[i]) continue;
         DirEntry* entry = (DirEntry*)(((uint8_t*)entries)+read);
         entry->inodeid = i;
-        entry->kind = INODE_DEVICE;
+        entry->kind = STX_TYPE_DEVICE;
         memcpy(entry->name, "ptty", 4);
         read += entry->size = sizeof(DirEntry) + 4 + itoa(entry->name + 4, 4, i);
         n++;

@@ -6,7 +6,6 @@
 typedef struct {
     Inode inode;
     char name[TMPFS_NAME_LIMIT];
-    size_t size;
     // NOTE: can be both Device* and TmpfsData* depending on the kind
     void* data;
 } TmpfsInode;
@@ -29,7 +28,7 @@ static void datablock_destroy(TmpfsData* data) {
 }
 static Cache* tmpfs_inode_cache    = NULL;
 
-static TmpfsInode* tmpfs_new_inode(Superblock* sb, size_t size, inodekind_t kind, void* data, const char* name, size_t namelen);
+static TmpfsInode* tmpfs_new_inode(Superblock* sb, size_t size, uint8_t kind, void* data, const char* name, size_t namelen);
 // NOTE: DOES NOT CLEANUP SUBENTRIES FOR DIRECTORIES.
 static void tmpfs_inode_destroy(TmpfsInode* inode) {
     TmpfsData* head = inode->data;
@@ -41,21 +40,21 @@ static void tmpfs_inode_destroy(TmpfsInode* inode) {
     cache_dealloc(tmpfs_inode_cache, inode);
 }
 static TmpfsInode* directory_new(Superblock* sb, const char* name, size_t namelen) {
-    return tmpfs_new_inode(sb, 0, INODE_DIR, NULL, name, namelen);
+    return tmpfs_new_inode(sb, 0, STX_TYPE_DIR, NULL, name, namelen);
 }
 static TmpfsInode* file_new(Superblock* sb, const char* name, size_t namelen) {
-    return tmpfs_new_inode(sb, 0, INODE_FILE, NULL, name, namelen);
+    return tmpfs_new_inode(sb, 0, STX_TYPE_FILE, NULL, name, namelen);
 }
 static TmpfsInode* device_new(Superblock* sb, Inode* device, const char* name, size_t namelen) {
-    return tmpfs_new_inode(sb, 0, INODE_DEVICE, device, name, namelen);
+    return tmpfs_new_inode(sb, 0, STX_TYPE_DEVICE, device, name, namelen);
 }
 static TmpfsInode* socket_new(Superblock* sb, Inode* sock, const char* name, size_t namelen) {
-    return tmpfs_new_inode(sb, 0, INODE_MINOS_SOCKET, sock, name, namelen);
+    return tmpfs_new_inode(sb, 0, STX_TYPE_MINOS_SOCKET, sock, name, namelen);
 }
 static intptr_t tmpfs_put(TmpfsInode* dir, TmpfsInode* entry) {
     TmpfsData* prev = (TmpfsData*)(&(dir->data));
     TmpfsData* head = dir->data;
-    size_t size = dir->size;
+    size_t size = dir->inode.size;
     while(head && size >= TMPFS_DATABLOCK_DENTS) {
         size -= TMPFS_DATABLOCK_DENTS;
         prev = head;
@@ -69,11 +68,11 @@ static intptr_t tmpfs_put(TmpfsInode* dir, TmpfsInode* entry) {
         head = new_block;
     }
     ((TmpfsInode**)head->data)[size] = entry;
-    dir->size++;
+    dir->inode.size++;
     return 0;
 }
 intptr_t tmpfs_socket_creat(Inode* parent, Inode* sock, const char* name, size_t namelen) {
-    if(parent->kind != INODE_DIR) return -IS_NOT_DIRECTORY;
+    if(parent->type != STX_TYPE_DIR) return -IS_NOT_DIRECTORY;
     TmpfsInode* inode = socket_new(parent->superblock, sock, name, namelen);
     if(!inode) return -NOT_ENOUGH_MEM;
     intptr_t e;
@@ -85,7 +84,7 @@ intptr_t tmpfs_socket_creat(Inode* parent, Inode* sock, const char* name, size_t
 }
 // TODO: Check whether entry already exists or not
 static intptr_t tmpfs_creat(Inode* parent, const char* name, size_t namelen, oflags_t flags, Inode** result) {
-    if(parent->kind != INODE_DIR) return -IS_NOT_DIRECTORY;
+    if(parent->type != STX_TYPE_DIR) return -IS_NOT_DIRECTORY;
     TmpfsInode* inode;
     if(flags & O_DIRECTORY) inode=directory_new(parent->superblock, name, namelen);
     else inode=file_new(parent->superblock, name, namelen);
@@ -99,10 +98,10 @@ static intptr_t tmpfs_creat(Inode* parent, const char* name, size_t namelen, ofl
     return 0;
 }
 static intptr_t tmpfs_get_dir_entries(Inode* dir, DirEntry* entries, size_t size, off_t offset, size_t* read_bytes) { 
-    if(dir->kind != INODE_DIR) return -IS_NOT_DIRECTORY;
+    if(dir->type != STX_TYPE_DIR) return -IS_NOT_DIRECTORY;
     TmpfsInode* inode = (TmpfsInode*)dir;
-    if(offset > inode->size) return -INVALID_OFFSET;
-    if(offset == inode->size) {
+    if(offset > inode->inode.size) return -INVALID_OFFSET;
+    if(offset == inode->inode.size) {
         *read_bytes = 0;
         return 0;
     }
@@ -112,7 +111,7 @@ static intptr_t tmpfs_get_dir_entries(Inode* dir, DirEntry* entries, size_t size
         head = head->next;
     }
     if(offset >= TMPFS_DATABLOCK_DENTS) return -FILE_CORRUPTION;
-    const size_t left = inode->size-offset;
+    const size_t left = inode->inode.size-offset;
     size_t read = 0;
     size_t rc   = 0;
     while(head && read+sizeof(DirEntry) < size && rc < left) {
@@ -127,8 +126,8 @@ static intptr_t tmpfs_get_dir_entries(Inode* dir, DirEntry* entries, size_t size
                 return rc;
             }
             entry->size    = requires;
-            entry->inodeid = (inodeid_t)tmpfs_inode;
-            entry->kind    = tmpfs_inode->inode.kind;
+            entry->inodeid = (ino_t)tmpfs_inode;
+            entry->kind    = tmpfs_inode->inode.type;
             memcpy(entry->name, tmpfs_inode->name, strlen(tmpfs_inode->name)+1);
             read += requires;
             rc++;
@@ -141,11 +140,11 @@ static intptr_t tmpfs_get_dir_entries(Inode* dir, DirEntry* entries, size_t size
 }
 static intptr_t tmpfs_read(Inode* file, void* buf, size_t size, off_t offset) {
     if(!buf) return -INVALID_PARAM;
-    if(file->kind != INODE_FILE) return -INODE_IS_DIRECTORY;
+    if(file->type != STX_TYPE_FILE) return -INODE_IS_DIRECTORY;
     TmpfsInode* inode = (TmpfsInode*)file;
-    if(offset > inode->size) return -INVALID_OFFSET;
-    if(offset == inode->size || size == 0) return 0; // We couldn't read anything
-    size_t left = inode->size-offset;
+    if(offset > inode->inode.size) return -INVALID_OFFSET;
+    if(offset == inode->inode.size || size == 0) return 0; // We couldn't read anything
+    size_t left = inode->inode.size-offset;
     size = size < left ? size : left; // size = min(size,left);
     TmpfsData* block = inode->data;
     while(offset >= TMPFS_DATABLOCK_BYTES && block) {
@@ -168,10 +167,10 @@ static intptr_t tmpfs_read(Inode* file, void* buf, size_t size, off_t offset) {
 }
 static intptr_t tmpfs_write(Inode* file, const void* buf, size_t size, off_t offset) {
     TmpfsInode* inode = (TmpfsInode*)file;
-    if(inode->inode.kind != INODE_FILE) return -INODE_IS_DIRECTORY;
-    if((size_t)offset > inode->size) return -INVALID_OFFSET;
+    if(inode->inode.type != STX_TYPE_FILE) return -INODE_IS_DIRECTORY;
+    if((size_t)offset > inode->inode.size) return -INVALID_OFFSET;
     TmpfsData *head = inode->data, *prev=(TmpfsData*)(&inode->data);
-    size_t left = inode->size;
+    size_t left = inode->inode.size;
     while(head && (size_t)offset >= TMPFS_DATABLOCK_BYTES) {
         offset -= TMPFS_DATABLOCK_BYTES;
         left -= TMPFS_DATABLOCK_BYTES;
@@ -190,7 +189,7 @@ static intptr_t tmpfs_write(Inode* file, const void* buf, size_t size, off_t off
             if(!prev->next) return written;
             head = prev->next;
         }
-        if(to_write > left-offset) inode->size += to_write-(left-offset);
+        if(to_write > left-offset) inode->inode.size += to_write-(left-offset);
         memcpy(head->data+offset, bytes+written, to_write);
         written += to_write;
         prev = head;
@@ -203,18 +202,18 @@ static intptr_t tmpfs_write(Inode* file, const void* buf, size_t size, off_t off
 }
 static intptr_t tmpfs_truncate(Inode* file, size_t size) {
     TmpfsInode* inode = (TmpfsInode*)file;
-    if(inode->inode.kind != INODE_FILE) return -INODE_IS_DIRECTORY;
-    if(inode->size == size) return 0;
-    if(inode->size < size) {
+    if(inode->inode.type != STX_TYPE_FILE) return -INODE_IS_DIRECTORY;
+    if(inode->inode.size == size) return 0;
+    if(inode->inode.size < size) {
         TmpfsData *head = inode->data, *prev = (TmpfsData*)&inode->data;
         size_t n = 0;
-        while(head && n < inode->size) {
+        while(head && n < inode->inode.size) {
             n += TMPFS_DATABLOCK_BYTES;
             prev = head;
             head = head->next;
         }
-        if(n < inode->size) {
-            kerror("File corruption. n=%zu inode->size=%zu", n, inode->size);
+        if(n < inode->inode.size) {
+            kerror("File corruption. n=%zu inode->inode.size=%zu", n, inode->inode.size);
             return -FILE_CORRUPTION;
         }
         TmpfsData* start = head = prev;
@@ -223,7 +222,7 @@ static intptr_t tmpfs_truncate(Inode* file, size_t size) {
             n += TMPFS_DATABLOCK_BYTES;
             head->next = datablock_new();
             if(!head->next) {
-                size = inode->size;
+                size = inode->inode.size;
                 // Skip the first one that already existed
                 start = start->next;
                 // Cleanup the newly allocated blocks
@@ -236,10 +235,10 @@ static intptr_t tmpfs_truncate(Inode* file, size_t size) {
             }
             head = head->next;
         }
-        inode->size = size;
+        inode->inode.size = size;
         return 0;
     }
-    inode->size = size;
+    inode->inode.size = size;
     TmpfsData *data = inode->data, *prev = (TmpfsData*)&inode->data;
     size_t n = 0;
     while(data && n < size) {
@@ -258,15 +257,15 @@ static intptr_t tmpfs_truncate(Inode* file, size_t size) {
 }
 static intptr_t tmpfs_find(Inode* dir, const char* name, size_t namelen, Inode** result) {
     TmpfsInode* inode = (TmpfsInode*)dir;
-    if(inode->inode.kind != INODE_DIR) return -IS_NOT_DIRECTORY;
+    if(inode->inode.type != STX_TYPE_DIR) return -IS_NOT_DIRECTORY;
     TmpfsData* head = inode->data;
-    size_t size = inode->size;
+    size_t size = inode->inode.size;
     while(size && head) {
         size_t to_read = size > TMPFS_DATABLOCK_DENTS ? TMPFS_DATABLOCK_DENTS : size;
         for(size_t i = 0; i < to_read; ++i) {
             TmpfsInode* entry = ((TmpfsInode**)head->data)[i];
             if(strlen(entry->name) == namelen && memcmp(entry->name, name, namelen) == 0) {
-                *result = entry->inode.kind == INODE_DEVICE || entry->inode.kind == INODE_MINOS_SOCKET ? iget(entry->data) : iget(&entry->inode);
+                *result = entry->inode.type == STX_TYPE_DEVICE || entry->inode.type == STX_TYPE_MINOS_SOCKET ? iget(entry->data) : iget(&entry->inode);
                 return 0;
             }
         }
@@ -275,26 +274,6 @@ static intptr_t tmpfs_find(Inode* dir, const char* name, size_t namelen, Inode**
     }
     return size > 0 ? -FILE_CORRUPTION : -NOT_FOUND;
 }
-static intptr_t tmpfs_stat(Inode* me, Stats* stats) {
-    TmpfsInode* inode = (TmpfsInode*)me;
-    memset(stats, 0, sizeof(*stats));
-    stats->kind = inode->inode.kind;
-    switch(inode->inode.kind) {
-    case INODE_DIR: {
-        // Explicit declarations
-        stats->lba = PAGE_SHIFT;
-        stats->size = ((inode->size*sizeof(TmpfsInode*))+(PAGE_SIZE-1))/PAGE_SIZE;
-        return 0;
-    } break;
-    case INODE_FILE: {
-        // Explicit declarations
-        stats->lba = 0;
-        stats->size = inode->size;
-        return 0;
-    } break;
-    }
-    return -UNSUPPORTED;
-}
 static InodeOps tmpfs_inode_ops = {
     .creat = tmpfs_creat,
     .get_dir_entries = tmpfs_get_dir_entries,
@@ -302,27 +281,26 @@ static InodeOps tmpfs_inode_ops = {
     .read  = tmpfs_read,
     .write = tmpfs_write,
     .truncate = tmpfs_truncate,
-    .stat  = tmpfs_stat,
 };
 
 // NOTE: assumes namelen is in range
-static TmpfsInode* tmpfs_new_inode(Superblock* sb, size_t size, inodekind_t kind, void* data, const char* name, size_t namelen) {
+static TmpfsInode* tmpfs_new_inode(Superblock* sb, size_t size, uint8_t kind, void* data, const char* name, size_t namelen) {
     TmpfsInode* me = cache_alloc(tmpfs_inode_cache);
     if(!me) return NULL;
     inode_init(&me->inode, tmpfs_inode_cache);
     me->inode.superblock = sb;
-    me->inode.kind = kind;
+    me->inode.type = kind;
     me->inode.ops = &tmpfs_inode_ops;
-    me->size = size;
+    me->inode.size = size;
     me->data = data;
     memcpy(me->name, name, namelen);
     me->name[namelen] = '\0';
     return me;
 }
 
-static intptr_t tmpfs_get_inode(Superblock* sb, inodeid_t id, Inode** result) {
+static intptr_t tmpfs_get_inode(Superblock* sb, ino_t id, Inode** result) {
     TmpfsInode* tmp_inode = (TmpfsInode*)id;
-    *result = tmp_inode->inode.kind == INODE_MINOS_SOCKET || tmp_inode->inode.kind == INODE_DEVICE 
+    *result = tmp_inode->inode.type == STX_TYPE_MINOS_SOCKET || tmp_inode->inode.type == STX_TYPE_DEVICE 
                ? (Inode*)tmp_inode->data : iget(&tmp_inode->inode);
     return 0;
 }
@@ -345,7 +323,7 @@ static intptr_t tmpfs_mount(Fs* fs, Superblock* superblock, Inode* on) {
     if(on) kwarn("tmpfs: File `%p` provided in mount for tmpfs in unused", on);
     TmpfsInode* root = directory_new(superblock, NULL, 0);
     superblock->fs = fs;
-    superblock->root = (inodeid_t)root;
+    superblock->root = (ino_t)root;
     superblock->ops  = &tmpfs_superblock_ops;
     return 0;
 }
@@ -356,7 +334,7 @@ Fs tmpfs = {
     .mount  = tmpfs_mount
 };
 intptr_t tmpfs_register_device(Inode* parent, Inode* device, const char* name, size_t namelen) {
-    if(parent->kind != INODE_DIR) return -IS_NOT_DIRECTORY;
+    if(parent->type != STX_TYPE_DIR) return -IS_NOT_DIRECTORY;
     TmpfsInode* inode=device_new(parent->superblock, device, name, namelen);
     if(!inode) return -NOT_ENOUGH_MEM;
     intptr_t e;

@@ -4,6 +4,8 @@
 #include <minos/status.h>
 #include "process.h"
 #include "log.h"
+#include <minos/stat.h>
+
 static EpollFd* epoll_find(Epoll* epoll, int fd) {
     for(struct list* head = epoll->unready.next; head != &epoll->unready; head = head->next) {
         EpollFd* entry = (EpollFd*)head;
@@ -96,7 +98,7 @@ Epoll* epoll_new(void) {
     Epoll* epoll = cache_alloc(epoll_cache);
     if(!epoll) return NULL;
     inode_init(&epoll->inode, epoll_cache);
-    epoll->inode.kind = INODE_EPOLL;
+    epoll->inode.type = STX_TYPE_EPOLL;
     list_init(&epoll->unready);
     list_init(&epoll->ready);
     epoll->inode.ops = &epoll_ops;

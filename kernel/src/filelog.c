@@ -12,7 +12,7 @@ intptr_t file_write_str(Logger* logger, const char* str, size_t len) {
         if((e=vfs_creat_abs(path, 0, &file)) < 0)
             goto open_err;
     }
-    intptr_t size = inode_size(file);
+    intptr_t size = file->size;
     if(size < 0) goto size_err;
     e=write_exact(file, str, len, size);
     idrop(file);

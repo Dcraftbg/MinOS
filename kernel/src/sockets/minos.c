@@ -1,4 +1,5 @@
 #include "minos.h"
+#include <minos/stat.h>
 #include <assert.h>
 #include <mem/slab.h>
 #include <minos/status.h>
@@ -266,7 +267,7 @@ static intptr_t minos_connect(Inode* sock, const struct sockaddr* addr, size_t a
     if(e < 0) return e;
     Inode* server_socket;
     if((e=vfs_find(&path, &server_socket)) < 0) return e;
-    if(server_socket->kind != INODE_MINOS_SOCKET) {
+    if(server_socket->type != STX_TYPE_MINOS_SOCKET) {
         idrop(server_socket);
         return -INVALID_TYPE;
     }

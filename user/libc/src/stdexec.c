@@ -2,6 +2,9 @@
 #include <string.h>
 #include <minos/status.h>
 #include <stdio.h>
+
+#include <sys/stat.h>
+
 intptr_t execvp(const char* exe_path, const char** argv, size_t argc) {
     if(
         (exe_path[0] == '/') ||
@@ -25,8 +28,8 @@ intptr_t execvp(const char* exe_path, const char** argv, size_t argc) {
         pathbuf[end-path] = '\0';
         if((end-1)[0] != '/') strcat(pathbuf, "/");
         strcat(pathbuf, exe_path);
-        Stats stats;
-        if(stat(pathbuf, &stats) >= 0 && stats.kind == INODE_FILE) {
+        struct stat stats;
+        if(stat(pathbuf, &stats) >= 0 && (stats.st_mode & S_IFMT) != S_IFDIR) {
             if(argc) argv[0] = pathbuf;
             return exec(pathbuf, argv, argc);
         }

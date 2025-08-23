@@ -1,6 +1,7 @@
 #pragma once
 #include <stdint.h>
 #include <stddef.h>
+#include "stat.h"
 #define PATH_MAX 4096
 enum {
     O_CREAT     = 0b1,
@@ -25,26 +26,10 @@ enum {
 };
 typedef uintptr_t seekfrom_t;
 typedef intptr_t off_t;
-typedef size_t inodeid_t;
-typedef enum {
-    INODE_DIR,
-    INODE_FILE,
-    INODE_DEVICE,
-    INODE_MINOS_SOCKET,
-    INODE_EPOLL,
-    INODE_COUNT,
-} InodeKind;
-typedef int inodekind_t;
-typedef struct {
-    inodeid_t inodeid;
-    inodekind_t kind;
-    size_t lba ; // lba is in 1<<lba bytes
-    size_t size; // In lba
-} Stats;
 
 typedef struct {
-    size_t size;
-    inodeid_t inodeid;
-    inodekind_t kind;
+    uint64_t size;
+    ino_t inodeid;
+    uint8_t kind;
     char name[];
 } DirEntry;

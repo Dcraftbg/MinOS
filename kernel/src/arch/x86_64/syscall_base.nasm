@@ -14,7 +14,7 @@ extern sys_waitpid
 extern sys_chdir
 extern sys_getcwd
 extern sys_diropen
-extern sys_stat
+extern sys_fstatx
 extern sys_sleepfor
 extern sys_gettime
 extern sys_truncate
@@ -51,7 +51,7 @@ syscall_table:
    dq sys_waitpid
    dq sys_chdir
    dq sys_getcwd
-   dq sys_stat
+   dq sys_fstatx
    dq sys_sleepfor
    dq sys_gettime
    dq sys_truncate

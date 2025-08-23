@@ -187,21 +187,14 @@ intptr_t sys_seek(uintptr_t handle, off_t offset, seekfrom_t from) {
     Process* current = current_process();
     Resource* res = resource_find_by_id(current->resources, handle);
     if(!res) return -INVALID_HANDLE;
-    if(res->inode->kind != INODE_FILE) return -INODE_IS_DIRECTORY;
     // TODO: Convertions with lba
     switch(from) {
     case SEEK_START:
-        res->offset = offset;
-        return res->offset;
+        return res->offset = offset;
     case SEEK_CURSOR:
-        res->offset += offset;
-        return res->offset;
-    case SEEK_EOF: {
-        intptr_t e;
-        if((e=inode_size(res->inode)) < 0) return e;
-        res->offset = e+offset;
-        return res->offset;
-    } break;
+        return res->offset += offset;
+    case SEEK_EOF:
+        return res->offset = res->inode->size + offset;
     default:
         return -INVALID_PARAM;
     }
@@ -384,7 +377,7 @@ intptr_t sys_chdir(const char* path) {
     if((e=parse_path(cur_proc, &p, path)) < 0) return e;
     Inode* inode;
     if((e=vfs_find(&p, &inode)) < 0) return e;
-    if(inode->kind != INODE_DIR) {
+    if(inode->type != STX_TYPE_DIR) {
         idrop(inode);
         return -IS_NOT_DIRECTORY;
     }
@@ -433,19 +426,30 @@ intptr_t sys_getcwd(char* buf, size_t cap) {
     buf[amount] = '\0';
     return 0;
 }
-intptr_t sys_stat(const char* path, Stats* stats) {
+
+intptr_t sys_fstatx(unsigned int fd, uint32_t mask, struct statx* stats) {
 #ifdef CONFIG_LOG_SYSCALLS
-    strace("sys_stat(%s, %p)", path, stats);
+    strace("sys_fstatx(%u, %08X, %p)", fd, mode, stats);
 #endif
-    Path p;
     Process* current = current_process();
-    intptr_t e = 0;
-    if((e=parse_path(current, &p, path)) < 0) return e;
-    Inode* inode;
-    if((e=vfs_find(&p, &inode)) < 0) return e;
-    e=inode_stat(inode, stats);
-    idrop(inode);
-    return e;
+    Resource* res = resource_find_by_id(current->resources, fd);
+    if(!res) return -INVALID_HANDLE;
+    uint32_t stx_mask = 0;
+    Inode* inode = res->inode;
+    if(mask & STATX_INO) {
+        stx_mask |= STATX_INO;
+        stats->stx_ino = inode->id;
+    }
+    if(mask & STATX_SIZE) {
+        stx_mask |= STATX_SIZE;
+        stats->stx_size = inode->size;
+    }
+    if(mask & STATX_TYPE) {
+        stx_mask |= STATX_TYPE;
+        stats->stx_type = inode->type;
+    }
+    stats->stx_mask = stx_mask;
+    return 0;
 }
 void sys_sleepfor(const MinOS_Duration* duration) {
     size_t ms = duration->secs*1000 + duration->nano/1000000;
@@ -497,7 +501,7 @@ intptr_t sys_epoll_ctl(int epfd, int op, int fd, const struct epoll_event *event
     if(epfd < 0 || fd < 0) return -INVALID_HANDLE;
     Resource* res = resource_find_by_id(current->resources, epfd);
     if(!res) return -INVALID_HANDLE;
-    if(res->inode->kind != INODE_EPOLL) return -INVALID_TYPE;
+    if(res->inode->type != STX_TYPE_EPOLL) return -INVALID_TYPE;
     switch(op) {
     case EPOLL_CTL_ADD: {
         EpollFd* entry = epoll_fd_new(fd, event);
@@ -521,7 +525,7 @@ intptr_t sys_epoll_wait(int epfd, struct epoll_event *events, int maxevents, int
     Process* current = current_process();
     Resource* res = resource_find_by_id(current->resources, epfd);
     if(!res) return -INVALID_HANDLE;
-    if(res->inode->kind != INODE_EPOLL) return -INVALID_TYPE;
+    if(res->inode->type != STX_TYPE_EPOLL) return -INVALID_TYPE;
     Epoll* epoll = (Epoll*)res->inode;
     if(timeout == 0) epoll_poll(epoll, current);
     else {
@@ -558,7 +562,7 @@ intptr_t sys_socket(uint32_t domain, uint32_t type, uint32_t prototype) {
         resource_remove(current->resources, id);
         return -NOT_ENOUGH_MEM;
     }
-    res->inode->kind = INODE_MINOS_SOCKET;
+    res->inode->type = STX_TYPE_MINOS_SOCKET;
     res->flags = O_RDWR;
     intptr_t e = family->init(res->inode);
     if(e < 0) {

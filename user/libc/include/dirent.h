@@ -1,6 +1,5 @@
 #pragma once
-#include <minos/fsdefs.h>
-typedef inodeid_t ino_t;
+#include <minos/stat.h>
 enum {
     DT_UNKNOWN,
     DT_REG,

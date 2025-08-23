@@ -13,7 +13,7 @@ enum {
     SYS_WAITPID,
     SYS_CHDIR,
     SYS_GETCWD,
-    SYS_STAT,
+    SYS_FSTATX,
     SYS_SLEEPFOR,
     SYS_GETTIME,
     SYS_TRUNCATE,
