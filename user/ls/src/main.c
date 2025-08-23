@@ -227,7 +227,7 @@ int main(int argc, const char** argv) {
             arg++;
             while(*arg) {
                 if(!parse_opt(&opts, *arg)) {
-                    fprintf(stderr, "%s: invalid option -- '%c'", exe, *arg);
+                    fprintf(stderr, "%s: invalid option -- '%c'\n", exe, *arg);
                     return 1;
                 }
                 arg++;
@@ -239,7 +239,12 @@ int main(int argc, const char** argv) {
     if(paths.len == 0) da_push(&paths, "./");
     for(size_t i = 0; i < paths.len; ++i) {
         if(paths.len > 1) printf("%s:\n", paths.items[i]);
-        ls(&entries, paths.items[i], opts);
+        // FIXME: technically not POSIX compliant. We need to do stat() first to determine the type anyway
+        // and then we can print the thing above
+        if(ls(&entries, paths.items[i], opts) < 0) {
+            fprintf(stderr, "%s: cannot access '%s': %s\n", exe, paths.items[i], strerror(errno));
+            continue;
+        }
         reset_entries(&entries);
     }
     return 0;
