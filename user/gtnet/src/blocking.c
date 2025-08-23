@@ -1,6 +1,7 @@
 #include "blocking.h"
 #include "log.h"
 #include <assert.h>
+#include <sys/stat.h>
 #include <minos/status.h>
 #include <stdexec.h>
 #include <sys/socket.h>
@@ -78,9 +79,9 @@ int blocking_client(void*) {
     struct sockaddr_minos server_addr;
     server_addr.sminos_family = AF_MINOS;
     const char* addr = "/sockets/gtnet";
-    Stats _stats;
+    struct stat stats;
     intptr_t e;
-    while((e=stat(addr, &_stats)) < 0 && e == -NOT_FOUND);
+    while(stat(addr, &stats) && errno == ENOENT);
     // info("Trying to connect...");
     strcpy(server_addr.sminos_path, addr);
     if(connect(fd, (struct sockaddr*)&server_addr, sizeof(server_addr)) < 0) {
