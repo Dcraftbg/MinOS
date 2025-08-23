@@ -335,6 +335,7 @@ Fs tmpfs = {
 };
 intptr_t tmpfs_register_device(Inode* parent, Inode* device, const char* name, size_t namelen) {
     if(parent->type != STX_TYPE_DIR) return -IS_NOT_DIRECTORY;
+    device->type = STX_TYPE_DEVICE;
     TmpfsInode* inode=device_new(parent->superblock, device, name, namelen);
     if(!inode) return -NOT_ENOUGH_MEM;
     intptr_t e;
