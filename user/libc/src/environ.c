@@ -64,14 +64,16 @@ char* getenv(const char* name) {
     if(at[0] == '\0') return NULL;
     return at+1;
 }
-void _libc_init_environ(const char** envv, int envc) {
+void _libc_init_environ(const char** envp) {
     environ = NULL;
     __environ_cap = 0;
     __environ_size = 0;
+    size_t envc = 0;
+    while(envp[envc]) envc++;
     // Not enough memory
     if(!__environ_reserve(envc)) exit(1);
     for(size_t i = 0; i < envc; ++i) {
-        char* env = strdup(envv[i]);
+        char* env = strdup(envp[i]);
         if(!env) exit(1);
         environ[__environ_size++] = env;
     }

@@ -61,10 +61,11 @@ intptr_t process_memreg_extend(Process* process, MemoryList* reglist, size_t ext
     region->pages += extra;
     return 0;
 }
-Args create_args(size_t argc, const char** argv) {
+Args create_args(const char** argv) {
     size_t sum = 0;
-    for(size_t i = 0; i < argc; ++i) {
-        sum += strlen(argv[i])+1;
+    size_t argc = 0;
+    while(argv[argc]) {
+        sum += strlen(argv[argc++]) + 1;
     }
     return (Args) { sum, argc, argv };
 }

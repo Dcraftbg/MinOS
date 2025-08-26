@@ -1,38 +1,45 @@
-#include <stdexec.h>
+// Just to split them up a bit since these guys require environ and a bunch of other crap
+#include <unistd.h>
+#include <environ.h>
+#include <errno.h>
 #include <string.h>
-#include <minos/status.h>
-#include <stdio.h>
-
 #include <sys/stat.h>
 
-intptr_t execvp(const char* exe_path, const char** argv, size_t argc) {
+int execvpe(const char* file, char* const* argv, char *const* envp) {
     if(
-        (exe_path[0] == '/') ||
-        (exe_path[0] == '.' && exe_path[1] == '/') ||
-        (exe_path[0] == '.' && exe_path[1] == '.' && exe_path[2] == '/')
+        (file[0] == '/') ||
+        (file[0] == '.' && file[1] == '/') ||
+        (file[0] == '.' && file[1] == '.' && file[2] == '/')
     ) {
-        return exec(exe_path, argv, argc);
+        return execve(file, argv, envp);
     }
     const char* path = getenv("PATH");
-    if(!path) return -NOT_FOUND;
-    char pathbuf[PATH_MAX];
-    size_t exe_path_len = strlen(exe_path);
+    if(!path) return (errno = ENOENT, -1);
+    char pathbuf[4096];
+    size_t file_len = strlen(file);
 
     char* end;
     for(;*path; path = end + 1) {
         end = strchr(path, ':');
         if(!(*end)) break;
         if(end == path) continue;
-        if((end-path) + 1 + exe_path_len >= sizeof(pathbuf)) continue;
+        if((end-path) + 1 + file_len >= sizeof(pathbuf)) continue;
         memcpy(pathbuf, path, end-path);
         pathbuf[end-path] = '\0';
         if((end-1)[0] != '/') strcat(pathbuf, "/");
-        strcat(pathbuf, exe_path);
+        strcat(pathbuf, file);
         struct stat stats;
         if(stat(pathbuf, &stats) >= 0 && (stats.st_mode & S_IFMT) != S_IFDIR) {
-            if(argc) argv[0] = pathbuf;
-            return exec(pathbuf, argv, argc);
+            if(argv[0]) ((char**)argv)[0] = pathbuf;
+            return execve(pathbuf, argv, envp);
         }
     }
-    return -NOT_FOUND;
+    return (errno = ENOENT, -1);
 }
+int execv(const char* path, char* const* argv) {
+    return execve(path, argv, environ);
+}
+int execvp(const char* file, char* const* argv) {
+    return execvpe(file, argv, environ);
+}
+// TODO: execl functions

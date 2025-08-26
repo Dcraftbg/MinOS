@@ -304,7 +304,7 @@ intptr_t exec(Task* task, Path* path, Args* args, Args* envs) {
     stack_head = (char*)(((((uintptr_t)stack_head))/16)*16);
 
     void* frame = (void*)(virt_to_phys(task->cr3, KERNEL_STACK_PTR) | KERNEL_MEMORY_MASK);
-    task->rsp = (void*)(KERNEL_STACK_PTR - (frame - setup_user_first_exec(frame, header.entry, (uintptr_t)stack_head, args->argc, (uintptr_t)argv, envs->argc, (uintptr_t)envp)));
+    task->rsp = (void*)(KERNEL_STACK_PTR - (frame - setup_user_first_exec(frame, header.entry, (uintptr_t)stack_head, args->argc, (uintptr_t)argv, (uintptr_t)envp)));
     disable_interrupts();
     page_join(kernel.pml4, task->cr3);
     enable_interrupts();

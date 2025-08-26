@@ -52,10 +52,10 @@ void spawn_init(void) {
     Args args;
     Args env;
     epath = "/user/init";
-    const char* argv[] = {epath, "test_arg"};
-    args = create_args(ARRAY_LEN(argv), argv);
-    const char* envv[] = {"FOO=BAR", "BAZ=A"};
-    env  = create_args(ARRAY_LEN(envv), envv);
+    const char* argv[] = {epath, "test_arg", NULL};
+    args = create_args(argv);
+    const char* envv[] = {"FOO=BAR", "BAZ=A", NULL};
+    env  = create_args(envv);
     if((e = exec_new(epath, &args, &env)) < 0) kpanic("Failed to exec %s : %s\n",epath,status_str(e));
     kinfo("Spawning `%s` id=%zu tid=%zu", epath, (size_t)e, ((Process*)(kernel.processes.items[(size_t)e]))->main_thread->id);
 }

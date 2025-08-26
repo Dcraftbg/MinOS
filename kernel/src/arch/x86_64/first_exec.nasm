@@ -14,12 +14,10 @@ user_first_exec:
     ; xor rdi, rdi
     ; xor rsi, rsi
     ; xor rdx, rdx
-    ; xor rcx, rcx
     xor rbx, rbx
     xor rax, rax
     ; pop _start args
     pop rdi
     pop rsi
     pop rdx
-    pop rcx
     iretq

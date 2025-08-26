@@ -2,7 +2,6 @@
 #include <minos/status.h>
 #include <fcntl.h>
 #include <unistd.h>
-#include <stdexec.h>
 #include <stdbool.h>
 #include <string.h>
 #include <stdio.h>
@@ -14,8 +13,8 @@ int main() {
     intptr_t e = fork();
     const char* path = "/user/shell";
     if(e == (-YOU_ARE_CHILD)) {
-        const char* argv[] = { path };
-        if((e=execve(path, argv, sizeof(argv)/sizeof(*argv), (const char**)environ, __environ_size)) < 0) {
+        const char* argv[] = { path, NULL };
+        if((e=execve(path, (char*const*) argv, (char*const*)environ)) < 0) {
             printf("ERROR: Failed to do exec: %s\n", status_str(e));
             exit(-e);
         }
@@ -36,12 +35,12 @@ int main() {
     }
     return 0;
 }
-void _start(int argc, const char** argv, int envc, const char** envv) {
+void _start(int argc, const char** argv, const char** envp) {
     intptr_t e;
     if((e = open("/devices/tty0", O_RDWR)) < 0) {
         exit(-e); 
     }
-    _libc_init_environ(envv, envc);
+    _libc_init_environ(envp);
     _libc_init_streams();
     fprintf(stderr, "\033[2J\033[H");
     printf("Args dump:\n");
@@ -49,8 +48,8 @@ void _start(int argc, const char** argv, int envc, const char** envv) {
         printf("%zu> ",i+1); printf("%p",argv[i]); printf(" %s\n",argv[i]);
     }
     printf("Env dump:\n");
-    for(size_t i = 0; i < (size_t)envc; ++i) {
-        printf("%zu> ",i+1); printf("%p",envv[i]); printf(" %s\n",envv[i]);
+    for(size_t i = 0; envp[i]; ++i) {
+        printf("%zu> ",i+1); printf("%p",envp[i]); printf(" %s\n",envp[i]);
     }
     int code = main();
     close(STDOUT_FILENO);

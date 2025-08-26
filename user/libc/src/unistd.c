@@ -49,3 +49,6 @@ int truncate(const char* path, off_t size) {
     close(fd);
     return e;
 }
+int execve(const char* pathname, char *const* argv, char *const* envp) {
+    syscall(syscall3, SYS_EXEC, pathname, argv, envp);
+}

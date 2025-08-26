@@ -23,3 +23,7 @@ int chdir(const char* path);
 char* getcwd(char* buf, size_t cap);
 int ftruncate(int fd, off_t size);
 int truncate(const char* path, off_t size);
+int execve(const char* pathname, char *const* argv, char *const* envp); 
+int execvpe(const char* file, char* const* argv, char *const* envp); 
+int execv(const char* path, char* const* argv); 
+int execvp(const char* file, char* const* argv);

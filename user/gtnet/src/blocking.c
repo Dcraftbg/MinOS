@@ -3,7 +3,6 @@
 #include <assert.h>
 #include <sys/stat.h>
 #include <minos/status.h>
-#include <stdexec.h>
 #include <sys/socket.h>
 #include <errno.h>
 #include <string.h>

@@ -4,7 +4,6 @@
 #include <minos/sysstd.h>
 #include <minos/ptm/ptm.h>
 #include <minos/tty/tty.h>
-#include <stdexec.h>
 #include <unistd.h>
 #include <fcntl.h>
 
@@ -52,9 +51,9 @@ intptr_t ptty_spawn_shell(Ptty* ptty) {
         }
         // assert(e == STDERR_FILENO);
         const char* argv[] = {
-            "shell"
+            "shell", NULL
         };
-        if(execvp(argv[0], argv, sizeof(argv)/sizeof(*argv)) < 0) {
+        if(execvp(argv[0], (char*const*)argv) < 0) {
             fprintf(stderr, "ERROR: Failed to spawn shell: %s\n", status_str(e));
         }
         exit(1);

@@ -13,7 +13,6 @@
 #include <minos/fb/fb.h>
 #include <minos/mouse.h>
 #include <collections/list.h>
-#include <stdexec.h>
 #include "darray.h"
 #include <unistd.h>
 #include <fcntl.h>
@@ -806,8 +805,7 @@ Client* client_new(int fd) {
     me->fd = fd;
     return me;
 }
-uintptr_t run(size_t applet_number, const char** argv, size_t argc) {
-    assert(argc);
+uintptr_t run(size_t applet_number, char** argv) {
     intptr_t e = fork();
     if(e == -YOU_ARE_CHILD) {
 #if 1
@@ -818,7 +816,7 @@ uintptr_t run(size_t applet_number, const char** argv, size_t argc) {
 #else
         (void)applet_number;
 #endif
-        execvp(argv[0], argv, argc);
+        execvp(argv[0], argv);
     } else if (e < 0) {
         fprintf(stderr, "ERROR: Failed to fork: %s\n", status_str(e));        
         abort();
@@ -831,9 +829,9 @@ void spawn_init_applets(void) {
     };
     for(size_t i = 0; i < (sizeof(applets)/sizeof(*applets)); ++i) {
         const char* argv[] = {
-            applets[i]
+            applets[i], NULL
         };
-        run(i, argv, sizeof(argv)/sizeof(*argv));
+        run(i, (char**)argv);
     }
 }
 static struct list clients;

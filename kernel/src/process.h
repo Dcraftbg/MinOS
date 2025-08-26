@@ -12,7 +12,7 @@ typedef struct {
     size_t argc;
     const char** argv;
 } Args;
-Args create_args(size_t argc, const char** argv);
+Args create_args(const char** argv);
 #define PROC_FLAG_DYING 0b1
 #define INVALID_PROCESS_ID -1
 #define MAX_CHILD_PROCESSES 16

@@ -420,8 +420,8 @@ const char* shift_args(int *argc, const char ***argv) {
     if((*argc) <= 0) return NULL;
     return ((*argc)--, *((*argv)++));
 }
-typedef int (*_start_t)(int argc, const char** argv, int envc, const char** envv);
-int main(int argc, const char** argv, int envc, const char** envv) {
+typedef int (*_start_t)(int argc, const char** argv, const char** envv);
+int main(int argc, const char** argv, const char** envv) {
     assert(argc);
     const char* ipath = NULL;
     if(strcmp(argv[0], "/user/dynld") == 0) {
@@ -447,9 +447,9 @@ int main(int argc, const char** argv, int envc, const char** envv) {
     assert(relocate_elf(main) >= 0); 
     assert(main->header.entry);
     close(fd);
-    return ((_start_t)(main->header.entry + main->base))(argc, argv, envc, envv);
+    return ((_start_t)(main->header.entry + main->base))(argc, argv, envv);
 }
 
-void _start(int argc, const char** argv, int envc, const char** envv) {
-    _exit(main(argc, argv, envc, envv));
+void _start(int argc, const char** argv, const char** envv) {
+    _exit(main(argc, argv, envv));
 }

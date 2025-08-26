@@ -265,9 +265,9 @@ intptr_t sys_fork() {
     }
     return e;
 }
-intptr_t sys_exec(const char* path, const char** argv, size_t argc, const char** envv, size_t envc) {
+intptr_t sys_exec(const char* path, const char** argv, const char** envp) {
 #ifdef CONFIG_LOG_SYSCALLS
-    strace("sys_exec(%s, %p, %zu)", path, argv, argc);
+    strace("sys_exec(%s, %p, %p)", path, argv, envp);
 #endif
     intptr_t e;
     Process* cur_proc = current_process();
@@ -278,8 +278,8 @@ intptr_t sys_exec(const char* path, const char** argv, size_t argc, const char**
         return -LIMITS;
     }
     task->process = cur_proc;
-    Args args=create_args(argc, argv);
-    Args env =create_args(envc, envv);
+    Args args = create_args(argv);
+    Args env  = create_args(envp);
     Path p;
     if((e=parse_path(cur_proc, &p, path)) < 0) {
         drop_task(task);

@@ -1,6 +1,5 @@
 #include <minos/sysstd.h>
 #include <minos/status.h>
-#include <stdexec.h>
 #include <stdbool.h>
 #include <stdio.h>
 #include <string.h>
@@ -36,9 +35,9 @@ char* trim_r(char* buf) {
     }
     return start;
 }
-const char* trim_l(const char* buf) {
+char* trim_l(const char* buf) {
     while(buf[0] && isspace(buf[0])) buf++;
-    return buf;
+    return (char*)buf;
 }
 typedef struct ArenaNode {
     struct ArenaNode* next;
@@ -102,16 +101,16 @@ void arena_drop(Arena* arena) {
     }
     arena->node = NULL;
 }
-const char* dup_str_range(Arena* arena, const char* start, const char* end) {
+char* dup_str_range(Arena* arena, const char* start, const char* end) {
     size_t len = (size_t)(end-start);
     char* str = arena_alloc(arena, len+1);
     memcpy(str, start, len);
     str[len] = '\0';
     return str;
 }
-const char* strip_cmd(Arena* arena, const char** str_result) {
-    const char* at=*str_result;
-    const char* begin=at;
+char* strip_cmd(Arena* arena, char** str_result) {
+    char* at=*str_result;
+    char* begin=at;
     while(*at) {
         if(isspace(*at)) {
             *str_result = at+1;
@@ -122,9 +121,9 @@ const char* strip_cmd(Arena* arena, const char** str_result) {
     *str_result = at;
     return dup_str_range(arena, begin, at);
 }
-const char* strip_arg(Arena* arena, const char** str_result) {
-    const char* at=trim_l(*str_result);
-    const char* begin=at;
+char* strip_arg(Arena* arena, char** str_result) {
+    char* at=trim_l(*str_result);
+    char* begin=at;
     if(at[0] == '"') {
         fprintf(stderr, "ERROR: Parsing quoted arguments is not yet supported");
         exit(1);
@@ -146,11 +145,10 @@ typedef struct {
     size_t exit_code;
 } Cmd;
 #define EXEC_STATUS_OFF 1024 
-intptr_t spawn_cmd(Cmd* cmd, const char**argv, size_t argc) {
-    assert(argc);
+intptr_t spawn_cmd(Cmd* cmd, char** argv) {
     int e = fork();
     if(e == 0) {
-        e = execvp(argv[0], argv, argc);
+        e = execvp(argv[0], argv);
         exit(EXEC_STATUS_OFF + (-e));
     } else if (e >= 0) {
         cmd->pid = e;
@@ -163,10 +161,10 @@ intptr_t wait_cmd(Cmd* cmd) {
     if(e < 0) return e;
     return e > EXEC_STATUS_OFF ? -(e - EXEC_STATUS_OFF) : e; 
 }
-void run_cmd(const char** argv, size_t argc) {
+void run_cmd(char** argv) {
     Cmd cmd = { 0 };
     intptr_t e;
-    if((e=spawn_cmd(&cmd, argv, argc)) < 0) {
+    if((e=spawn_cmd(&cmd, argv)) < 0) {
         fprintf(stderr, "ERROR: fork %s\n", status_str(e));
         exit(1);
     }
@@ -182,7 +180,7 @@ int main() {
     char* linebuf = malloc(LINEBUF_MAX);
     intptr_t e = 0;
     assert(MAX_ARGS > 0);
-    const char** args = malloc(MAX_ARGS*sizeof(*args));
+    char** args = malloc(MAX_ARGS*sizeof(*args));
     char* cwd = malloc(PATH_MAX);
     if(getcwd(cwd, PATH_MAX) == NULL) {
         fprintf(stderr, "ERROR: Failed to getcwd on initial getcwd: %s\n", strerror(errno));
@@ -205,17 +203,17 @@ int main() {
             return 1;
         }
         linebuf[e] = 0;
-        const char* line = trim_r(linebuf);
+        char* line = trim_r(linebuf);
         // Empty
         if(line[0] == '\0') continue;
-        const char* cmd = strip_cmd(&arena, &line);
+        char* cmd = strip_cmd(&arena, &line);
         args[arg_count++] = cmd;
         while((line=trim_l(line))[0]) {
             if(arg_count == MAX_ARGS) {
                 printf("Forbidden: Maximum argument count reached\n");
                 continue;
             }
-            const char* arg = strip_arg(&arena, &line);
+            char* arg = strip_arg(&arena, &line);
             args[arg_count++] = arg;
         }
         if(strcmp(cmd, "exit") == 0) {
@@ -258,7 +256,8 @@ int main() {
                 exit(1); 
             }
         } else {
-            run_cmd(args, arg_count);
+            args[arg_count++] = NULL;
+            run_cmd(args);
         }
     }
     arena_drop(&arena);
