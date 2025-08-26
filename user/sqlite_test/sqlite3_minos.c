@@ -8,10 +8,11 @@
 #define SQLITE_DEBUG      1
 #include <errno.h>
 #include <stdio.h>
+#include <unistd.h>
 #include "sqlite3.c"
 #define oslog_sink    stderr
-#define oslog(...)   (fprintf(oslog_sink, __VA_ARGS__))
-#define oslogln(...) (oslogln(__VA_ARGS__), fputs("\n", oslog_sink))
+#define oslog(...)   fprintf(oslog_sink, __VA_ARGS__)
+#define oslogln(fmt, ...) oslog(fmt "\n", ## __VA_ARGS__)
 
 #define ioprefix "IO"
 
@@ -89,7 +90,7 @@ int minosWrite(sqlite3_file* sqlite_file, const void* data, int iAmt, sqlite3_in
     size_t nsize = segment_align_up(iOfst + iAmt);
     if(size < nsize) {
         intptr_t e;
-        if((e=truncate(fileno(file->f), nsize)) < 0) {
+        if((e=ftruncate(fileno(file->f), nsize)) < 0) {
             iotrace("Failed to truncate: %d", (int)e);
             rc=SQLITE_IOERR;
             goto end;
