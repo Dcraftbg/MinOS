@@ -1,8 +1,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include <minos/sysstd.h>
 #include <collections/list.h>
+#include <sys/unistd.h>
 static void (*atexit_funcs[ATEXIT_MAX])(void);
 static size_t atexit_funcs_count = 0;
 void exit(int64_t code) {

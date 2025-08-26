@@ -5,6 +5,8 @@
 #include <minos/ptm/ptm.h>
 #include <minos/tty/tty.h>
 #include <stdexec.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 #define STUI_IMPLEMENTATION
 #include "stui.h"

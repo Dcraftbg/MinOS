@@ -174,6 +174,7 @@ int ls(Entries* entries, const char* path, LsOpts opts) {
         else printf(" ");
     }
     if(!opts.long_listing) printf("\n");
+    return 0;
 }
 void drop_entry(Entry* entry) {
     free(entry->name);

@@ -1,19 +1,11 @@
 #include <stdint.h>
 #include <stdbool.h>
-#ifdef _MINOS
-# include <minos/mmap.h>
-# include <minos/sysstd.h>
-# define SEEK_SET SEEK_START
-# define SEEK_CUR SEEK_CURSOR
-# define SEEK_END SEEK_EOF
-typedef intptr_t ssize_t;
-#else
-# error This only builds for MinOS :|
-# include <unistd.h>
-# include <sys/types.h>
-# include <sys/stat.h>
-# include <fcntl.h>
-#endif
+#include <minos/mmap.h>
+#include <minos/sysstd.h>
+#include <unistd.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include "printf.h"
 #include "string.h"
 
@@ -438,6 +430,11 @@ int main(int argc, const char** argv, int envc, const char** envv) {
             return 1;
         }
     } else ipath = argv[0];
+    if(strcmp(ipath, "/user/init") == 0) {
+        intptr_t thingy = open("/devices/tty0", O_RDWR);
+        write(thingy, "\033[2J\033[H", 7);
+        close(thingy);
+    }
     Elf* main = NULL;
     intptr_t fd = open(ipath, O_RDONLY);
     if(fd < 0) {
@@ -447,6 +444,7 @@ int main(int argc, const char** argv, int envc, const char** envv) {
     assert(load_elf(&main, ipath, fd) >= 0);
     assert(relocate_elf(main) >= 0); 
     assert(main->header.entry);
+    close(fd);
     return ((_start_t)(main->header.entry + main->base))(argc, argv, envc, envv);
 }
 

@@ -8,6 +8,7 @@
 #include <minos2errno.h>
 #include <minos/sysstd.h>
 #include <minos/status.h>
+#include <unistd.h>
 
 #define WM_PATH "/sockets/wm"
 static int minos_connectto(const char* addr) {

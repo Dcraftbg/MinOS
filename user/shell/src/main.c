@@ -9,6 +9,9 @@
 #include <ctype.h>
 #include <assert.h>
 #include <minos/tty/tty.h>
+#include <unistd.h>
+#include <fcntl.h>
+#include <errno.h>
 
 intptr_t readline(char* buf, size_t bufmax) {
     intptr_t e;
@@ -145,8 +148,8 @@ typedef struct {
 #define EXEC_STATUS_OFF 1024 
 intptr_t spawn_cmd(Cmd* cmd, const char**argv, size_t argc) {
     assert(argc);
-    intptr_t e = fork();
-    if(e == (-YOU_ARE_CHILD)) {
+    int e = fork();
+    if(e == 0) {
         e = execvp(argv[0], argv, argc);
         exit(EXEC_STATUS_OFF + (-e));
     } else if (e >= 0) {
@@ -181,8 +184,8 @@ int main() {
     assert(MAX_ARGS > 0);
     const char** args = malloc(MAX_ARGS*sizeof(*args));
     char* cwd = malloc(PATH_MAX);
-    if((e=getcwd(cwd, PATH_MAX)) < 0) {
-        fprintf(stderr, "ERROR: Failed to getcwd on initial getcwd: %s\n", status_str(e));
+    if(getcwd(cwd, PATH_MAX) == NULL) {
+        fprintf(stderr, "ERROR: Failed to getcwd on initial getcwd: %s\n", strerror(errno));
         free(args);
         free(cwd);
         free(linebuf);
@@ -250,7 +253,7 @@ int main() {
                 fprintf(stderr, "Failed to cd into `%s`: %s\n", path, status_str(e));
                 continue;
             }
-            if((e=getcwd(cwd, PATH_MAX)) < 0) {
+            if(getcwd(cwd, PATH_MAX) == NULL) {
                 fprintf(stderr, "Failed to get cwd: %s\n", status_str(e));
                 exit(1); 
             }

@@ -1,6 +1,7 @@
 #include "ustar.h"
-#include "../../fileutils.h"
-#include "../../log.h"
+#include <fileutils.h>
+#include <log.h>
+#include <minos/fcntl.h>
 int octtoi(const char* str, size_t len) {
     int res = 0;
     while (len > 0) {

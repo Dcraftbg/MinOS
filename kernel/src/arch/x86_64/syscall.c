@@ -11,6 +11,7 @@
 #include <minos/time.h>
 #include <minos/mmap.h>
 #include <minos/sysctl.h>
+#include <minos/fcntl.h>
 #include "mem/shared_mem.h"
 #include "task_regs.h"
 #include "epoll.h"
@@ -35,7 +36,7 @@ static intptr_t parse_path(Process* process, Path* res, const char* path) {
 // TODO: Safety features like copy_to_userspace, copy_from_userspace
 intptr_t sys_open(const char* path, oflags_t flags) {
 #ifdef CONFIG_LOG_SYSCALLS
-    strace("sys_open(\"%s\", %d, %d)", path, (int)mode, (int)flags);
+    strace("sys_open(\"%s\", %04X)", path, (int)flags);
 #endif
     Path p;
     Process* current = current_process();
@@ -71,7 +72,7 @@ intptr_t sys_write(uintptr_t handle, const void* buf, size_t size) {
     Process* current = current_process();
     Resource* res = resource_find_by_id(current->resources, handle);
     if(!res) return -INVALID_HANDLE;
-    if(!(res->flags & O_WRITE)) return -PERMISION_DENIED;
+    if(!(res->flags & O_WRONLY)) return -PERMISION_DENIED;
     intptr_t e;
     if((e=inode_write(res->inode, buf, size, res->offset)) < 0) return e;
     res->offset += e;
@@ -85,7 +86,7 @@ intptr_t sys_get_dir_entries(uintptr_t handle, void* buf, size_t size) {
     Process* current = current_process();
     Resource* res = resource_find_by_id(current->resources, handle);
     if(!res) return -INVALID_HANDLE;
-    if(!(res->flags & O_READ)) return -PERMISION_DENIED;
+    if(!(res->flags & O_RDONLY)) return -PERMISION_DENIED;
     intptr_t e;
     size_t read_bytes;
     if((e=inode_get_dir_entries(res->inode, buf, size, res->offset, &read_bytes)) < 0) return e;
@@ -99,10 +100,10 @@ intptr_t sys_read(uintptr_t handle, void* buf, size_t size) {
     Process* current = current_process();
     Resource* res = resource_find_by_id(current->resources, handle);
     if(!res) return -INVALID_HANDLE;
-    if(!(res->flags & O_READ)) return -PERMISION_DENIED;
+    if(!(res->flags & O_RDONLY)) return -PERMISION_DENIED;
     intptr_t e;
 
-    if(!(res->flags & O_NOBLOCK) && !inode_is_readable(res->inode)) block_is_readable(current_task(), res->inode);
+    if(!(res->flags & O_NONBLOCK) && !inode_is_readable(res->inode)) block_is_readable(current_task(), res->inode);
     if((e=inode_read(res->inode, buf, size, res->offset)) < 0) return e;
     res->offset += e;
     return e;
@@ -120,7 +121,7 @@ intptr_t sys_ioctl(uintptr_t handle, Iop op, void* arg) {
 
 intptr_t sys_mmap(void** addr_ptr, size_t length, uint32_t prot, uint32_t flags, uintptr_t fd, off_t offset) {
 #ifdef CONFIG_LOG_SYSCALLS
-    strace("sys_mmap(%lu, %p, %zu)", handle, addr, size);
+    strace("sys_mmap(%p, %zu, %04X, %04X, %d, %zu)", addr_ptr, length, prot, flags, fd, offset);
 #endif
     Process* process = current_process();
     Task* task = current_task();
@@ -429,7 +430,7 @@ intptr_t sys_getcwd(char* buf, size_t cap) {
 
 intptr_t sys_fstatx(unsigned int fd, uint32_t mask, struct statx* stats) {
 #ifdef CONFIG_LOG_SYSCALLS
-    strace("sys_fstatx(%u, %08X, %p)", fd, mode, stats);
+    strace("sys_fstatx(%u, %08X, %p)", fd, mask, stats);
 #endif
     Process* current = current_process();
     Resource* res = resource_find_by_id(current->resources, fd);
@@ -578,7 +579,7 @@ intptr_t sys_send(uintptr_t sockfd, const void *buf, size_t len) {
     Process* current = current_process();
     Resource* res = resource_find_by_id(current->resources, sockfd);
     if(!res) return -INVALID_HANDLE;
-    if(!(res->flags & O_NOBLOCK)) block_is_writeable(current_task(), res->inode);
+    if(!(res->flags & O_NONBLOCK)) block_is_writeable(current_task(), res->inode);
     return inode_write(res->inode, buf, len, res->offset);
 }
 // TODO: strace
@@ -586,7 +587,7 @@ intptr_t sys_recv(uintptr_t sockfd,       void *buf, size_t len) {
     Process* current = current_process();
     Resource* res = resource_find_by_id(current->resources, sockfd);
     if(!res) return -INVALID_HANDLE;
-    if(!(res->flags & O_NOBLOCK)) block_is_readable(current_task(), res->inode);
+    if(!(res->flags & O_NONBLOCK)) block_is_readable(current_task(), res->inode);
     return inode_read(res->inode, buf, len, res->offset);
 }
 
@@ -605,7 +606,7 @@ intptr_t sys_accept(uintptr_t sockfd, struct sockaddr* addr, size_t *addrlen) {
         return -NOT_ENOUGH_MEM;
     }
     intptr_t e;
-    if(!(res->flags & O_NOBLOCK)) block_is_readable(current_task(), res->inode);
+    if(!(res->flags & O_NONBLOCK)) block_is_readable(current_task(), res->inode);
     e = inode_accept(res->inode, result->inode, addr, addrlen);
     if(e < 0) {
         idrop(result->inode);

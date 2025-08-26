@@ -1,8 +1,7 @@
 #include "printf.h"
 #include "string.h"
 #include "strinternal.h"
-// write()
-#include <minos/sysstd.h>
+#include <unistd.h>
 typedef ssize_t (*PrintWriteFunc)(void* user, const char* data, size_t len);
 
 #define EINVAL 1

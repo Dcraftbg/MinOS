@@ -18,3 +18,5 @@ typedef struct DIR DIR;
 DIR* opendir(const char* name);
 struct dirent* readdir(DIR *dir);
 int closedir(DIR *dir);
+// Specific to MinOS
+long getdents(unsigned int fd, void* entries, unsigned int count);

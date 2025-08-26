@@ -1,4 +1,5 @@
 #pragma once
+#include <minos/stat.h>
 // Most of these fields are 0 but are here for future expansion
 struct stat {
     dev_t     st_dev;
@@ -16,6 +17,7 @@ int fstat(int fd, struct stat* statbuf);
 int lstat(const char* pathname, struct stat* statbuf);
 // lstat still exists in the libc but its only for external linkage
 #define lstat stat
+int fstatx(int fd, unsigned int mask, struct statx* stats);
 // For unix compatibility we have some of these even tho they might not be
 // even reachable
 #define S_IFMT   0170000

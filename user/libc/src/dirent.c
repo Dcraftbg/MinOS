@@ -5,6 +5,8 @@
 #include <assert.h>
 #include <minos2errno.h>
 #include <minos/sysstd.h>
+#include <fcntl.h>
+#include <dirent.h>
 struct DIR {
     struct dirent dirent;
     int fd;

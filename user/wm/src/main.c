@@ -15,6 +15,8 @@
 #include <collections/list.h>
 #include <stdexec.h>
 #include "darray.h"
+#include <unistd.h>
+#include <fcntl.h>
 
 #include <libwm.h>
 #include <libwm/tags.h>

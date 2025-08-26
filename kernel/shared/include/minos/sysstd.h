@@ -8,48 +8,11 @@
 #include "socket.h"
 #include "stat.h"
 
-static intptr_t open(const char* path, oflags_t flags) {
-    return syscall2(SYS_OPEN, path, flags);
-}
-
-static intptr_t write(uintptr_t handle, const void* buf, size_t size) {
-    return syscall3(SYS_WRITE, handle, buf, size);
-}
-static intptr_t read(uintptr_t handle, void* buf, size_t size) {
-    return syscall3(SYS_READ, handle, buf, size);
-}
-static intptr_t ioctl(uintptr_t handle, uint32_t op, void* arg) {
-    return syscall3(SYS_IOCTL, handle, op, arg);
-}
-static intptr_t _mmap(void** addr, size_t length, uint32_t prot, uint32_t flags, uintptr_t fd, off_t offset) {
-    return syscall6(SYS_MMAP, addr, length, prot, flags, fd, offset);
-}
-static intptr_t lseek(uintptr_t handle, off_t offset, seekfrom_t from) {
-    return syscall3(SYS_LSEEK, handle, offset, from);
-}
-static intptr_t close(uintptr_t handle) {
-    return syscall1(SYS_CLOSE, handle);
-}
-static intptr_t fork(void) {
-    return syscall0(SYS_FORK);
-}
-static intptr_t execve(const char* path, const char** argv, size_t argc, const char** envp, size_t envc) {
-    return syscall5(SYS_EXEC, path, argv, argc, envp, envc);
-}
-static void _exit(int64_t code) {
-    syscall1(SYS_EXIT, code);
-}
 static intptr_t wait_pid(size_t pid) {
     return syscall1(SYS_WAITPID, pid);
 }
-static intptr_t chdir(const char* path) {
-    return syscall1(SYS_CHDIR, path);
-}
-static intptr_t getcwd(char* buf, size_t cap) {
-    return syscall2(SYS_GETCWD, buf, cap);
-}
-static intptr_t _fstatx(int fd, unsigned int mask, struct statx* stats) {
-    return syscall3(SYS_FSTATX, fd, mask, stats);
+static intptr_t execve(const char* path, const char** argv, size_t argc, const char** envp, size_t envc) {
+    return syscall5(SYS_EXEC, path, argv, argc, envp, envc);
 }
 static intptr_t get_dir_entries(uintptr_t dirfd, DirEntry* entries, size_t size) {
     return syscall3(SYS_GET_DIR_ENTRIES, dirfd, entries, size);

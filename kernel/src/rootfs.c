@@ -4,6 +4,7 @@
 #include "bootutils.h"
 #include "vfs.h"
 #include "print.h"
+#include <minos/fcntl.h>
 #include "kernel.h"
 
 void init_rootfs(void) {

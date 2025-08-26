@@ -1,3 +1,5 @@
+#include <unistd.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -308,10 +310,10 @@ static int parse_mode_to_oflags(const char* mode_str) {
     while(mode_str[0]) {
         switch(mode_str[0]) {
         case 'r':
-            oflags |= O_READ;
+            oflags |= O_RDONLY;
             break;
         case 'w':
-            oflags |= O_WRITE | O_CREAT;
+            oflags |= O_WRONLY | O_CREAT;
             break;
         case 'b':
             break;
@@ -320,7 +322,7 @@ static int parse_mode_to_oflags(const char* mode_str) {
         }
         mode_str++;
     }
-    if((!(oflags & O_READ)) && (oflags & O_WRITE)) oflags |= O_TRUNC;
+    if((!(oflags & O_RDONLY)) && (oflags & O_WRONLY)) oflags |= O_TRUNC;
     return oflags;
 
 }
@@ -404,7 +406,7 @@ int fclose(FILE* f) {
     return 0;
 }
 int fseek(FILE* f, long offset, int origin) {
-    if(f->oflags & O_WRITE) {
+    if(f->oflags & O_WRONLY) {
         int e = fflush(f);
         if(e < 0) return e;
     } else {
@@ -599,7 +601,7 @@ size_t fwrite(const void* restrict buffer, size_t size, size_t count, FILE* rest
     return e/size;
 }
 int fflush(FILE* f) {
-    if(!(f->oflags & O_WRITE)) return 0;
+    if(!(f->oflags & O_WRONLY)) return 0;
     if(f->buf_len == 0) return 0;
     ssize_t n = fwrite_uncached_exact(f, f->buf, f->buf_len);
     if(n < 0) return n;
@@ -750,6 +752,11 @@ int feof(FILE* f) {
     return f->error == EOF;
 }
 #include <assert.h>
+static void close_std_streams(void) {
+    fflush(stdout);
+    fflush(stdin);
+    fflush(stderr);
+}
 void _libc_init_streams(void) {
     stdout = fdopen(STDOUT_FILENO, "wb");
     stdin  = fdopen( STDIN_FILENO, "rb");
@@ -759,6 +766,7 @@ void _libc_init_streams(void) {
     assert(stdout);
     assert(stdin);
     assert(stderr);
+    atexit(close_std_streams);
 }
 
 void clearerr(FILE* f) {

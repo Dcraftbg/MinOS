@@ -1,6 +1,8 @@
 #include <pluto.h>
 #include <libwm/events.h>
 #include <libwm/key.h>
+#include <unistd.h>
+#include <fcntl.h>
 
 #include <assert.h>
 #include <minos/sysstd.h>

@@ -1,5 +1,7 @@
 #include <minos/sysstd.h>
 #include <minos/status.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <stdexec.h>
 #include <stdbool.h>
 #include <string.h>

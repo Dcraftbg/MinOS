@@ -1,13 +1,18 @@
 #pragma once
-// TODO: Errors. errno. Files and more
 #include <stddef.h>
-#include <stdint.h>
 #include <stdarg.h>
 #include <sys/types.h>
+
+#ifndef SEEK_SET
+# define SEEK_SET 0
+#endif
+#ifndef SEEK_CUR
+# define SEEK_CUR 1
+#endif
+#ifndef SEEK_END
+# define SEEK_END 2
+#endif
 typedef struct FILE FILE;
-#define STDOUT_FILENO 0
-#define STDIN_FILENO  0
-#define STDERR_FILENO 0
 extern FILE* stdout; 
 extern FILE* stdin ; 
 extern FILE* stderr; 
@@ -45,9 +50,6 @@ static int putchar(int ch) {
 int remove(const char* path);
 int rename(const char* old_filename, const char* new_filename);
 int fflush(FILE* f);
-#define SEEK_SET 0
-#define SEEK_CUR 1
-#define SEEK_END 2
 int fseek (FILE* f, long offset, int origin);
 #define fseeko fseek
 int sscanf(const char *buffer, const char *fmt, ...);

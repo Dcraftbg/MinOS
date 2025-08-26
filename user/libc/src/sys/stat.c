@@ -1,15 +1,24 @@
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <unistd.h>
+#include <fcntl.h>
 #include <string.h>
 
 #include <errno.h>
 #include <minos2errno.h>
+#include <minos/stat.h>
 #include <minos/sysstd.h>
 
+#define syscall(sys, ...) \
+    intptr_t e = sys(__VA_ARGS__); \
+    return e < 0 ? (errno = _minos2errno(e), -1) : e
+
+int fstatx(int fd, unsigned int mask, struct statx* stats) {
+    syscall(syscall3, SYS_FSTATX, fd, mask, stats);
+}
 int fstat(int fd, struct stat* statbuf) {
     struct statx statx = { 0 };
-    intptr_t e = _fstatx(fd, STATX_INO | STATX_SIZE | STATX_TYPE, &statx);
-    if(e < 0) return (errno = _minos2errno(e), -1);
+    if(fstatx(fd, STATX_INO | STATX_SIZE | STATX_TYPE, &statx) < 0) return -1;
     memset(statbuf, 0, sizeof(*statbuf));
     statbuf->st_ino = statx.stx_ino;
     statbuf->st_size = statx.stx_size;
@@ -37,6 +46,7 @@ int stat(const char* pathname, struct stat* statbuf) {
     close(fd);
     return e;
 }
+
 // Only for external linkage
 #undef lstat
 int lstat(const char* pathname, struct stat* statbuf) {

@@ -2,6 +2,7 @@
 #include <vfs.h>
 #include <utils.h>
 #include <mem/slab.h> 
+#include <minos/fcntl.h>
 #include <log.h>
 typedef struct {
     Inode inode;

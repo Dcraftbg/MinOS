@@ -1,6 +1,8 @@
 #include <minos/sysstd.h>
 #include <minos/fb/fb.h>
 #include <minos/status.h>
+#include <unistd.h>
+#include <fcntl.h>
 #include <sys/mman.h>
 #include <stdio.h>
 #define STBI_NO_FAILURE_STRINGS
