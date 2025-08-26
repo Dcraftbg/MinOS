@@ -86,6 +86,10 @@ typedef struct {
     size_t nums_count;
 } CsiParser;
 typedef struct {
+    char c;
+    uint32_t fg, bg;
+} Codepoint;
+typedef struct {
     Tty tty;
     Inode* keyboard;
     TtyScratch scratch;
@@ -93,15 +97,14 @@ typedef struct {
     Framebuffer fb;
     size_t x, y;
     size_t w, h;
-    struct {
-        char c;
-    }* map;
+    Codepoint* map;
     enum {
         STATE_NORMAL,
         STATE_ANSI_ESCAPE,
         STATE_CSI,
     } state;
     CsiParser csi;
+    uint32_t cursor_color;
     uint32_t fg, bg;
 } FbTty;
 static Cache* fbtty_cache = NULL;
@@ -121,7 +124,7 @@ static void fbtty_putchar(Tty* device, uint32_t code);
 static intptr_t fbtty_getsize(Tty* device, TtySize* size);
 static intptr_t fbtty_deinit(Tty* device);
 
-static void fbtty_fill_blink(FbTty* fb, uint32_t color);
+static void fbtty_fill_blink(FbTty* fb, bool on);
 
 #define TTY_MILISECOND_BLINK 500
 static bool fbtty_is_readable(Inode* device) {
@@ -152,20 +155,29 @@ static FbTty* fbtty_new_internal(Inode* keyboard, Framebuffer fb) {
         cache_dealloc(fbtty_cache, tty);
         return NULL;
     }
+    tty->cursor_color = VGA_FG;
+    tty->fg = VGA_FG;
+    tty->bg = VGA_BG;
     size_t chars = tty->w * tty->h;
     for(size_t i = 0; i < chars; ++i) {
         tty->map[i].c = ' ';
+        tty->map[i].fg = tty->fg;
+        tty->map[i].bg = tty->bg;
     }
     tty->keyboard = keyboard;
     tty->fb = fb;
-    tty->fg = VGA_FG;
-    tty->bg = VGA_BG;
     ttyscratch_init(&tty->scratch);
     return tty;
 }
 
-static void fbtty_fill_blink(FbTty* fb, uint32_t color) {
-    fb_draw_codepoint_at(&fb->fb, fb->x*8, fb->y*16, fb->map[fb->y * fb->w + fb->x].c, 0xffffffff - color, color);
+static void fbtty_fill_blink(FbTty* fb, bool on) {
+    Codepoint* cpt = &fb->map[fb->y * fb->w + fb->x];
+    uint32_t fg = cpt->fg, bg = cpt->bg;
+    if(on) {
+        bg = fb->cursor_color;
+        fg = 0xffffffff - cpt->fg;
+    }
+    fb_draw_codepoint_at(&fb->fb, fb->x*8, fb->y*16, cpt->c, fg, bg);
 }
 static intptr_t fbtty_getsize(Tty* device, TtySize* size) {
     FbTty* fbtty = (FbTty*)device;
@@ -303,7 +315,7 @@ static void handle_csi_final(FbTty* fbtty, uint32_t code) {
         }
     } break;
     case 'H': {
-        fbtty_fill_blink(fbtty, fbtty->bg);
+        fbtty_fill_blink(fbtty, false);
         int y=1, x=1;
         if(fbtty->csi.nums_count > 0) y = fbtty->csi.nums[0];
         if(fbtty->csi.nums_count > 1) x = fbtty->csi.nums[1];
@@ -313,7 +325,7 @@ static void handle_csi_final(FbTty* fbtty, uint32_t code) {
         fbtty->y = (y-1);
         if(fbtty->x > fbtty->w) fbtty->x = fbtty->w-1;
         if(fbtty->y > fbtty->h) fbtty->y = fbtty->h-1;
-        fbtty_fill_blink(fbtty, fbtty->fg);
+        fbtty_fill_blink(fbtty, true);
     } break;
     case 'J': {
         int mode = fbtty->csi.nums_count > 0 ? fbtty->csi.nums[0] : 0;
@@ -322,6 +334,8 @@ static void handle_csi_final(FbTty* fbtty, uint32_t code) {
             size_t chars = fbtty->h * fbtty->w;
             for(size_t i = 0; i < chars; ++i) {
                 fbtty->map[i].c = ' ';
+                fbtty->map[i].fg = fbtty->fg;
+                fbtty->map[i].bg = fbtty->bg;
             }
             fmbuf_fill(&fbtty->fb, fbtty->bg);
         } break;
@@ -334,19 +348,19 @@ static void handle_csi_final(FbTty* fbtty, uint32_t code) {
     case 'B': {
         int dy = fbtty->csi.nums_count > 0 ? fbtty->csi.nums[0] : 0;
         if(dy == 0) break;
-        fbtty_fill_blink(fbtty, fbtty->bg);
+        fbtty_fill_blink(fbtty, false);
         fbtty->y = (int)fbtty->y + ((code - 'B') * 2 + 1) * dy;
         if(fbtty->y >= fbtty->h) fbtty->y = fbtty->h - 1;
-        fbtty_fill_blink(fbtty, fbtty->fg);
+        fbtty_fill_blink(fbtty, true);
     } break;
     case 'C':
     case 'D': {
         int dx = fbtty->csi.nums_count > 0 ? fbtty->csi.nums[0] : 0; 
         if(dx == 0) break;
-        fbtty_fill_blink(fbtty, fbtty->bg);
+        fbtty_fill_blink(fbtty, false);
         fbtty->x = (int)fbtty->x + (-((code - 'D') * 2 + 1)) * dx;
         if(fbtty->x >= fbtty->w) fbtty->x = fbtty->w - 1;
-        fbtty_fill_blink(fbtty, fbtty->fg);
+        fbtty_fill_blink(fbtty, true);
     } break;
     default:
         kerror("(fbtty) Unsupported csi final code: %c (%02X)", code, code);
@@ -354,7 +368,7 @@ static void handle_csi_final(FbTty* fbtty, uint32_t code) {
     }
 }
 static void fbtty_draw_char(FbTty* fbtty, uint32_t code) {
-    fbtty_fill_blink(fbtty, fbtty->bg);
+    fbtty_fill_blink(fbtty, false);
     while(fbtty->x >= fbtty->w) {
         fbtty->x -= fbtty->w;
         fbtty->y++;
@@ -363,7 +377,10 @@ static void fbtty_draw_char(FbTty* fbtty, uint32_t code) {
         fmbuf_scroll_up(&fbtty->fb, 16, fbtty->bg);
         memmove(fbtty->map, fbtty->map+fbtty->w, fbtty->w*(fbtty->h-1)*sizeof(fbtty->map[0]));
         for(size_t i = 0; i < fbtty->w; ++i) {
-            (fbtty->map + fbtty->w*(fbtty->h-1))[i].c = ' ';
+            Codepoint* cpt = &(fbtty->map + fbtty->w*(fbtty->h-1))[i];
+            cpt->c = ' ';
+            cpt->fg = fbtty->fg;
+            cpt->bg = fbtty->bg;
         }
         fbtty->y--;
     }
@@ -378,6 +395,8 @@ static void fbtty_draw_char(FbTty* fbtty, uint32_t code) {
     } break;
     case ' ': {
         fbtty->map[i].c = code;
+        fbtty->map[i].fg = fbtty->fg;
+        fbtty->map[i].bg = fbtty->bg;
         size_t x = fbtty->x * 8;
         size_t y = fbtty->y * 16;
         fmbuf_draw_rect(&fbtty->fb, x, y, x + 8, y + 16, fbtty->bg);
@@ -385,6 +404,8 @@ static void fbtty_draw_char(FbTty* fbtty, uint32_t code) {
     } break;
     case '\n':
         fbtty->map[i].c = ' ';// code;
+        fbtty->map[i].fg = fbtty->fg;
+        fbtty->map[i].bg = fbtty->bg;
         fbtty->y++;
         fbtty->x = 0;
         break;
@@ -394,11 +415,13 @@ static void fbtty_draw_char(FbTty* fbtty, uint32_t code) {
         break;
     default:
         fbtty->map[i].c = code;
+        fbtty->map[i].fg = fbtty->fg;
+        fbtty->map[i].bg = fbtty->bg;
         fb_draw_codepoint_at(&fbtty->fb, fbtty->x * 8, fbtty->y * 16, code, fbtty->fg, fbtty->bg);
         fbtty->x++;
         break;
     }
-    fbtty_fill_blink(fbtty, fbtty->fg);
+    fbtty_fill_blink(fbtty, true);
 }
 static void fbtty_putchar(Tty* device, uint32_t code) {
     mutex_lock(&device->mutex);
