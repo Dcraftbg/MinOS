@@ -231,7 +231,7 @@ static uint32_t bit4_bold_colors[8] = {
 static void handle_csi_final(FbTty* fbtty, uint32_t code) {
     switch(code) {
     case 'm': {
-        int n = fbtty->csi.nums_count > 0 ? fbtty->csi.nums[0] : 0;
+        int n = fbtty->csi.nums[0];
         switch(n) {
         case 0:
             fbtty->fg = VGA_FG;
@@ -247,6 +247,16 @@ static void handle_csi_final(FbTty* fbtty, uint32_t code) {
         case 37:
             fbtty->fg = bit4_colors[n - 30];
             break;
+        case 38:
+            if(fbtty->csi.nums[1] == 2) {
+                int r = fbtty->csi.nums[2];
+                int g = fbtty->csi.nums[3];
+                int b = fbtty->csi.nums[4];
+                fbtty->fg = (0xFF << 24) | ((r & 0xFF) << 16) | ((g & 0xFF) << 8) | ((b & 0xFF) << 0);
+            } else {
+                kerror("Unsupported non-RGB color escape");
+            }
+            break;
         case 40:
         case 41:
         case 42:
@@ -256,6 +266,16 @@ static void handle_csi_final(FbTty* fbtty, uint32_t code) {
         case 46:
         case 47:
             fbtty->bg = bit4_colors[n - 40];
+            break;
+        case 48:
+            if(fbtty->csi.nums[1] == 2) {
+                int r = fbtty->csi.nums[2];
+                int g = fbtty->csi.nums[3];
+                int b = fbtty->csi.nums[4];
+                fbtty->bg = (0xFF << 24) | ((r & 0xFF) << 16) | ((g & 0xFF) << 8) | ((b & 0xFF) << 0);
+            } else {
+                kerror("Unsupported non-RGB color escape");
+            }
             break;
         case 90:
         case 91:
@@ -335,6 +355,18 @@ static void handle_csi_final(FbTty* fbtty, uint32_t code) {
 }
 static void fbtty_draw_char(FbTty* fbtty, uint32_t code) {
     fbtty_fill_blink(fbtty, fbtty->bg);
+    while(fbtty->x >= fbtty->w) {
+        fbtty->x -= fbtty->w;
+        fbtty->y++;
+    }
+    while(fbtty->y >= fbtty->h) {
+        fmbuf_scroll_up(&fbtty->fb, 16, fbtty->bg);
+        memmove(fbtty->map, fbtty->map+fbtty->w, fbtty->w*(fbtty->h-1)*sizeof(fbtty->map[0]));
+        for(size_t i = 0; i < fbtty->w; ++i) {
+            (fbtty->map + fbtty->w*(fbtty->h-1))[i].c = ' ';
+        }
+        fbtty->y--;
+    }
     size_t i = fbtty->y * fbtty->w + fbtty->x;
     switch(code) {
     case '\b': {
@@ -365,18 +397,6 @@ static void fbtty_draw_char(FbTty* fbtty, uint32_t code) {
         fb_draw_codepoint_at(&fbtty->fb, fbtty->x * 8, fbtty->y * 16, code, fbtty->fg, fbtty->bg);
         fbtty->x++;
         break;
-    }
-    while(fbtty->x >= fbtty->w) {
-        fbtty->x -= fbtty->w;
-        fbtty->y++;
-    }
-    while(fbtty->y >= fbtty->h) {
-        fmbuf_scroll_up(&fbtty->fb, 16, fbtty->bg);
-        memmove(fbtty->map, fbtty->map+fbtty->w, fbtty->w*(fbtty->h-1)*sizeof(fbtty->map[0]));
-        for(size_t i = 0; i < fbtty->w; ++i) {
-            (fbtty->map + fbtty->w*(fbtty->h-1))[i].c = ' ';
-        }
-        fbtty->y--;
     }
     fbtty_fill_blink(fbtty, fbtty->fg);
 }
