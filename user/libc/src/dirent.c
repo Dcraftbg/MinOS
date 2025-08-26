@@ -4,9 +4,19 @@
 #include <string.h>
 #include <assert.h>
 #include <minos2errno.h>
-#include <minos/sysstd.h>
 #include <fcntl.h>
 #include <dirent.h>
+#include <minos/syscall.h>
+#include <minos/syscodes.h>
+#include <minos/fsdefs.h>
+#include <unistd.h>
+
+#define syscall(sys, ...) \
+    intptr_t e = sys(__VA_ARGS__); \
+    return e < 0 ? (errno = _minos2errno(e), -1) : e
+long getdents(unsigned int fd, void* entries, unsigned int size) {
+    syscall(syscall3, SYS_GET_DIR_ENTRIES, fd, entries, size);
+}
 struct DIR {
     struct dirent dirent;
     int fd;
@@ -34,7 +44,7 @@ malloc_err:
 }
 struct dirent* readdir(DIR *dir) {
     if(dir->left == 0) {
-        intptr_t e = get_dir_entries(dir->fd, (DirEntry*)dir->buf, sizeof(dir->buf));
+        intptr_t e = getdents(dir->fd, (DirEntry*)dir->buf, sizeof(dir->buf));
         if(e < 0) {
             errno = _minos2errno(e);
             return NULL;

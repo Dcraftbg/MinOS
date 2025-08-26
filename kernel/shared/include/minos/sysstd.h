@@ -14,9 +14,6 @@ static intptr_t wait_pid(size_t pid) {
 static intptr_t execve(const char* path, const char** argv, size_t argc, const char** envp, size_t envc) {
     return syscall5(SYS_EXEC, path, argv, argc, envp, envc);
 }
-static intptr_t get_dir_entries(uintptr_t dirfd, DirEntry* entries, size_t size) {
-    return syscall3(SYS_GET_DIR_ENTRIES, dirfd, entries, size);
-}
 static intptr_t sleepfor(const MinOS_Duration* duration) {
     return syscall1(SYS_SLEEPFOR, duration);
 } 
