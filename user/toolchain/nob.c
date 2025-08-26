@@ -1,3 +1,4 @@
+#define NOB_STRIP_PREFIX
 #define NOB_IMPLEMENTATION
 #include "../nob.h"
 
@@ -25,14 +26,14 @@
 // TODO: dedicated installation folder.
 
 bool ar(Nob_Cmd* cmd, const char* archive, const char **inputs, size_t inputs_count) {
-    nob_cmd_append(cmd, "ar", "-cr", archive);
-    nob_da_append_many(cmd, inputs, inputs_count);
-    return nob_cmd_run_sync_and_reset(cmd);
+    cmd_append(cmd, "ar", "-cr", archive);
+    da_append_many(cmd, inputs, inputs_count);
+    return cmd_run_sync_and_reset(cmd);
 }
 bool dynlink(Nob_Cmd* cmd, const char* so, const char **inputs, size_t inputs_count) {
-    nob_cmd_append(cmd, "gcc", "-shared", "-o", so, "-Wl,--hash-style=sysv", "-nolibc");
-    nob_da_append_many(cmd, inputs, inputs_count);
-    return nob_cmd_run_sync_and_reset(cmd);
+    cmd_append(cmd, "gcc", "-shared", "-o", so, "-Wl,--hash-style=sysv", "-nolibc");
+    da_append_many(cmd, inputs, inputs_count);
+    return cmd_run_sync_and_reset(cmd);
 }
 
 const char* get_ext(const char* path) {
@@ -54,28 +55,28 @@ bool find_objs(const char* dirpath, Nob_File_Paths *paths) {
     dir = opendir(dirpath);
     if (dir == NULL) {
         nob_log(NOB_ERROR, "Could not open directory %s: %s", dirpath, strerror(errno));
-        nob_return_defer(false);
+        return_defer(false);
     }
 
     errno = 0;
     struct dirent *ent = readdir(dir);
     while (ent != NULL) {
-        const char* ent_d_name = nob_temp_strdup(ent->d_name);
+        const char* ent_d_name = temp_strdup(ent->d_name);
         const char* fext = get_ext(ent_d_name);
-        const char* path = nob_temp_sprintf("%s/%s",dirpath,ent_d_name);
-        Nob_File_Type type = nob_get_file_type(path);
+        const char* path = temp_sprintf("%s/%s",dirpath,ent_d_name);
+        Nob_File_Type type = get_file_type(path);
         
         if(fext && strcmp(fext, "o") == 0) {
             if(type == NOB_FILE_REGULAR) {
-                nob_da_append(paths,path);
+                da_append(paths,path);
             }
         }
         if (type == NOB_FILE_DIRECTORY) {
             if(strcmp(ent_d_name, ".") != 0 && strcmp(ent_d_name, "..") != 0) {
                 sb.count = 0;
-                nob_sb_append_cstr(&sb,nob_temp_sprintf("%s/%s",dirpath,ent_d_name));
-                nob_sb_append_null(&sb);
-                if(!find_objs(sb.items, paths)) nob_return_defer(false);
+                sb_append_cstr(&sb,temp_sprintf("%s/%s",dirpath,ent_d_name));
+                sb_append_null(&sb);
+                if(!find_objs(sb.items, paths)) return_defer(false);
             }
         }
         ent = readdir(dir);
@@ -83,16 +84,16 @@ bool find_objs(const char* dirpath, Nob_File_Paths *paths) {
 
     if (errno != 0) {
         nob_log(NOB_ERROR, "Could not read directory %s: %s", dirpath, strerror(errno));
-        nob_return_defer(false);
+        return_defer(false);
     }
 
 defer:
     if (dir) closedir(dir);
-    nob_sb_free(sb);
+    sb_free(sb);
     return result;
 }
 bool copy_if_needed(const char* from, const char* to) {
-    return nob_needs_rebuild1(to, from) ? nob_copy_file(from, to) : true;
+    return needs_rebuild1(to, from) ? copy_file(from, to) : true;
 }
 bool setup_sysroot(Nob_Cmd* cmd) {
     char* minos_root = getenv("MINOSROOT");
@@ -103,136 +104,139 @@ bool setup_sysroot(Nob_Cmd* cmd) {
     }
     // I know KROOT exists, but we already depend on the MINOSROOT
     // to exist so I feel like its just easier for me to depend on less and do more
-    char* kroot = nob_temp_sprintf("%s/kernel", minos_root);
+    char* kroot = temp_sprintf("%s/kernel", minos_root);
     if(!nob_mkdir_if_not_exists_silent(SYSROOT "/usr")) return false;
     if(!nob_mkdir_if_not_exists_silent(SYSROOT "/usr/lib")) return false;
-    if(!nob_copy_need_update_directory_recursively(nob_temp_sprintf("%s/user/libc/include", minos_root), SYSROOT "/usr/include")) return false;
-    if(!nob_copy_need_update_directory_recursively(nob_temp_sprintf("%s/shared/include", kroot), SYSROOT "/usr/include")) return false;
-    if(!copy_if_needed(nob_temp_sprintf("%s/bin/crt/start.o", minos_root), SYSROOT "/usr/lib/crt0.o")) return false;
-    if(!copy_if_needed(nob_temp_sprintf("%s/bin/crt/crtn.o", minos_root), SYSROOT "/usr/lib/crtn.o")) return false;
-    if(!copy_if_needed(nob_temp_sprintf("%s/bin/crt/crtbegin.o", minos_root), SYSROOT "/usr/lib/crtbegin.o")) return false;
-    if(!copy_if_needed(nob_temp_sprintf("%s/bin/crt/crti.o", minos_root), SYSROOT "/usr/lib/crti.o")) return false;
-    if(!copy_if_needed(nob_temp_sprintf("%s/bin/crt/crtend.o", minos_root), SYSROOT "/usr/lib/crtend.o")) return false;
+    if(!nob_copy_need_update_directory_recursively(temp_sprintf("%s/user/libc/include", minos_root), SYSROOT "/usr/include")) return false;
+    if(!nob_copy_need_update_directory_recursively(temp_sprintf("%s/shared/include", kroot), SYSROOT "/usr/include")) return false;
+
+
+    const char* crt[] = {
+        "crt0.o", "crtn.o", "crtbegin.o", "crti.o", "crtend.o"
+    };
+    for(size_t i = 0; i < ARRAY_LEN(crt); ++i) {
+        if(!copy_if_needed(temp_sprintf("%s/bin/crt/%s", minos_root, crt[i]), temp_sprintf(SYSROOT "/usr/lib/%s", crt[i]))) return false;
+    }
     Nob_File_Paths paths = { 0 };
-    if(!find_objs(nob_temp_sprintf("%s/bin/libc", minos_root), &paths) || !find_objs(nob_temp_sprintf("%s/bin/shared", minos_root), &paths)) {
-        nob_da_free(paths);
+    if(!find_objs(temp_sprintf("%s/bin/libc", minos_root), &paths) || !find_objs(temp_sprintf("%s/bin/shared", minos_root), &paths)) {
+        da_free(paths);
         return false;
     }
     if(!ar(cmd, SYSROOT "/usr/lib/libc.a", paths.items, paths.count)) {
-        nob_da_free(paths);
+        da_free(paths);
         return false;
     }
     if(!dynlink(cmd, SYSROOT "/usr/lib/libc.so", paths.items, paths.count)) {
-        nob_da_free(paths);
+        da_free(paths);
         return false;
     }
-    if(nob_mkdir_if_not_exists(nob_temp_sprintf("%s/initrd/lib", minos_root)) && !nob_copy_file(SYSROOT "/usr/lib/libc.so", nob_temp_sprintf("%s/initrd/lib/libc.so", minos_root))) {
-        nob_da_free(paths);
+    if(mkdir_if_not_exists(temp_sprintf("%s/initrd/lib", minos_root)) && !copy_file(SYSROOT "/usr/lib/libc.so", temp_sprintf("%s/initrd/lib/libc.so", minos_root))) {
+        da_free(paths);
         return false;
     } 
 
-    nob_da_free(paths);
+    da_free(paths);
     return true;
 }
 bool enter_clean_build(void) {
-    if(!nob_mkdir_if_not_exists("build")) return false;
-    return nob_set_current_dir("build");
+    if(!mkdir_if_not_exists("build")) return false;
+    return set_current_dir("build");
 }
 // TODO: fix temp leakage on error + go back to original directory
 // Doesn't really matter but its good to cleanup
 bool build_binutils(Nob_Cmd* cmd) {
-    size_t temp = nob_temp_save();
-    const char *curdir = nob_get_current_dir_temp();
+    size_t temp = temp_save();
+    const char *curdir = get_current_dir_temp();
     const char *binutils_dir_abs = nob_temp_realpath(BINUTILS_DIR);
     const char *sysroot_abs = nob_temp_realpath(SYSROOT);
-    assert(nob_set_current_dir(BINUTILS_DIR));
-    switch(nob_file_exists(BINUTILS_VERSION)) {
+    assert(set_current_dir(BINUTILS_DIR));
+    switch(file_exists(BINUTILS_VERSION)) {
     case -1: return false;
     case 0:
-        if(nob_file_exists(BINUTILS_TAR) <= 0) {
-            nob_cmd_append(cmd, "wget", BINUTILS_URL);
-            if(!nob_cmd_run_sync_and_reset(cmd)) return false;
+        if(file_exists(BINUTILS_TAR) <= 0) {
+            cmd_append(cmd, "wget", BINUTILS_URL);
+            if(!cmd_run_sync_and_reset(cmd)) return false;
         }
-        nob_cmd_append(cmd, "tar", "-xf", BINUTILS_TAR);
-        if(!nob_cmd_run_sync_and_reset(cmd)) return false;
-        nob_log(NOB_INFO, "current directory: %s", nob_get_current_dir_temp());
-        nob_cmd_append(cmd, "patch", "-ruN", "-p1", "-d", BINUTILS_VERSION, "-i", "../../../binutils-2.39.patch");
-        if(!nob_cmd_run_sync_and_reset(cmd)) return false;
-        nob_cmd_append(cmd, "patch", "-ruN", "-p1", "-d", BINUTILS_VERSION, "-i", "../../../0001-binutils-Add-dynamic-link-support.patch");
-        if(!nob_cmd_run_sync_and_reset(cmd)) return false;
+        cmd_append(cmd, "tar", "-xf", BINUTILS_TAR);
+        if(!cmd_run_sync_and_reset(cmd)) return false;
+        nob_log(NOB_INFO, "current directory: %s", get_current_dir_temp());
+        cmd_append(cmd, "patch", "-ruN", "-p1", "-d", BINUTILS_VERSION, "-i", "../../../binutils-2.39.patch");
+        if(!cmd_run_sync_and_reset(cmd)) return false;
+        cmd_append(cmd, "patch", "-ruN", "-p1", "-d", BINUTILS_VERSION, "-i", "../../../0001-binutils-Add-dynamic-link-support.patch");
+        if(!cmd_run_sync_and_reset(cmd)) return false;
         break;
     case 1: break;
     default:
-        NOB_UNREACHABLE("nob_file_exists return");
+        NOB_UNREACHABLE("file_exists return");
     }
-    assert(nob_set_current_dir(BINUTILS_VERSION));
+    assert(set_current_dir(BINUTILS_VERSION));
     if(!enter_clean_build()) return false;
-    nob_cmd_append(
+    cmd_append(
         cmd, "../configure",
         "--target=x86_64-minos",
         // "--disable-shared",
-        nob_temp_sprintf("--prefix=%s", binutils_dir_abs),
-        nob_temp_sprintf("--with-sysroot=%s", sysroot_abs),
+        temp_sprintf("--prefix=%s", binutils_dir_abs),
+        temp_sprintf("--with-sysroot=%s", sysroot_abs),
         "--enable-initfini-array",
         "--enable-lto",
         "--disable-nls",
         "--disable-werror");
-    if(!nob_cmd_run_sync_and_reset(cmd)) return false;
-    nob_cmd_append(cmd, "make", nob_temp_sprintf("-j%zu", (size_t)NUM_THREADS));
-    if(!nob_cmd_run_sync_and_reset(cmd)) return false;
-    nob_cmd_append(cmd, "make", "install");
-    if(!nob_cmd_run_sync_and_reset(cmd)) return false;
-    nob_temp_rewind(temp);
-    assert(nob_set_current_dir(curdir));
+    if(!cmd_run_sync_and_reset(cmd)) return false;
+    cmd_append(cmd, "make", temp_sprintf("-j%zu", (size_t)NUM_THREADS));
+    if(!cmd_run_sync_and_reset(cmd)) return false;
+    cmd_append(cmd, "make", "install");
+    if(!cmd_run_sync_and_reset(cmd)) return false;
+    temp_rewind(temp);
+    assert(set_current_dir(curdir));
     return true;
 }
 bool build_gcc(Nob_Cmd* cmd) {
-    size_t temp = nob_temp_save();
-    const char *curdir = nob_get_current_dir_temp();
+    size_t temp = temp_save();
+    const char *curdir = get_current_dir_temp();
     const char *binutils_dir_abs = nob_temp_realpath(BINUTILS_DIR);
     const char *sysroot_abs = nob_temp_realpath(SYSROOT);
-    assert(nob_set_current_dir(GCC_DIR));
-    switch(nob_file_exists(GCC_VERSION)) {
+    assert(set_current_dir(GCC_DIR));
+    switch(file_exists(GCC_VERSION)) {
     case -1: return false;
     case 0:
-        if(nob_file_exists(GCC_TAR) <= 0) {
-            nob_cmd_append(cmd, "wget", GCC_URL);
-            if(!nob_cmd_run_sync_and_reset(cmd)) return false;
+        if(file_exists(GCC_TAR) <= 0) {
+            cmd_append(cmd, "wget", GCC_URL);
+            if(!cmd_run_sync_and_reset(cmd)) return false;
         }
-        nob_cmd_append(cmd, "tar", "-xf", GCC_TAR);
-        if(!nob_cmd_run_sync_and_reset(cmd)) return false;
-        nob_cmd_append(cmd, "patch", "-ruN", "-p1", "-d", GCC_VERSION, "-i", "../../../gcc-12.2.0.patch");
-        if(!nob_cmd_run_sync_and_reset(cmd)) return false;
-        nob_cmd_append(cmd, "patch", "-ruN", "-p1", "-d", GCC_VERSION, "-i", "../../../0001-minos-Add-config-for-dynamic-linking.patch");
-        if(!nob_cmd_run_sync_and_reset(cmd)) return false;
+        cmd_append(cmd, "tar", "-xf", GCC_TAR);
+        if(!cmd_run_sync_and_reset(cmd)) return false;
+        cmd_append(cmd, "patch", "-ruN", "-p1", "-d", GCC_VERSION, "-i", "../../../gcc-12.2.0.patch");
+        if(!cmd_run_sync_and_reset(cmd)) return false;
+        cmd_append(cmd, "patch", "-ruN", "-p1", "-d", GCC_VERSION, "-i", "../../../0001-minos-Add-config-for-dynamic-linking.patch");
+        if(!cmd_run_sync_and_reset(cmd)) return false;
         break;
     case 1: break;
     default:
-        NOB_UNREACHABLE("nob_file_exists return");
+        NOB_UNREACHABLE("file_exists return");
     }
-    assert(nob_set_current_dir(GCC_VERSION));
+    assert(set_current_dir(GCC_VERSION));
     if(!enter_clean_build()) return false;
-    nob_cmd_append(
+    cmd_append(
         cmd, "../configure",
         "--target=x86_64-minos",
         // "--disable-shared",
-        nob_temp_sprintf("--prefix=%s", binutils_dir_abs),
-        nob_temp_sprintf("--with-sysroot=%s", sysroot_abs),
+        temp_sprintf("--prefix=%s", binutils_dir_abs),
+        temp_sprintf("--with-sysroot=%s", sysroot_abs),
         "--enable-initfini-array",
         "--enable-lto",
         "--disable-nls",
         "--enable-languages=c");
-    if(!nob_cmd_run_sync_and_reset(cmd)) return false;
-    nob_cmd_append(cmd, "make", nob_temp_sprintf("-j%zu", (size_t)NUM_THREADS), "all-gcc");
-    if(!nob_cmd_run_sync_and_reset(cmd)) return false;
-    nob_cmd_append(cmd, "make", nob_temp_sprintf("-j%zu", (size_t)NUM_THREADS), "all-target-libgcc", "CFLAGS_FOR_TARGET=-mcmodel=large -mno-red-zone");
-    if(!nob_cmd_run_sync_and_reset(cmd)) return false;
-    nob_cmd_append(cmd, "make", "install-gcc");
-    if(!nob_cmd_run_sync_and_reset(cmd)) return false;
-    nob_cmd_append(cmd, "make", "install-target-libgcc");
-    if(!nob_cmd_run_sync_and_reset(cmd)) return false;
-    assert(nob_set_current_dir(curdir));
-    nob_temp_rewind(temp);
+    if(!cmd_run_sync_and_reset(cmd)) return false;
+    cmd_append(cmd, "make", temp_sprintf("-j%zu", (size_t)NUM_THREADS), "all-gcc");
+    if(!cmd_run_sync_and_reset(cmd)) return false;
+    cmd_append(cmd, "make", temp_sprintf("-j%zu", (size_t)NUM_THREADS), "all-target-libgcc", "CFLAGS_FOR_TARGET=-mcmodel=large -mno-red-zone");
+    if(!cmd_run_sync_and_reset(cmd)) return false;
+    cmd_append(cmd, "make", "install-gcc");
+    if(!cmd_run_sync_and_reset(cmd)) return false;
+    cmd_append(cmd, "make", "install-target-libgcc");
+    if(!cmd_run_sync_and_reset(cmd)) return false;
+    assert(set_current_dir(curdir));
+    temp_rewind(temp);
     return true;
 }
 void help(FILE* sink, const char* exe) {
@@ -246,11 +250,11 @@ void help(FILE* sink, const char* exe) {
 int main(int argc, char **argv) {
     NOB_GO_REBUILD_URSELF(argc, argv);
     Nob_Cmd cmd = { 0 };
-    const char* exe = nob_shift_args(&argc, &argv);
-    if(!nob_mkdir_if_not_exists("bin/")) return 1;
-    if(!nob_mkdir_if_not_exists(BINUTILS_DIR)) return 1;
-    if(!nob_mkdir_if_not_exists(GCC_DIR)) return 1;
-    if(!nob_mkdir_if_not_exists(SYSROOT)) return 1;
+    const char* exe = shift_args(&argc, &argv);
+    if(!mkdir_if_not_exists("bin/")) return 1;
+    if(!mkdir_if_not_exists(BINUTILS_DIR)) return 1;
+    if(!mkdir_if_not_exists(GCC_DIR)) return 1;
+    if(!mkdir_if_not_exists(SYSROOT)) return 1;
 
     if(argc <= 0) {
         if(!setup_sysroot(&cmd)) return 1;
@@ -259,7 +263,7 @@ int main(int argc, char **argv) {
     }
 
     while(argc > 0) {
-        const char *subcmd = nob_shift_args(&argc, &argv);
+        const char *subcmd = shift_args(&argc, &argv);
         if(strcmp(subcmd, "sysroot") == 0) {
             if(!setup_sysroot(&cmd)) return 1;
         }
