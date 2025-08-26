@@ -34,6 +34,10 @@ int main() {
 
 void __libc_start_main(int argc, const char** argv, const char** envp, void** reserved, ...);
 void _start(int argc, const char** argv, const char** envp, void** reserved) {
-    if(open("/devices/tty0", O_RDWR) < 0) exit(1); 
+    const char* std = "/devices/tty0";
+    if(open(std, O_WRONLY) < 0 ||   /*STDOUT*/
+       open(std, O_RDONLY) < 0 ||   /*STDIN*/
+       open(std, O_WRONLY) < 0      /*STDERR*/
+    ) exit(1); 
     __libc_start_main(argc, argv, envp, reserved, main);
 }

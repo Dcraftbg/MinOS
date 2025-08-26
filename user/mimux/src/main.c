@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <assert.h>
+#include <errno.h>
 #include <minos/status.h>
 #include <minos/sysstd.h>
 #include <minos/ptm/ptm.h>
@@ -41,24 +42,26 @@ intptr_t ptty_setup(Ptty* ptty) {
 }
 intptr_t ptty_spawn_shell(Ptty* ptty) {
     intptr_t e = fork();
-    if(e == -YOU_ARE_CHILD) {
+    if(e == 0) {
         char name[120];
-        close(fileno(stderr));
         snprintf(name, sizeof(name), "/devices/pts%zu", ptty->index);
-        if((e=open(name, O_RDWR)) < 0) {
-            fprintf(stderr, "ERROR: Failed to open pts (%s): %s\n", name, status_str(e));
+        close(STDOUT_FILENO);
+        close(STDIN_FILENO);
+        close(STDERR_FILENO);
+        if(open(name, O_WRONLY) < 0 || /*STDOUT*/
+           open(name, O_RDONLY) < 0 || /*STDIN*/
+           open(name, O_WRONLY) < 0    /*STDERR*/
+        ) {
             return 1;
         }
         // assert(e == STDERR_FILENO);
         const char* argv[] = {
             "shell", NULL
         };
-        if(execvp(argv[0], (char*const*)argv) < 0) {
-            fprintf(stderr, "ERROR: Failed to spawn shell: %s\n", status_str(e));
-        }
+        if(execvp(argv[0], (char*const*)argv) < 0) fprintf(stderr, "ERROR: Failed to spawn shell: %s\n", strerror(errno));
         exit(1);
     } else if(e < 0) {
-        fprintf(stderr, "ERROR: Failed to fork: %s\n", status_str(e));
+        fprintf(stderr, "ERROR: Failed to fork: %s\n", strerror(errno));
         return e;
     }
     return e;

@@ -432,11 +432,6 @@ int main(int argc, const char** argv, const char** envv) {
             return 1;
         }
     } else ipath = argv[0];
-    if(strcmp(ipath, "/user/init") == 0) {
-        intptr_t thingy = open("/devices/tty0", O_RDWR);
-        write(thingy, "\033[2J\033[H", 7);
-        close(thingy);
-    }
     Elf* main = NULL;
     intptr_t fd = open(ipath, O_RDONLY);
     if(fd < 0) {

@@ -1,8 +1,8 @@
 #pragma once
 #include <sys/types.h>
 #define STDOUT_FILENO 0
-#define STDIN_FILENO  0
-#define STDERR_FILENO 0
+#define STDIN_FILENO  1
+#define STDERR_FILENO 2
 #ifndef SEEK_SET
 # define SEEK_SET 0
 #endif

@@ -758,8 +758,8 @@ static void close_std_streams(void) {
     fflush(stderr);
 }
 void _libc_init_streams(void) {
-    stdout = fdopen(STDOUT_FILENO, "wb");
     stdin  = fdopen( STDIN_FILENO, "rb");
+    stdout = fdopen(STDOUT_FILENO, "wb");
     stderr = fdopen(STDERR_FILENO, "wb");
     stdout->buf_mode = _IOLBF;
     stderr->buf_mode = _IONBF;
