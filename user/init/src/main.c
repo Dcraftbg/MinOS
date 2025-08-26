@@ -1,58 +1,39 @@
-#include <minos/sysstd.h>
-#include <minos/status.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <stdbool.h>
 #include <string.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <errno.h>
+#include <minos/sysstd.h>
 
 int main() {
-    printf("Before fork....\n");
+    write(STDOUT_FILENO, "\033[2J\033[H", 7);
     setenv("PATH", "/user:", 0);
     intptr_t e = fork();
     const char* path = "/user/shell";
-    if(e == (-YOU_ARE_CHILD)) {
+    if(e == 0) {
         const char* argv[] = { path, NULL };
-        if((e=execve(path, (char*const*) argv, (char*const*)environ)) < 0) {
-            printf("ERROR: Failed to do exec: %s\n", status_str(e));
-            exit(-e);
-        }
-        // Unreachable
-        exit(0);
+        if(execve(path, (char*const*) argv, (char*const*)environ) < 0) printf("ERROR: Failed to do exec: %s\n", strerror(errno));
+        return errno;
     } else if (e >= 0) {
         size_t pid = e;
-        e=wait_pid(pid);
-        if(e == NOT_FOUND) {
+        e = wait_pid(pid);
+        if(e == ENOENT) {
             printf("Could not find command `%s`\n", path);
         } else {
             printf("Child exited with: %d\n", (int)e);
         }
         exit(1);
     } else {
-        printf("ERROR: fork %s\n",status_str(e));
+        printf("ERROR: fork %s\n", strerror(errno));
         exit(1);
     }
     return 0;
 }
-void _start(int argc, const char** argv, const char** envp) {
-    intptr_t e;
-    if((e = open("/devices/tty0", O_RDWR)) < 0) {
-        exit(-e); 
-    }
-    _libc_init_environ(envp);
-    _libc_init_streams();
-    fprintf(stderr, "\033[2J\033[H");
-    printf("Args dump:\n");
-    for(size_t i = 0; i < (size_t)argc; ++i) {
-        printf("%zu> ",i+1); printf("%p",argv[i]); printf(" %s\n",argv[i]);
-    }
-    printf("Env dump:\n");
-    for(size_t i = 0; envp[i]; ++i) {
-        printf("%zu> ",i+1); printf("%p",envp[i]); printf(" %s\n",envp[i]);
-    }
-    int code = main();
-    close(STDOUT_FILENO);
-    if(STDIN_FILENO != STDOUT_FILENO) close(STDIN_FILENO);
-    exit(code);
+
+void __libc_start_main(int argc, const char** argv, const char** envp, void** reserved, ...);
+void _start(int argc, const char** argv, const char** envp, void** reserved) {
+    if(open("/devices/tty0", O_RDWR) < 0) exit(1); 
+    __libc_start_main(argc, argv, envp, reserved, main);
 }
