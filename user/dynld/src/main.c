@@ -9,6 +9,8 @@
 #include "printf.h"
 #include "string.h"
 
+
+intptr_t _mmap(void** addr, size_t length, int prot, int flags, int fd, off_t offset);
 #define __STRINGIFY2(x) #x
 #define __STRINGIFY(x) __STRINGIFY2(x)
 #define exit _exit

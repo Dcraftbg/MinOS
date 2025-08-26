@@ -3,6 +3,7 @@
 #include <minos2errno.h>
 #include <errno.h>
 #include <assert.h>
+#include <fcntl.h>
 
 #define syscall(sys, ...) \
     intptr_t e = sys(__VA_ARGS__); \
@@ -38,4 +39,13 @@ char* getcwd(char* buf, size_t cap) {
     }
     return buf;
 }
-
+int ftruncate(int fd, off_t size) {
+    syscall(syscall2, SYS_TRUNCATE, fd, size);
+}
+int truncate(const char* path, off_t size) {
+    int fd = open(path, O_WRONLY);
+    if(fd == -1) return -1;
+    int e = ftruncate(fd, size);
+    close(fd);
+    return e;
+}

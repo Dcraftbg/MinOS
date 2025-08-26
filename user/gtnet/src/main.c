@@ -3,11 +3,11 @@
 #include <string.h>
 #include <errno.h>
 #include <sys/epoll.h>
-#include <minos/sysstd.h>
-#include <minos/status.h>
 #include <assert.h>
 #include "log.h"
 #include "blocking.h"
+#include <unistd.h> 
+#include <assert.h>
 #define GT_IMPLEMENTATION
 #include "gt.h"
 
@@ -15,9 +15,6 @@ const char* shift_args(int *argc, const char ***argv) {
     if((*argc) <= 0) return NULL;
     return ((*argc)--, *((*argv)++));
 }
-#include <assert.h>
-#include <minos/status.h>
-#include <stdexec.h>
 void server_client(void* client_fd_void) {
     int client = (uintptr_t)client_fd_void;
     info("awaiting message...");

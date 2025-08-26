@@ -21,3 +21,5 @@ pid_t fork(void);
 void _exit(int status);
 int chdir(const char* path);
 char* getcwd(char* buf, size_t cap);
+int ftruncate(int fd, off_t size);
+int truncate(const char* path, off_t size);
