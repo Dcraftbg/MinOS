@@ -43,6 +43,7 @@
 #include "sockets/minos.h"
 #include "smp.h"
 #include "mem/shared_mem.h"
+extern void ssc2fylo(void);
 
 #include "term/fb/fb.h"
 
@@ -72,6 +73,7 @@ void _start() {
     init_exceptions();
     reload_tss();
     init_bitmap();
+    ssc2fylo();
     init_paging();
     KERNEL_SWITCH_VTABLE();
     enable_cpu_features();
