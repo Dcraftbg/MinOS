@@ -737,10 +737,11 @@ intptr_t sys_shmrem(size_t key) {
     mutex_unlock(&kernel.shared_memory_mutex);
     return 0;
 }
+char _kernel_name[] = "MinOS";
 intptr_t sys_sysctl(uint32_t op, void* arg) {
     switch(op) {
     case SYSCTL_KERNEL_NAME:
-        memcpy(arg, "MinOS", 5);
+        memcpy(arg, _kernel_name, sizeof(_kernel_name)-1);
         break;
     case SYSCTL_MEMINFO: {
         SysctlMeminfo* mem_info = arg;
