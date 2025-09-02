@@ -596,13 +596,6 @@ void client_thread(void* client_void) {
             if(info.x == (uint32_t)-1) info.x = 100;
             if(info.y == (uint32_t)-1) info.y = 100;
 
-            // TODO: Minimum bound checking
-            // TODO: Verify min_width/height and max_width/height and actually use them
-            if(info.width > fb0.width) info.width = fb0.width;
-            if(info.x + info.width > fb0.width) info.x = fb0.width - info.width;
-            if(info.height > fb0.height) info.height = fb0.height;
-            if(info.y + info.height > fb0.height) info.x = fb0.height - info.height;
-
             window->border_thick = 1;
             window->menu_color = 0xFF888888;
             window->menu_height = 14;
