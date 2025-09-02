@@ -54,7 +54,6 @@ intptr_t ptty_spawn_shell(Ptty* ptty) {
         ) {
             return 1;
         }
-        // assert(e == STDERR_FILENO);
         const char* argv[] = {
             "shell", NULL
         };
