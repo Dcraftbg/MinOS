@@ -375,6 +375,23 @@ double strtold(const char *nptr, char **endptr) {
     exit(1);
 }
 float strtof(const char *nptr, char **endptr) {
-    fprintf(stderr, "strtof() is a stub\n");
-    exit(1);
+    float sign = 1.0f;
+
+    if(*nptr == '-') {
+        nptr++;
+        sign = -1.0f;
+    }
+    float ret = 0.0f;
+    while(isdigit(*nptr)) {
+        ret = ret * 10.0 + ((*nptr++) - '0');
+    }
+    if(*nptr == '.') nptr++;
+    float decimal = 0.1f;
+    while(isdigit(*nptr)) {
+        ret += ((*nptr++) - '0') * decimal;
+        decimal *= 0.1f;
+    }
+    if(endptr) *endptr = (char*)nptr;
+    ret *= sign;
+    return ret;
 }
