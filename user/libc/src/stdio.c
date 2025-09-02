@@ -161,9 +161,8 @@ static ssize_t print_base(void* user, PrintWriteFunc func, const char* fmt, va_l
         }
         char ibuf[30];
 
-        // TODO: use precision
+        int prec = -1;
         if(*fmt == '.') {
-            int prec = 0;
             fmt++;
             if(*fmt == '*') {
                 prec = va_arg(list, int);
@@ -209,11 +208,15 @@ static ssize_t print_base(void* user, PrintWriteFunc func, const char* fmt, va_l
                 value >>= 4;
             }
             break;
-        case 's':
+        case 's': {
             bytes = va_arg(list, const char*);
             if(!bytes) bytes = "nil";
-            count = strlen(bytes);
-            break;
+            const char* str = bytes;
+
+            while(str[count] && count < (size_t)prec) {
+                count++;
+            }
+        } break;
         case 'f':
         case 'g':
             count = dtostr(ibuf, va_arg(list, double));
