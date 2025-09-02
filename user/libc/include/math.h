@@ -21,6 +21,9 @@ double exp(double x);
 double sqrt(double x);
 double ceil(double x);
 double atan2(double y, double x);
+
+float sinf(float f);
+float cosf(float f);
 #define INFINITY 1e5000f
 #define HUGE_VALF INFINITY
 #define HUGE_VAL  ((double)INFINITY)

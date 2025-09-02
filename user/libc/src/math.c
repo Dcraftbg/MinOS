@@ -102,3 +102,11 @@ double atan2(double y, double x) {
     fprintf(stderr, "TODO: atan2(double y, double x) is a stub");
     exit(1);
 }
+float sinf(float f) {
+    asm("fsin" : "+t"(f));
+    return f;
+}
+float cosf(float f) {
+    asm("fcos" : "+t"(f));
+    return f;
+}
