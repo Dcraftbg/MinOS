@@ -85,7 +85,7 @@ char* str_filesize(char* buf, size_t size, uint8_t list_sizes) {
     case LIST_SIZES_1: return buf + sprintf(buf, "%zu", size) + 1;
     case LIST_SIZES_1024: {
         char size_suffix = 0;
-        size_t size_whole = 0, size_decimal = 0;
+        size_t size_whole = size, size_decimal = 0;
         while(*filesizes) {
             if(size < 1024) break;
             size_suffix = *filesizes++;
