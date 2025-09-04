@@ -1,8 +1,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
-#include <collections/list.h>
 #include <sys/unistd.h>
+#include "list_head.h"
+
 static void (*atexit_funcs[ATEXIT_MAX])(void);
 static size_t atexit_funcs_count = 0;
 void exit(int64_t code) {
@@ -28,7 +29,7 @@ void abort() {
 
 #include <minos/heap.h>
 typedef struct {
-    struct list alloc_list;
+    struct list_head alloc_list;
     void* addr;
     size_t size;
 } _LibcInternalHeap;
@@ -38,7 +39,7 @@ _LibcInternalHeap _libc_internal_heaps[_LIBC_INTERNAL_HEAPS_MAX];
 typedef struct _HeapNode _HeapNode;
 // TODO: Migrate to a plist mechanism
 struct _HeapNode {
-    struct list list; 
+    struct list_head list; 
     bool free;
     size_t size;
     char data[];
@@ -59,7 +60,7 @@ bool libc_heap_extend(_LibcInternalHeap* heap, size_t extra) {
     list_init(&end->list);
     end->size = page_extend - sizeof(_HeapNode);
     end->free = true;
-    list_append(&end->list, heap->alloc_list.prev);
+    list_insert(&heap->alloc_list, &end->list);
     return true;
 }
 void* libc_heap_allocate_within(_LibcInternalHeap* heap, size_t size) {
@@ -73,7 +74,7 @@ void* libc_heap_allocate_within(_LibcInternalHeap* heap, size_t size) {
                 list_init(&next->list);
                 next->free = true;
                 next->size = left-sizeof(_HeapNode);
-                list_append(&next->list, &node->list);
+                list_append(&node->list, &next->list);
                 node->size = size;
             }
             node->free = false;
@@ -119,7 +120,7 @@ void libc_heap_deallocate(_LibcInternalHeap* heap, void* address) {
             node->free = true;
             _HeapNode* next = (_HeapNode*)node->list.next;
             while(&next->list != &heap->alloc_list && next->free) {
-                struct list* next_ptr = next->list.next;
+                struct list_head* next_ptr = next->list.next;
                 list_remove(&next->list);
                 assert((char*)next == node->data+node->size);
                 node->size += next->size + sizeof(_HeapNode);
@@ -148,7 +149,7 @@ void init_libc_heap(_LibcInternalHeap* heap) {
     list_init(&node->list);
     node->free = true;
     node->size = aligndown_to(heap->size-sizeof(_HeapNode), 16);
-    list_append(&node->list, &heap->alloc_list);
+    list_append(&heap->alloc_list, &node->list);
 }
 #define LIBC_MIN_SIZE (4096*16)
 void* malloc(size_t size) {
