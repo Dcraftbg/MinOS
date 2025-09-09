@@ -1,12 +1,15 @@
 #define NOB_STRIP_PREFIX
 #define NOB_IMPLEMENTATION
-#include "../nob.h"
-static bool walk_directory(
-    File_Paths* dirs,
-    File_Paths* c_sources,
-    File_Paths* nasm_sources,
-    File_Paths* gen_sources,
-    const char* path
+#include "nob.h"
+typedef struct {
+    File_Paths *dirs, *c_sources,
+               *nasm_sources, *gen_sources;
+} WalkDirOpt;
+
+
+static bool walk_directory_opt(
+    const char* path,
+    const WalkDirOpt* opt
 ) {
     DIR *dir = opendir(path);
     if(!dir) {
@@ -22,19 +25,19 @@ static bool walk_directory(
         String_View sv = sv_from_cstr(p);
         Nob_File_Type type = nob_get_file_type(p);
         if(type == NOB_FILE_DIRECTORY) {
-            da_append(dirs, p);
-            if(!walk_directory(dirs, c_sources, nasm_sources, gen_sources, p)) {
+            da_append(opt->dirs, p);
+            if(!walk_directory_opt(p, opt)) {
                 closedir(dir);
                 return false;
             }
             continue;
         }
-        if(sv_end_with(sv, ".gen.c")) {
-            nob_da_append(gen_sources, p);
-        } else if(sv_end_with(sv, ".c")) {
-            nob_da_append(c_sources, p);
-        } else if(sv_end_with(sv, ".nasm")) {
-            nob_da_append(nasm_sources, p);
+        if(opt->gen_sources && sv_end_with(sv, ".gen.c")) {
+            nob_da_append(opt->gen_sources, p);
+        } else if(opt->c_sources && sv_end_with(sv, ".c")) {
+            nob_da_append(opt->c_sources, p);
+        } else if(opt->nasm_sources && sv_end_with(sv, ".nasm")) {
+            nob_da_append(opt->nasm_sources, p);
         } else {
             nob_temp_rewind(temp);
         }
@@ -42,6 +45,8 @@ static bool walk_directory(
     closedir(dir);
     return true;
 }
+
+#define walk_directory(path, ...) walk_directory_opt(path, &(WalkDirOpt){__VA_ARGS__})
 
 #define cstr_rem_suffix(__src, suffix) (int)(strlen(__src) - strlen(suffix)), (__src)
 
@@ -74,7 +79,7 @@ int main(int argc, char** argv) {
     File_Paths gen_sources = { 0 }; 
 
     size_t src_dir = strlen("src/");
-    if(!walk_directory(&dirs, &c_sources, &nasm_sources, &gen_sources, "src")) return 1;
+    if(!walk_directory("src", .dirs = &dirs, .c_sources = &c_sources, .nasm_sources = &nasm_sources, .gen_sources = &gen_sources)) return 1;
     File_Paths objs = { 0 };
     String_Builder stb = { 0 };
     File_Paths pathb = { 0 };
@@ -171,7 +176,7 @@ int main(int argc, char** argv) {
     nasm_sources.count = 0;
     gen_sources.count = 0;
     src_dir = strlen("shared/src/");
-    if(!walk_directory(&dirs, &c_sources, &nasm_sources, &gen_sources, "shared/src")) return 1;
+    if(!walk_directory("shared/src", .dirs = &dirs, .c_sources = &c_sources, .nasm_sources = &nasm_sources, .gen_sources = &gen_sources)) return 1;
     assert(dirs.count == 0 && "Update shared");
     assert(gen_sources.count == 0 && "Update shared");
     assert(nasm_sources.count == 0 && "Update shared");
