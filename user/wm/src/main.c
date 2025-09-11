@@ -800,7 +800,7 @@ Client* client_new(int fd) {
 }
 uintptr_t run(size_t applet_number, char** argv) {
     intptr_t e = fork();
-    if(e == -YOU_ARE_CHILD) {
+    if(e == 0) {
 #if 1
         close(STDOUT_FILENO);
         char pathbuf[120];

@@ -50,7 +50,7 @@ intptr_t ptty_setup(Ptty* ptty) {
 }
 intptr_t ptty_spawn_shell(Ptty* ptty) {
     intptr_t e = fork();
-    if(e == -YOU_ARE_CHILD) {
+    if(e == 0) {
         (void)ptty;
         char name[120];
         snprintf(name, sizeof(name), "/devices/pts%zu", ptty->index);

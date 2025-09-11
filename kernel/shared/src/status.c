@@ -21,17 +21,16 @@ static const char* status_map[] = {
     [SIZE_MISMATCH]      = "Size Mismatch",
     [WOULD_SEGFAULT]     = "Would Segfault",
     [RESOURCE_BUSY]      = "Resource Busy",
-    [YOU_ARE_CHILD]      = "You are child",
     [INVALID_PATH]       = "Invalid Path",
     [IS_NOT_DIRECTORY]   = "Is not Directory",
     [BUFFER_TOO_SMALL]   = "Buffer too small",
     [TIMEOUT_REACHED]    = "Timeout Reached",
     [ADDR_SOCKET_FAMILY_MISMATCH] = "Mismatch between Address and socket family",
-    [UNSUPPORTED_DOMAIN] = "Unsupported Domain",
+    [UNSUPPORTED_DOMAIN]      = "Unsupported Domain",
     [UNSUPPORTED_SOCKET_TYPE] = "Unsupported Socket type",
-    [WOULD_BLOCK] = "Would Block",
-    [VIRTUAL_SPACE_OCCUPIED] = "Address occupied",
-    [RECURSIVE_ELF_INTERP] = "Elf interpreter has its own interpreter",
+    [WOULD_BLOCK]             = "Would Block",
+    [VIRTUAL_SPACE_OCCUPIED]  = "Address occupied",
+    [RECURSIVE_ELF_INTERP]    = "Elf interpreter has its own interpreter",
 };
 // static_assert(STATUS_COUNT == (sizeof(status_map)/sizeof(*status_map)), "You need to update the status map!");
 const char* status_str(intptr_t status) {

@@ -23,7 +23,6 @@ static ssize_t status_map[] = {
     [SIZE_MISMATCH]      = EMSGSIZE,
     [WOULD_SEGFAULT]     = EFAULT,
     [RESOURCE_BUSY]      = EBUSY,
-    [YOU_ARE_CHILD]      = ECHILD,
     [INVALID_PATH]       = EINVAL,
     [IS_NOT_DIRECTORY]   = ENOTDIR,
     [BUFFER_TOO_SMALL]   = ENOBUFS,
