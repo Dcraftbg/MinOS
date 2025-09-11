@@ -22,7 +22,7 @@ Task* task_select(Scheduler* scheduler) {
         task = (Task*)scheduler->queue.next;
         list_remove(&task->list);
         // Move it to the back
-        list_insert(&task->list, &scheduler->queue);
+        list_insert(&scheduler->queue, &task->list);
         if(task->flags & TASK_FLAG_BLOCKING) {
             debug_assert(task->blocker.try_resolve);
             if(task->blocker.try_resolve(&task->blocker, task)) {

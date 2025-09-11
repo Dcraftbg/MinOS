@@ -46,7 +46,7 @@ typedef struct {
 
     size_t task_switch_irq;
     IntController* interrupt_controller;
-    struct list cache_list;
+    struct list_head cache_list;
     struct Logger* logger;
     bool unwinding;
 

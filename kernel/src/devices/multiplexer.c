@@ -2,7 +2,7 @@
 // FIXME: Multiplexer cleanup logic.
 void multiplexer_add(Multiplexer* mp, Inode* inode) {
     rwlock_begin_write(&mp->lock);
-    list_append(&inode->list, &mp->list);
+    list_append(&mp->list, &inode->list);
     rwlock_end_write(&mp->lock);
 }
 Multiplexer keyboard_mp = { 0 };
@@ -13,7 +13,7 @@ static intptr_t multiplexer_read(Inode* file, void* buf, size_t size, off_t offs
     size_t n = 0;
     intptr_t e;
     rwlock_begin_read(&mp->lock);
-    for(struct list *head = mp->list.next; head != &mp->list && n < size; head = head->next) {
+    for(struct list_head *head = mp->list.next; head != &mp->list && n < size; head = head->next) {
         Inode* inode = (Inode*)head;
         // TODO: Think about the error logic here.
         // I don't know if this is the best as it kinda starves the devices down the chain so I don't really know
@@ -30,7 +30,7 @@ static intptr_t multiplexer_read(Inode* file, void* buf, size_t size, off_t offs
 static bool multiplexer_is_readable(Inode* file) {
     Multiplexer* mp = file->priv;
     rwlock_begin_read(&mp->lock);
-    for(struct list *head = mp->list.next; head != &mp->list; head = head->next) {
+    for(struct list_head *head = mp->list.next; head != &mp->list; head = head->next) {
         Inode* inode = (Inode*)head;
         if(inode_is_readable(inode)) {
             rwlock_end_read(&mp->lock);

@@ -69,7 +69,7 @@ static intptr_t fb_mmap(Inode* file, MmapContext* context, void** addr, size_t s
         e=-NOT_ENOUGH_MEM;
         goto mmap_fail;
     }
-    list_append(&list->list, &insert_into->list);
+    list_append(&insert_into->list, &list->list);
     return pages*PAGE_SIZE;
 mmap_fail:
     page_unmap(context->page_table, phys, pages);

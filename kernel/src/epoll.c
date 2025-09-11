@@ -7,7 +7,7 @@
 #include <minos/stat.h>
 
 static EpollFd* epoll_find(Epoll* epoll, int fd) {
-    for(struct list* head = epoll->unready.next; head != &epoll->unready; head = head->next) {
+    list_foreach(head, &epoll->unready) {
         EpollFd* entry = (EpollFd*)head;
         if(entry->fd == fd) return entry;
     }
@@ -15,7 +15,7 @@ static EpollFd* epoll_find(Epoll* epoll, int fd) {
 }
 intptr_t epoll_add(Epoll* epoll, EpollFd* fd) {
     if(epoll_find(epoll, fd->fd)) return -ALREADY_EXISTS;
-    list_insert(&fd->list, &epoll->unready);
+    list_insert(&epoll->unready, &fd->list);
     return 0;
 }
 intptr_t epoll_del(Epoll* epoll, int fd) {
@@ -50,8 +50,8 @@ void init_epoll_cache(void) {
 bool epoll_poll(Epoll* epoll, Process* process) {
     debug_assert(list_empty(&epoll->ready));
     bool terminal = false;
-    struct list *next;
-    for(struct list *head = epoll->unready.next; head != &epoll->unready; head = next) {
+    struct list_head *next;
+    for(struct list_head *head = epoll->unready.next; head != &epoll->unready; head = next) {
         next = head->next;
         EpollFd* fd = (EpollFd*)head;
         Resource* res = resource_find_by_id(process->resources, fd->fd);
@@ -70,7 +70,7 @@ bool epoll_poll(Epoll* epoll, Process* process) {
         } else continue; // <- We didn't get any event. Shortcircuit 
         if(fd->result_events) {
             list_remove(head);
-            list_insert(head, &epoll->ready);
+            list_insert(&epoll->ready, head);
             terminal = true;
         }
     }
@@ -79,13 +79,13 @@ bool epoll_poll(Epoll* epoll, Process* process) {
 
 static void epoll_cleanup(Inode* inode) {
     Epoll* epoll = (Epoll*)inode;
-    struct list *next;
-    for(struct list *head = epoll->unready.next; head != &epoll->unready; head = next) {
+    struct list_head *next;
+    for(struct list_head *head = epoll->unready.next; head != &epoll->unready; head = next) {
         next = head->next;
         list_remove(head);
         cache_dealloc(epoll_fd_cache, (EpollFd*)head);
     }
-    for(struct list *head = epoll->ready.next; head != &epoll->ready; head = next) {
+    for(struct list_head *head = epoll->ready.next; head != &epoll->ready; head = next) {
         next = head->next;
         list_remove(head);
         cache_dealloc(epoll_fd_cache, (EpollFd*)head);

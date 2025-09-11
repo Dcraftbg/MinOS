@@ -2,17 +2,17 @@
 #include "utils.h"
 #include <stddef.h>
 #include <stdint.h>
-#include <collections/list.h>
+#include <list_head.h>
 #include <sync/mutex.h>
 #define MAX_CACHE_NAME 20
 // TODO: Deallocation of caches and cache_destory, cache_shrink etc.
 typedef struct Cache {
-    struct list list;
+    struct list_head list;
     // Linked list to either:
     // - fully filled blocks     => blocks with no available memory
     // - partially filled blocks => blocks with partially available memory
     // - free blocks             => empty blocks with fully available memory
-    struct list full, partial, free;
+    struct list_head full, partial, free;
     // @STAT
     // Total amount of objects
     size_t totalobjs;
@@ -28,7 +28,7 @@ typedef struct Cache {
     Mutex mutex;
 } Cache;
 typedef struct Slab { 
-    struct list list;
+    struct list_head list;
     Cache* cache; // Cache it belongs to
     void* memory;
     // Maintain a stack of free objects (indexes to objects within the slab). Top of the stack is at free

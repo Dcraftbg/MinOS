@@ -20,8 +20,8 @@
 
 intptr_t fork(Task* task, Task* result, void* frame) {
     intptr_t e=0;
-    struct list* list = &task->memlist;
-    struct list* first = list;
+    struct list_head* list = &task->memlist;
+    struct list_head* first = list;
     list = list->next;
     paddr_t cr3_phys;
     if(!(cr3_phys = kernel_page_alloc()))
@@ -52,11 +52,11 @@ intptr_t fork(Task* task, Task* result, void* frame) {
     Processor* processor = &kernel.processors[processor_id];
     if(processor_id == get_lapic_id()) {
         disable_interrupts();
-        list_insert(&result->list, &processor->scheduler.queue);
+        list_insert(&processor->scheduler.queue, &result->list);
         enable_interrupts();
     } else {
         mutex_lock(&processor->scheduler.queue_mutex);
-        list_insert(&result->list, &processor->scheduler.queue);
+        list_insert(&processor->scheduler.queue, &result->list);
         mutex_unlock(&processor->scheduler.queue_mutex);
     }
     return result->process->id;
@@ -315,11 +315,11 @@ intptr_t exec(Task* task, Path* path, Args* args, Args* envs) {
     Processor* processor = &kernel.processors[processor_id];
     if(processor_id == get_lapic_id()) {
         disable_interrupts();
-        list_insert(&task->list, &processor->scheduler.queue);
+        list_insert(&processor->scheduler.queue, &task->list);
         enable_interrupts();
     } else {
         mutex_lock(&processor->scheduler.queue_mutex);
-        list_insert(&task->list, &processor->scheduler.queue);
+        list_insert(&processor->scheduler.queue, &task->list);
         mutex_unlock(&processor->scheduler.queue_mutex);
     }
     return 0;

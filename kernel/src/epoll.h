@@ -2,12 +2,12 @@
 #include <minos/epoll.h>
 #include <stddef.h>
 #include <stdint.h>
-#include <collections/list.h>
+#include <list_head.h>
 
 typedef struct Epoll Epoll;
 typedef struct Process Process;
 typedef struct {
-    struct list list;
+    struct list_head list;
     int fd;
     uint32_t result_events;
     struct epoll_event event;
@@ -15,8 +15,8 @@ typedef struct {
 #include "vfs.h"
 struct Epoll {
     Inode inode;
-    struct list unready;
-    struct list ready;
+    struct list_head unready;
+    struct list_head ready;
 };
 Epoll* epoll_new(void);
 intptr_t epoll_add(Epoll* epoll, EpollFd* fd);

@@ -79,7 +79,7 @@ void exception_handler(ExceptionFrame* frame, uint64_t cr2) {
 #if 0
     if(task && frame->irq == EXCEPTION_PAGE_FAULT) {
 #endif
-        for(struct list* head = task->memlist.next; head != &task->memlist; head = head->next) {
+        list_foreach(head, &task->memlist) {
             MemoryList* list = (MemoryList*)head;
             MemoryRegion* region = list->region;
             uintptr_t end = region->address + region->pages * PAGE_SIZE;

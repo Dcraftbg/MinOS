@@ -1,5 +1,5 @@
 #pragma once
-#include <collections/list.h>
+#include <list_head.h>
 #include "page.h"
 #include "resource.h"
 #include <stddef.h>
@@ -11,14 +11,14 @@
 
 typedef struct Process Process;
 typedef struct Task {
-    struct list list;
+    struct list_head list;
     size_t id;
     Process* process;
     uint64_t flags;
     page_t cr3;
     paddr_t cr3_phys;
     uintptr_t eoe;
-    struct list memlist;
+    struct list_head memlist;
     // Task switch rsp
     // The rsp of the task switch at which the swap initialially happened
     // By default it starts 0xFFFFFFFFFFFFF000 as defined in the TSS

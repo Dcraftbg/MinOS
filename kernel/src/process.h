@@ -1,5 +1,5 @@
 #pragma once
-#include <collections/list.h>
+#include <list_head.h>
 #include "task.h"
 #include "page.h"
 #include "resource.h"
@@ -33,7 +33,7 @@ typedef struct {
 
 typedef struct Process Process;
 struct Process {
-    struct list list;
+    struct list_head list;
     Process* parent;
     size_t id; 
     Task* main_thread;

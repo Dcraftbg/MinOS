@@ -3,7 +3,7 @@
 #include <sync/rwlock.h>
 typedef struct {
     RwLock lock;
-    struct list list;
+    struct list_head list;
 } Multiplexer;
 void multiplexer_add(Multiplexer* mp, Inode* inode);
 extern Multiplexer keyboard_mp;

@@ -21,7 +21,7 @@ intptr_t cache_grow(Cache* cache) {
     for(size_t i = 0; i < cache->objs_per_slab; ++i) {
         slab_bufctl(slab)[i] = i;
     }
-    list_append((struct list*)slab, &cache->free);
+    list_append(&cache->free, &slab->list);
     return 0;
 }
 // Selects a cache in which you can allocate your objects
@@ -124,7 +124,7 @@ Cache* create_new_cache(size_t objsize, const char* name) {
     if(!c) return NULL;
     init_cache(c, objsize);
     memcpy(c->name, name, len+1);
-    list_append(&c->list, &kernel.cache_list);
+    list_append(&kernel.cache_list, &c->list);
     return c;
 }
 void init_cache_cache() {

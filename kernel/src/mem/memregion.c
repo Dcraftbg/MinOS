@@ -29,7 +29,7 @@ MemoryRegion* memregion_clone(MemoryRegion* region, page_t src, page_t dst) {
     return region;
 }
 
-void memlist_add(struct list *list, MemoryList *new) {
+void memlist_add(struct list_head *list, MemoryList *new) {
     assert(new && new->region);
     MemoryList* head = (MemoryList*)list->next;
     while(&head->list != list) {
@@ -38,14 +38,14 @@ void memlist_add(struct list *list, MemoryList *new) {
             next_addr = ((MemoryList*)head->list.next)->region->address;
         }
         if(head->region->address < new->region->address && new->region->address < next_addr) {
-            list_append(&new->list, &head->list);
+            list_append(&head->list, &new->list);
             return;
         }
         head = (MemoryList*)head->list.next;
     }
-    list_append(&new->list, &head->list);
+    list_append(&head->list, &new->list);
 }
-MemoryList* memlist_find_available(struct list *list, MemoryRegion* result, void* post_addr, size_t minsize_pages, size_t maxsize_pages) {
+MemoryList* memlist_find_available(struct list_head *list, MemoryRegion* result, void* post_addr, size_t minsize_pages, size_t maxsize_pages) {
     MemoryList* head = (MemoryList*)list;
     do {
         uintptr_t next_addr = 0xffffffffffffffffLL;
@@ -74,7 +74,7 @@ MemoryList* memlist_find_available(struct list *list, MemoryRegion* result, void
 }
 
 // TODO: Binary search
-MemoryList* memlist_find(struct list *list, void* address) {
+MemoryList* memlist_find(struct list_head *list, void* address) {
     MemoryList* head = (MemoryList*)list->next;
     while(&head->list != list) {
         if((void*)head->region->address > address) return NULL;

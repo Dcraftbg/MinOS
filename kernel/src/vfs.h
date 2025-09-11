@@ -4,12 +4,12 @@
 #include <minos/status.h>
 #include <minos/fsdefs.h>
 #include <minos/socket.h>
-#include <collections/list.h>
+#include <list_head.h>
 #include "utils.h"
 #include "page.h"
 typedef struct {
     page_t page_table;
-    struct list* memlist;
+    struct list_head* memlist;
 } MmapContext;
 typedef struct InodeOps InodeOps;
 typedef struct Inode Inode;
@@ -17,7 +17,7 @@ typedef struct SuperblockOps SuperblockOps;
 typedef struct Superblock Superblock;
 typedef struct Fs Fs;
 typedef struct Inode {
-    struct list list;
+    struct list_head list;
     Superblock* superblock;
     _Atomic size_t shared;
     InodeOps* ops;

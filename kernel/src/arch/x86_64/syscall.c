@@ -164,7 +164,7 @@ intptr_t sys_mmap(void** addr_ptr, size_t length, uint32_t prot, uint32_t flags,
             return -NOT_ENOUGH_MEM;
         }
         invalidate_pages((void*)region->address, region->pages);
-        list_append(&list->list, &insert_into->list);
+        list_append(&insert_into->list, &list->list);
         addr = (void*)region->address;
     } else {
         // FIXME: don't just completely ignore flags
@@ -535,15 +535,15 @@ intptr_t sys_epoll_wait(int epfd, struct epoll_event *events, int maxevents, int
         block_epoll(current_task(), epoll, until);
     }
     size_t event_count = 0;
-    struct list *next;
-    for(struct list *head = epoll->ready.next; head != &epoll->ready && event_count < (size_t)maxevents; head = next) {
+    struct list_head *next;
+    for(struct list_head *head = epoll->ready.next; head != &epoll->ready && event_count < (size_t)maxevents; head = next) {
         next = head->next;
         EpollFd* entry = (EpollFd*)head;
         size_t i = event_count++;
         events[i].events = entry->result_events;
         events[i].data = entry->event.data;
         list_remove(head);
-        list_insert(head, &epoll->unready);
+        list_insert(&epoll->unready, head);
     }
     return event_count;
 }
@@ -708,7 +708,7 @@ intptr_t sys_shmmap(size_t key, void** addr) {
     if(n == cur_proc->shared_memory.len) cur_proc->shared_memory.len++;
     cur_proc->shared_memory.items[n] = shm;
     invalidate_pages((void*)region->address, region->pages);
-    list_append(&list->list, &insert_into->list);
+    list_append(&insert_into->list, &list->list);
     mutex_unlock(&cur_proc->shared_memory_mutex);
     mutex_unlock(&kernel.shared_memory_mutex);
     *addr = (void*)region->address;
