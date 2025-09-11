@@ -17,22 +17,6 @@ typedef struct {
     bool uefi;
 } Build;
 
-static bool go_run_nob_inside(Nob_Cmd* cmd, const char* dir) {
-    size_t temp = nob_temp_save();
-    const char* cur = nob_get_current_dir_temp();
-    assert(cur);
-    cur = nob_temp_realpath(cur);
-    if(!nob_set_current_dir(dir)) return false;
-    if(nob_file_exists("nob") != 1) {
-        nob_cmd_append(cmd, NOB_REBUILD_URSELF("nob", "nob.c"));
-        if(!nob_cmd_run_sync_and_reset(cmd)) return false;
-    }
-    nob_cmd_append(cmd, "./nob");
-    bool res = nob_cmd_run_sync_and_reset(cmd);
-    assert(nob_set_current_dir(cur));
-    nob_temp_rewind(temp);
-    return res;
-}
 static bool make_iso(Cmd* cmd) {
     cmd_append(
         cmd,
@@ -67,8 +51,8 @@ static bool build(Build*, Cmd* cmd) {
     if(!nob_mkdir_if_not_exists_silent("initrd")) return false;
     if(!nob_mkdir_if_not_exists_silent("initrd/user")) return false;
     setenv("BINDIR"   , nob_temp_realpath("bin"), 1);
-    if(!getenv("CC")) setenv("CC"       , "cc", 1);
-    if(!getenv("LD")) setenv("LD"       , "ld", 1);
+    setenv("CC"       , "cc", 0);
+    setenv("LD"       , "ld", 0);
     setenv("KROOT"    , nob_temp_realpath("kernel"), 1);
     setenv("ROOTDIR"  , nob_temp_realpath("initrd"), 1);
     setenv("MINOSROOT", nob_get_current_dir_temp(), 1);

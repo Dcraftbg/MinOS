@@ -474,18 +474,6 @@ void nob_temp_reset(void);
 size_t nob_temp_save(void);
 void nob_temp_rewind(size_t checkpoint);
 
-// [ADDIN START]
-// Previously known as utils.h
-bool nob_mkdir_if_not_exists_silent(const char *path);
-// Previously known as depan.h:
-const char* nob_strltrim(const char* data);
-void nob_remove_backslashes(char* data);
-bool nob_dep_analyse_str(char* data, char** result, Nob_File_Paths* paths); 
-bool nob_c_needs_rebuild1(Nob_String_Builder* string_buffer, Nob_File_Paths* paths, const char* output_path, const char* input_path);
-bool nob_c_needs_rebuild(Nob_String_Builder* string_buffer, Nob_File_Paths* paths, const char* output_path, const char** input_paths, size_t input_paths_count);
-char* nob_temp_realpath(const char* path);
-// [ADDIN END]
-
 // Given any path returns the last part of that path.
 // "/path/to/a/file.c" -> "file.c"; "/path/to/a/directory" -> "directory"
 const char *nob_path_name(const char *path);
@@ -583,6 +571,29 @@ Nob_String_View nob_sv_from_parts(const char *data, size_t count);
 //   String_View name = ...;
 //   printf("Name: "SV_Fmt"\n", SV_Arg(name));
 
+
+// [ADDIN START]
+bool nob_mkdir_if_not_exists_silent(const char *path);
+const char* nob_strltrim(const char* data);
+void nob_remove_backslashes(char* data);
+bool nob_dep_analyse_str(char* data, char** result, Nob_File_Paths* paths); 
+bool nob_c_needs_rebuild1(Nob_String_Builder* string_buffer, Nob_File_Paths* paths, const char* output_path, const char* input_path);
+bool nob_c_needs_rebuild(Nob_String_Builder* string_buffer, Nob_File_Paths* paths, const char* output_path, const char** input_paths, size_t input_paths_count);
+char* nob_temp_realpath(const char* path);
+bool nob_copy_if_needed(const char* from, const char* to);
+typedef struct {
+    Nob_File_Paths* paths;
+    const char* ext;
+    Nob_File_Type file_type;
+} Nob_Walk_Dir_Entry;
+
+bool nob_walk_directory_entries(const char* path, const Nob_Walk_Dir_Entry* entries, size_t entries_count);
+#define nob_walk_directory(path, ...) nob_walk_directory_entries(path, ((Nob_Walk_Dir_Entry[]){__VA_ARGS__}), NOB_ARRAY_LEN(((Nob_Walk_Dir_Entry[]){__VA_ARGS__})))
+// Cmd contains arguments to ./nob
+// NOTE: The function automatically prepends "./nob" to the commandline
+bool nob_go_run_nob_inside(Nob_Cmd* cmd, const char* dir); 
+const char* nob_getenv_or_default(const char* name, const char* default_value);
+// [ADDIN END]
 
 // minirent.h HEADER BEGIN ////////////////////////////////////////
 // Copyright 2021 Alexey Kutepov <reximkut@gmail.com>
@@ -1429,119 +1440,6 @@ const char *nob_temp_sv_to_cstr(Nob_String_View sv)
     return result;
 }
 
-// [ADDIN START]
-bool nob_mkdir_if_not_exists_silent(const char *path) {
-    if(nob_file_exists(path)) return true;
-    return nob_mkdir_if_not_exists(path);
-}
-const char* nob_strltrim(const char* data) {
-    while(data[0] && isspace(data[0])) data++;
-    return data;
-}
-void nob_remove_backslashes(char* data) {
-    char* backslash;
-    // NOTE: Assumes strchr returns NULL on not found
-    while((backslash=strchr(data, '\\'))) {
-        switch(backslash[1]) {
-        case '\n':
-            memmove(backslash, backslash+2, strlen(backslash+2)+1);
-            break;
-        default:
-            memmove(backslash, backslash+1, strlen(backslash+1)+1);
-        }
-        data=backslash;
-    }
-}
-bool nob_dep_analyse_str(char* data, char** result, Nob_File_Paths* paths) {
-    // NOTE: Assumes strchr returns NULL on not found
-    char* result_end = strchr(data, ':');
-    if(!result_end) return false;
-    result_end[0] = '\0';
-    *result = data;
-    data = result_end+1;
-    nob_remove_backslashes(data);
-    char* lineend;
-    if((lineend=strchr(data, '\n')))
-        lineend[0] = '\0'; // Ignore all the stuff after the newline
-    while((data=(char*)nob_strltrim(data))[0]) {
-        char* path=data;
-        while(data[0] && data[0] != ' ') data++;
-        nob_da_append(paths, path);
-        if(data[0]) {
-            data[0] = '\0';
-            data++;
-        }
-    }
-    return true;
-}
-
-const char* nob_get_ext(const char* path) {
-    const char* end = path;
-    while(*end) end++;
-    while(end >= path) {
-        if(*end == '.') return end+1;
-        if(*end == '/' || *end == '\\') break;
-        end--;
-    }
-    return NULL;
-}
-
-bool nob_c_needs_rebuild(Nob_String_Builder* string_buffer, Nob_File_Paths* paths, const char* output_path, const char **input_paths, size_t input_paths_count) {
-    // Reset before usage
-    paths->count = 0;
-    string_buffer->count = 0;
-    size_t temp = nob_temp_save();
-    const char* ext = nob_get_ext(output_path);
-    const char* d_file = 
-        ext ? nob_temp_sprintf("%.*s.d", (int)(ext - output_path - 1), output_path) :
-              nob_temp_sprintf("%s.d", output_path);
-    if(nob_needs_rebuild(d_file, input_paths, input_paths_count) != 0) {
-        nob_temp_rewind(temp);
-        return true;
-    }
-    if(!nob_read_entire_file(d_file, string_buffer)) {
-        nob_temp_rewind(temp);
-        return true;
-    }
-    nob_da_append(string_buffer, '\0');
-    char* obj;
-    if(!nob_dep_analyse_str(string_buffer->items, &obj, paths)) {
-        nob_temp_rewind(temp);
-        return true;
-    }
-    NOB_UNUSED(obj);
-    bool res = nob_needs_rebuild(output_path, paths->items, paths->count) != 0;
-    nob_temp_rewind(temp);
-    return res;
-}
-bool nob_c_needs_rebuild1(Nob_String_Builder* string_buffer, Nob_File_Paths* paths, const char* output_path, const char* input_path) {
-    return nob_c_needs_rebuild(string_buffer, paths, output_path, &input_path, 1);
-}
-char* nob_temp_realpath(const char* path) {
-#if _WIN32
-    size_t temp = nob_temp_save();
-    char* buf = nob_temp_alloc(MAX_PATH);
-    if(!buf) return NULL;
-    if(_fullpath(buf, path, MAX_PATH) == NULL) {
-        nob_temp_rewind(temp);
-        nob_log(NOB_ERROR, "Could not realpath on %s: %s", path, strerror(errno));
-        return NULL;
-    }
-    return buf;
-#else
-    size_t temp = nob_temp_save();
-    char* buf = nob_temp_alloc(PATH_MAX);
-    if(!buf) return NULL;
-    if(!realpath(path, buf)) {
-        nob_temp_rewind(temp);
-        nob_log(NOB_ERROR, "Could not realpath on %s: %s", path, strerror(errno));
-        return NULL;
-    }
-    return buf;
-#endif
-}
-// [ADDIN END]
-
 int nob_needs_rebuild(const char *output_path, const char **input_paths, size_t input_paths_count)
 {
 #ifdef _WIN32
@@ -1870,6 +1768,194 @@ bool nob_set_current_dir(const char *path)
 #endif // _WIN32
 }
 
+// [ADDIN START]
+bool nob_mkdir_if_not_exists_silent(const char *path) {
+    Nob_Log_Level old = nob_minimal_log_level;
+    nob_minimal_log_level = NOB_WARNING;
+    bool res = nob_mkdir_if_not_exists(path);
+    nob_minimal_log_level = old;
+    return res;
+}
+const char* nob_strltrim(const char* data) {
+    while(data[0] && isspace(data[0])) data++;
+    return data;
+}
+void nob_remove_backslashes(char* data) {
+    char* backslash;
+    // NOTE: Assumes strchr returns NULL on not found
+    while((backslash=strchr(data, '\\'))) {
+        switch(backslash[1]) {
+        case '\n':
+            memmove(backslash, backslash+2, strlen(backslash+2)+1);
+            break;
+        default:
+            memmove(backslash, backslash+1, strlen(backslash+1)+1);
+        }
+        data=backslash;
+    }
+}
+bool nob_dep_analyse_str(char* data, char** result, Nob_File_Paths* paths) {
+    // NOTE: Assumes strchr returns NULL on not found
+    char* result_end = strchr(data, ':');
+    if(!result_end) return false;
+    result_end[0] = '\0';
+    *result = data;
+    data = result_end+1;
+    nob_remove_backslashes(data);
+    char* lineend;
+    if((lineend=strchr(data, '\n')))
+        lineend[0] = '\0'; // Ignore all the stuff after the newline
+    while((data=(char*)nob_strltrim(data))[0]) {
+        char* path=data;
+        while(data[0] && data[0] != ' ') data++;
+        nob_da_append(paths, path);
+        if(data[0]) {
+            data[0] = '\0';
+            data++;
+        }
+    }
+    return true;
+}
+
+const char* nob_get_ext(const char* path) {
+    const char* end = path;
+    while(*end) end++;
+    while(end >= path) {
+        if(*end == '.') return end+1;
+        if(*end == '/' || *end == '\\') break;
+        end--;
+    }
+    return NULL;
+}
+
+bool nob_c_needs_rebuild(Nob_String_Builder* string_buffer, Nob_File_Paths* paths, const char* output_path, const char **input_paths, size_t input_paths_count) {
+    // Reset before usage
+    paths->count = 0;
+    string_buffer->count = 0;
+    size_t temp = nob_temp_save();
+    const char* ext = nob_get_ext(output_path);
+    const char* d_file = 
+        ext ? nob_temp_sprintf("%.*s.d", (int)(ext - output_path - 1), output_path) :
+              nob_temp_sprintf("%s.d", output_path);
+    if(nob_needs_rebuild(d_file, input_paths, input_paths_count) != 0) {
+        nob_temp_rewind(temp);
+        return true;
+    }
+    if(!nob_read_entire_file(d_file, string_buffer)) {
+        nob_temp_rewind(temp);
+        return true;
+    }
+    nob_da_append(string_buffer, '\0');
+    char* obj;
+    if(!nob_dep_analyse_str(string_buffer->items, &obj, paths)) {
+        nob_temp_rewind(temp);
+        return true;
+    }
+    NOB_UNUSED(obj);
+    bool res = nob_needs_rebuild(output_path, paths->items, paths->count) != 0;
+    nob_temp_rewind(temp);
+    return res;
+}
+bool nob_c_needs_rebuild1(Nob_String_Builder* string_buffer, Nob_File_Paths* paths, const char* output_path, const char* input_path) {
+    return nob_c_needs_rebuild(string_buffer, paths, output_path, &input_path, 1);
+}
+char* nob_temp_realpath(const char* path) {
+#if _WIN32
+    size_t temp = nob_temp_save();
+    char* buf = nob_temp_alloc(MAX_PATH);
+    if(!buf) return NULL;
+    if(_fullpath(buf, path, MAX_PATH) == NULL) {
+        nob_temp_rewind(temp);
+        nob_log(NOB_ERROR, "Could not realpath on %s: %s", path, strerror(errno));
+        return NULL;
+    }
+    return buf;
+#else
+    size_t temp = nob_temp_save();
+    char* buf = nob_temp_alloc(PATH_MAX);
+    if(!buf) return NULL;
+    if(!realpath(path, buf)) {
+        nob_temp_rewind(temp);
+        nob_log(NOB_ERROR, "Could not realpath on %s: %s", path, strerror(errno));
+        return NULL;
+    }
+    return buf;
+#endif
+}
+bool nob_copy_if_needed(const char* from, const char* to) {
+    return nob_needs_rebuild1(to, from) ? nob_copy_file(from, to) : true;
+}
+bool nob_walk_directory_entries(
+    const char* path,
+    const Nob_Walk_Dir_Entry* entries,
+    size_t entries_count
+) {
+    DIR *dir = opendir(path);
+    if(!dir) {
+        nob_log(NOB_ERROR, "Could not open directory %s: %s", path, strerror(errno));
+        return false;
+    }
+    errno = 0;
+    struct dirent *ent;
+    while((ent = readdir(dir))) {
+        if(*ent->d_name == '.') continue;
+        size_t temp = nob_temp_save();
+        const char* p = nob_temp_sprintf("%s/%s", path, ent->d_name); 
+        Nob_String_View sv = nob_sv_from_cstr(p);
+        Nob_File_Type type = nob_get_file_type(p);
+        bool selected = false;
+        for(size_t i = 0; i < entries_count; ++i) {
+            const Nob_Walk_Dir_Entry* entry = &entries[i];
+            if(entry->file_type == type && (!entry->ext || nob_sv_end_with(sv, entry->ext))) {
+                nob_da_append(entry->paths, p);
+                selected = true;
+                break;
+            }
+        }
+        if(type == NOB_FILE_DIRECTORY) {
+            if(!nob_walk_directory_entries(p, entries, entries_count)) {
+                closedir(dir);
+                return false;
+            }
+            continue;
+        }
+        if(!selected) nob_temp_rewind(temp);
+    }
+    closedir(dir);
+    return true;
+}
+
+bool nob_go_run_nob_inside(Nob_Cmd* cmd, const char* dir) {
+    size_t temp = nob_temp_save();
+    const char* cur = nob_get_current_dir_temp();
+    assert(cur);
+    cur = nob_temp_realpath(cur);
+    if(!nob_set_current_dir(dir)) return false;
+    if(nob_file_exists("nob") != 1) {
+        Nob_Cmd tmp_cmd = { 0 };
+        nob_cmd_append(&tmp_cmd, NOB_REBUILD_URSELF("nob", "nob.c"));
+        if(!nob_cmd_run_sync_and_reset(&tmp_cmd)) {
+            nob_cmd_free(tmp_cmd);
+            nob_temp_rewind(temp);
+            return false;
+        }
+        nob_cmd_free(tmp_cmd);
+    }
+    nob_da_reserve(cmd, cmd->count + 1);
+    memmove(cmd->items + 1, cmd->items, cmd->count * sizeof(*cmd->items));
+    cmd->items[0] = "./nob";
+    cmd->count++;
+    bool res = nob_cmd_run_sync_and_reset(cmd);
+    assert(nob_set_current_dir(cur));
+    nob_temp_rewind(temp);
+    return res;
+}
+const char* nob_getenv_or_default(const char* name, const char* default_value) {
+    const char* v = getenv(name);
+    if(!v) v = default_value;
+    return v;
+}
+// [ADDIN END]
 // minirent.h SOURCE BEGIN ////////////////////////////////////////
 #ifdef _WIN32
 struct DIR
@@ -2065,6 +2151,21 @@ int closedir(DIR *dirp)
         #define sv_from_cstr nob_sv_from_cstr
         #define sv_from_parts nob_sv_from_parts
         #define sb_to_sv nob_sb_to_sv
+        // [ADDIN START]
+        #define mkdir_if_not_exists_silent nob_mkdir_if_not_exists_silent
+        #define strltrim nob_strltrim
+        #define remove_backslashes nob_remove_backslashes
+        #define dep_analyse_str nob_dep_analyse_str 
+        #define c_needs_rebuild1 nob_c_needs_rebuild1
+        #define c_needs_rebuild nob_c_needs_rebuild
+        #define temp_realpath nob_temp_realpath
+        #define copy_if_needed nob_copy_if_needed
+        #define Walk_Dir_Entry Nob_Walk_Dir_Entry
+        #define walk_directory_entries nob_walk_directory_entries
+        #define walk_directory nob_walk_directory
+        #define go_run_nob_inside nob_go_run_nob_inside
+        #define getenv_or_default nob_getenv_or_default
+        // [ADDIN END]
         #define win32_error_message nob_win32_error_message
     #endif // NOB_STRIP_PREFIX
 #endif // NOB_STRIP_PREFIX_GUARD_

@@ -1,103 +1,49 @@
 #define NOB_STRIP_PREFIX
 #define NOB_IMPLEMENTATION
 #include "nob.h"
-typedef struct {
-    File_Paths *dirs, *c_sources,
-               *nasm_sources, *gen_sources;
-} WalkDirOpt;
-
-
-static bool walk_directory_opt(
-    const char* path,
-    const WalkDirOpt* opt
-) {
-    DIR *dir = opendir(path);
-    if(!dir) {
-        nob_log(NOB_ERROR, "Could not open directory %s: %s", path, strerror(errno));
-        return false;
-    }
-    errno = 0;
-    struct dirent *ent;
-    while((ent = readdir(dir))) {
-        if(*ent->d_name == '.') continue;
-        size_t temp = nob_temp_save();
-        const char* p = nob_temp_sprintf("%s/%s", path, ent->d_name); 
-        String_View sv = sv_from_cstr(p);
-        Nob_File_Type type = nob_get_file_type(p);
-        if(type == NOB_FILE_DIRECTORY) {
-            da_append(opt->dirs, p);
-            if(!walk_directory_opt(p, opt)) {
-                closedir(dir);
-                return false;
-            }
-            continue;
-        }
-        if(opt->gen_sources && sv_end_with(sv, ".gen.c")) {
-            nob_da_append(opt->gen_sources, p);
-        } else if(opt->c_sources && sv_end_with(sv, ".c")) {
-            nob_da_append(opt->c_sources, p);
-        } else if(opt->nasm_sources && sv_end_with(sv, ".nasm")) {
-            nob_da_append(opt->nasm_sources, p);
-        } else {
-            nob_temp_rewind(temp);
-        }
-    }
-    closedir(dir);
-    return true;
-}
-
-#define walk_directory(path, ...) walk_directory_opt(path, &(WalkDirOpt){__VA_ARGS__})
+#include "compiler_common.h"
 
 #define cstr_rem_suffix(__src, suffix) (int)(strlen(__src) - strlen(suffix)), (__src)
-
-const char* inc_dirs[] = {
-    "shared/include", 
-    "src",
-    "vendor/limine",
-    "vendor/stb",
-};
-static void append_inc_dirs(Cmd* cmd) {
-    for(size_t i = 0; i < ARRAY_LEN(inc_dirs); ++i) {
-        cmd_append(cmd, "-I", inc_dirs[i]);
-    }
-}
 int main(int argc, char** argv) {
     NOB_GO_REBUILD_URSELF(argc, argv);
-    char* cc = getenv("CC");
-    if(!cc) cc = "cc";
-    char* ld = getenv("LD");
-    if(!ld) ld = "ld";
-    char* bindir = getenv("BINDIR");
-    if(!bindir) bindir = "bin";
-    if(!nob_mkdir_if_not_exists_silent(bindir)) return 1;
-    if(!nob_mkdir_if_not_exists_silent(nob_temp_sprintf("%s/kernel", bindir))) return 1;
-    if(!nob_mkdir_if_not_exists_silent(nob_temp_sprintf("%s/iso", bindir))) return 1;
-    if(!nob_mkdir_if_not_exists_silent(nob_temp_sprintf("%s/shared", bindir))) return 1;
+    const char* cc = getenv_or_default("CC", "cc");
+    const char* ld = getenv_or_default("LD", "ld");
+    const char* bindir = getenv_or_default("BINDIR", "bin");
+    if(!mkdir_if_not_exists_silent(bindir)) return 1;
+    if(!mkdir_if_not_exists_silent(temp_sprintf("%s/kernel", bindir))) return 1;
+    if(!mkdir_if_not_exists_silent(temp_sprintf("%s/iso", bindir))) return 1;
+    if(!mkdir_if_not_exists_silent(temp_sprintf("%s/shared", bindir))) return 1;
+
+    Cmd cmd = { 0 };
+    if(!go_run_nob_inside(&cmd, "klibc")) return 1;
     File_Paths dirs = { 0 };
     File_Paths c_sources = { 0 };
     File_Paths nasm_sources = { 0 };
     File_Paths gen_sources = { 0 }; 
 
     size_t src_dir = strlen("src/");
-    if(!walk_directory("src", .dirs = &dirs, .c_sources = &c_sources, .nasm_sources = &nasm_sources, .gen_sources = &gen_sources)) return 1;
+    if(!walk_directory("src",
+            { &dirs, .file_type = FILE_DIRECTORY },
+            { &gen_sources, .ext = ".gen.c" },
+            { &c_sources, .ext = ".c" },
+            { &nasm_sources, .ext = ".nasm" }
+        )) return 1;
     File_Paths objs = { 0 };
     String_Builder stb = { 0 };
     File_Paths pathb = { 0 };
     for(size_t i = 0; i < dirs.count; ++i) {
-        size_t temp = nob_temp_save();
-        const char* dir = nob_temp_sprintf("%s/kernel/%s", bindir, dirs.items[i] + src_dir);
-        if(!nob_mkdir_if_not_exists_silent(dir)) return 1;
-        nob_temp_rewind(temp);
+        size_t temp = temp_save();
+        const char* dir = temp_sprintf("%s/kernel/%s", bindir, dirs.items[i] + src_dir);
+        if(!mkdir_if_not_exists_silent(dir)) return 1;
+        temp_rewind(temp);
     }
-    Cmd cmd = { 0 };
     for(size_t i = 0; i < gen_sources.count; ++i) {
         const char* src = gen_sources.items[i];
         const char* out = temp_sprintf("%s/kernel/%.*s", bindir, cstr_rem_suffix(src + src_dir, ".c"));
         const char* gen_file = temp_sprintf("%.*s", cstr_rem_suffix(src, ".gen.c"));
-        bool needs_rebuild = nob_needs_rebuild1(gen_file, src);
-        if(nob_c_needs_rebuild1(&stb, &pathb, out, src)) {
-            cmd_append(&cmd, NOB_REBUILD_URSELF(out, src), "-O1", "-MMD");
-            append_inc_dirs(&cmd);
+        bool needs_rebuild = needs_rebuild1(gen_file, src);
+        if(c_needs_rebuild1(&stb, &pathb, out, src)) {
+            cmd_append(&cmd, NOB_REBUILD_URSELF(out, src), "-O1", "-MMD", KCC_INCLUDE_DIRS);
             if(!cmd_run_sync_and_reset(&cmd)) return 1;
             needs_rebuild = true;
         }
@@ -118,116 +64,45 @@ int main(int argc, char** argv) {
 
     for(size_t i = 0; i < nasm_sources.count; ++i) {
         const char* src = nasm_sources.items[i];
-        const char* out = nob_temp_sprintf("%s/kernel/%s.o", bindir, src + src_dir);
-        const char* md = nob_temp_sprintf("%s/kernel/%s.d", bindir, src + src_dir);
+        const char* out = temp_sprintf("%s/kernel/%s.o", bindir, src + src_dir);
+        const char* md = temp_sprintf("%s/kernel/%s.d", bindir, src + src_dir);
         da_append(&objs, out);
-        if(nob_c_needs_rebuild1(&stb, &pathb, out, src) == 0) continue;
-        const char* include = nob_temp_sprintf("%.*s", (int)(nob_path_name(src)-src), src);
+        if(c_needs_rebuild1(&stb, &pathb, out, src) == 0) continue;
+        const char* include = temp_sprintf("%.*s", (int)(path_name(src)-src), src);
         cmd_append(&cmd, "nasm");
         cmd_append(&cmd, "-I", include); 
         cmd_append(&cmd, "-f", "elf64");
         cmd_append(&cmd, "-MD", md);
         cmd_append(&cmd, src);
         cmd_append(&cmd, "-o", out);
-        if(!nob_cmd_run_sync_and_reset(&cmd)) return 1;
+        if(!cmd_run_sync_and_reset(&cmd)) return 1;
     }
     for(size_t i = 0; i < c_sources.count; ++i) {
         const char* src = c_sources.items[i];
-        const char* out = nob_temp_sprintf("%s/kernel/%s.o", bindir, src + src_dir);
+        const char* out = temp_sprintf("%s/kernel/%s.o", bindir, src + src_dir);
         da_append(&objs, out);
-        if(!nob_c_needs_rebuild1(&stb, &pathb, out, src)) continue;
-        cmd_append(&cmd, cc);
-        cmd_append(&cmd, 
-            "-g",
-            "-nostdlib",
-            "-march=x86-64",
-            "-ffreestanding",
-            "-static",
-            "-Werror", "-Wno-unused-function",
-            "-Wno-address-of-packed-member", 
-            "-Wall", 
-            "-fno-stack-protector", 
-            "-fcf-protection=none", 
-            "-O2",
-            "-MMD",
-            "-MP",
-            /*"-fomit-frame-pointer", "-fno-builtin", */
-            "-mgeneral-regs-only", 
-            "-mno-mmx",
-            "-mno-sse", "-mno-sse2",
-            "-mno-3dnow",
-            "-fPIC",
-        );
-        append_inc_dirs(&cmd);
+        if(!c_needs_rebuild1(&stb, &pathb, out, src)) continue;
+        kcc_common(&cmd);
         cmd_append(&cmd, "-c", src, "-o", out);
-        if(!nob_cmd_run_sync_and_reset(&cmd)) {
-            size_t temp = nob_temp_save();
-            char* str = nob_temp_strdup(out);
-            size_t str_len = strlen(str);
-            assert(str_len);
-            str[str_len-1] = 'd';
-            nob_delete_file(str);
-            nob_temp_rewind(temp);
-            return 1;
-        }
+        kcc_run_and_cleanup(&cmd);
     }
-    dirs.count = 0;
-    c_sources.count = 0;
-    nasm_sources.count = 0;
-    gen_sources.count = 0;
+    dirs.count = c_sources.count = nasm_sources.count = gen_sources.count = 0;
     src_dir = strlen("shared/src/");
-    if(!walk_directory("shared/src", .dirs = &dirs, .c_sources = &c_sources, .nasm_sources = &nasm_sources, .gen_sources = &gen_sources)) return 1;
-    assert(dirs.count == 0 && "Update shared");
-    assert(gen_sources.count == 0 && "Update shared");
-    assert(nasm_sources.count == 0 && "Update shared");
+    if(!walk_directory("shared/src", { &c_sources, .ext = ".c" })) return 1;
     for(size_t i = 0; i < c_sources.count; ++i) {
         const char* src = c_sources.items[i];
-        const char* out = nob_temp_sprintf("%s/shared/%.*s.o", bindir, cstr_rem_suffix(src + src_dir, ".c"));
+        const char* out = temp_sprintf("%s/shared/%.*s.o", bindir, cstr_rem_suffix(src + src_dir, ".c"));
         da_append(&objs, out);
-        if(!nob_c_needs_rebuild1(&stb, &pathb, out, src)) continue;
-        cmd_append(&cmd, cc);
-        cmd_append(&cmd, 
-            "-g",
-            "-nostdlib",
-            "-march=x86-64",
-            "-ffreestanding",
-            "-static",
-            "-Werror", "-Wno-unused-function",
-            "-Wno-address-of-packed-member", 
-            "-Wall", 
-            "-fno-stack-protector", 
-            "-fcf-protection=none", 
-            "-O2",
-            "-MMD",
-            "-MP",
-            /*"-fomit-frame-pointer", "-fno-builtin", */
-            "-mgeneral-regs-only", 
-            "-mno-mmx",
-            "-mno-sse", "-mno-sse2",
-            "-mno-3dnow",
-            "-fPIC",
-            "-I", "shared/include",
-            "-Isrc",
-        );
-        cmd_append(&cmd, "-I", "vendor/limine");
-        cmd_append(&cmd, "-I", "vendor/stb");
+        if(!c_needs_rebuild1(&stb, &pathb, out, src)) continue;
+        kcc_common(&cmd);
         cmd_append(&cmd, "-c", src, "-o", out);
-        if(!nob_cmd_run_sync_and_reset(&cmd)) {
-            size_t temp = nob_temp_save();
-            char* str = nob_temp_strdup(out);
-            size_t str_len = strlen(str);
-            assert(str_len);
-            str[str_len-1] = 'd';
-            nob_delete_file(str);
-            nob_temp_rewind(temp);
-            return 1;
-        }
+        kcc_run_and_cleanup(&cmd);
     }
-    const char* kernel = nob_temp_sprintf("%s/iso/kernel", bindir);
-    if(nob_needs_rebuild(kernel, objs.items, objs.count)) {
-        cmd_append(&cmd, ld, "-g", "-T", "linker.ld", "-o", kernel);
+    const char* kernel = temp_sprintf("%s/iso/kernel", bindir);
+    if(needs_rebuild(kernel, objs.items, objs.count)) {
+        cmd_append(&cmd, ld, "-g", "-L", bindir, "-lklibc", "-T", "linker.ld", "-o", kernel);
         da_append_many(&cmd, objs.items, objs.count);
-        if(!nob_cmd_run_sync_and_reset(&cmd)) return 1;
+        if(!cmd_run_sync_and_reset(&cmd)) return 1;
     }
     const char* iso_files[] = {
         "vendor/limine/limine-bios.sys", 
@@ -236,9 +111,9 @@ int main(int argc, char** argv) {
         "limine.cfg"
     };
     for(size_t i = 0; i < ARRAY_LEN(iso_files); ++i) {
-        size_t temp = nob_temp_save();
-        const char* out = nob_temp_sprintf("%s/iso/%s", bindir, path_name(iso_files[i]));
-        if(nob_needs_rebuild1(out, iso_files[i]) && !nob_copy_file(iso_files[i], out)) return 1;
-        nob_temp_rewind(temp);
+        size_t temp = temp_save();
+        const char* out = temp_sprintf("%s/iso/%s", bindir, path_name(iso_files[i]));
+        if(!copy_if_needed(iso_files[i], out)) return 1;
+        temp_rewind(temp);
     }
 }
