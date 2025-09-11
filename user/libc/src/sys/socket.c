@@ -18,10 +18,10 @@ int bind(int fd, struct sockaddr* addr, size_t addrlen) {
     syscall(syscall3, SYS_BIND, fd, addr, addrlen);
 }
 int send(int fd, const void* buf, size_t n, int flags) {
-    syscall(syscall3, SYS_SEND, fd, buf, n);
+    syscall(syscall3, SYS_WRITE, fd, buf, n);
 }
 int recv(int fd, void *buf, size_t n, int flags) {
-    syscall(syscall3, SYS_RECV, fd, buf, n);
+    syscall(syscall3, SYS_READ, fd, buf, n);
 }
 int listen(int fd, int n) {
     syscall(syscall2, SYS_LISTEN, fd, n);
