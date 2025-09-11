@@ -7,7 +7,6 @@
 int main(int argc, char** argv) {
     NOB_GO_REBUILD_URSELF(argc, argv);
     const char* cc = getenv_or_default("CC", "cc");
-    const char* ld = getenv_or_default("LD", "ld");
     const char* ar = getenv_or_default("AR", "ar");
     const char* bindir = getenv_or_default("BINDIR", "bin");
     if(!mkdir_if_not_exists_silent(bindir)) return 1;
