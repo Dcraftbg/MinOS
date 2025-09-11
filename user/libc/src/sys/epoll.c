@@ -2,21 +2,19 @@
 #include <minos/sysstd.h>
 #include <minos2errno.h>
 #include <errno.h>
+
+#include <minos/syscodes.h>
+#include <minos/syscall.h>
+#define syscall(sys, ...) \
+    intptr_t e = sys(__VA_ARGS__); \
+    return e < 0 ? (errno = _minos2errno(e), -1) : e
+
 int epoll_ctl(int epfd, int op, int fd, struct epoll_event *event) {
-    intptr_t e = _epoll_ctl(epfd, op, fd, event);
-    if(e < 0) return -(errno = _minos2errno(e));
-    return e;
+    syscall(syscall4, SYS_EPOLL_CTL, epfd, op, fd, event);
 }
 int epoll_create1(int flags) {
-    intptr_t e = _epoll_create1(flags);
-    if(e < 0) return -(errno = _minos2errno(e));
-    return e;
+    syscall(syscall1, SYS_EPOLL_CREATE1, flags);
 }
 int epoll_wait(int epfd, struct epoll_event *events, int maxevents, int timeout) {
-    intptr_t e = _epoll_wait(epfd, events, maxevents, timeout);
-    if(e < 0) {
-        errno = _minos2errno(e);
-        return -1;
-    }
-    return e;
+    syscall(syscall4, SYS_EPOLL_WAIT, epfd, events, maxevents, timeout);
 }

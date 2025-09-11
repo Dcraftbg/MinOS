@@ -1,41 +1,31 @@
 #include <sys/socket.h>
-#include <minos/sysstd.h>
 #include <minos2errno.h>
 #include "errno.h"
+
+#include <minos/syscodes.h>
+#include <minos/syscall.h>
+#define syscall(sys, ...) \
+    intptr_t e = sys(__VA_ARGS__); \
+    return e < 0 ? (errno = _minos2errno(e), -1) : e
+
 int socket(int domain, int type, int protocol) {
-    intptr_t e = _socket(domain, type, protocol);
-    if(e < 0) return (errno = _minos2errno(e), -1);
-    return e;
+    syscall(syscall3, SYS_SOCKET, domain, type, protocol);
 }
 int connect(int fd, const struct sockaddr* addr, size_t addrlen) {
-    intptr_t e = _connect(fd, addr, addrlen);
-    if(e < 0) return (errno = _minos2errno(e), -1);
-    return e;
+    syscall(syscall3, SYS_CONNECT, fd, addr, addrlen);
 }
 int bind(int fd, struct sockaddr* addr, size_t addrlen) {
-    intptr_t e = _bind(fd, addr, addrlen);
-    if(e < 0) return (errno = _minos2errno(e), -1);
-    return e;
+    syscall(syscall3, SYS_BIND, fd, addr, addrlen);
 }
 int send(int fd, const void* buf, size_t n, int flags) {
-    (void)flags;
-    intptr_t e = _send(fd, buf, n);
-    if(e < 0) return (errno = _minos2errno(e), -1);
-    return e;
+    syscall(syscall3, SYS_SEND, fd, buf, n);
 }
 int recv(int fd, void *buf, size_t n, int flags) {
-    (void)flags;
-    intptr_t e = _recv(fd, buf, n);
-    if(e < 0) return (errno = _minos2errno(e), -1);
-    return e;
+    syscall(syscall3, SYS_RECV, fd, buf, n);
 }
 int listen(int fd, int n) {
-    intptr_t e = _listen(fd, n);
-    if(e < 0) return (errno = _minos2errno(e), -1);
-    return e;
+    syscall(syscall2, SYS_LISTEN, fd, n);
 }
 int accept(int fd, struct sockaddr* addr, size_t* addrlen) {
-    intptr_t e = _accept(fd, addr, addrlen);
-    if(e < 0) return (errno = _minos2errno(e), -1);
-    return e;
+    syscall(syscall3, SYS_ACCEPT, fd, addr, addrlen);
 }
