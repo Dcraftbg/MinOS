@@ -73,7 +73,7 @@ intptr_t sys_write(uintptr_t handle, const void* buf, size_t size) {
     Resource* res = resource_find_by_id(current->resources, handle);
     if(!res) return -INVALID_HANDLE;
     if(!(res->flags & O_WRONLY)) return -PERMISION_DENIED;
-    if(!(res->flags & O_NONBLOCK)) block_is_writeable(current_task(), res->inode);
+    if(!(res->flags & O_NONBLOCK) && !inode_is_writeable(res->inode)) block_is_writeable(current_task(), res->inode);
     intptr_t e;
     if((e=inode_write(res->inode, buf, size, res->offset)) < 0) return e;
     res->offset += e;
