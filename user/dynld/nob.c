@@ -1,6 +1,6 @@
 #define NOB_STRIP_PREFIX
 #define NOB_IMPLEMENTATION
-#include "../../nob.h"
+#include "../nob.h"
 static bool walk_directory(
     File_Paths* dirs,
     File_Paths* c_sources,
