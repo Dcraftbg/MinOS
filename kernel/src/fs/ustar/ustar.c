@@ -64,14 +64,16 @@ intptr_t ustar_unpack(const char* into, const char* ustar_data, size_t ustar_siz
 
         ktrace("ustar: %s of type %c size %zu", path, type, size);
         if(type == '5') {
-            Inode* dir;
+            Inode* dir=NULL;
             if((e = vfs_creat_abs(path, O_DIRECTORY, &dir)) < 0) {
                 if(e != -ALREADY_EXISTS) {
                     kerror("ERROR: ustar: Could not mkdir %s : %s", path, status_str(e));
                     goto err; 
                 }
             }
-            idrop(dir);
+            if(dir){
+                idrop(dir);
+            }
         } else {
             Inode* file;
             if((e = vfs_creat_abs(path, 0, &file)) < 0) {
@@ -83,7 +85,9 @@ intptr_t ustar_unpack(const char* into, const char* ustar_data, size_t ustar_siz
                 idrop(file);
                 goto err;
             }
-            idrop(file);
+            if(file){
+                idrop(file);
+            }
         }
         ustar_data += (((size+511)/512) + 1)*512;
     }
